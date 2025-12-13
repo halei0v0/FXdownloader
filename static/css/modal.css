@@ -1,0 +1,344 @@
+/* ===================== Apple Flow 弹窗系统 ===================== */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal[style*="display: flex"] {
+    opacity: 1;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    width: 90%;
+    max-width: 560px;
+    border-radius: 20px;
+    box-shadow: 0 28px 60px rgba(2,6,23,0.35);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow: hidden;
+    transform: scale(0.95);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation: modalIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.modal.show {
+    display: flex;
+    opacity: 1;
+}
+
+@keyframes modalIn {
+    from { transform: scale(0.95) translateY(10px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* ===================== 书籍信息卡片 ===================== */
+
+.book-info {
+    display: flex;
+    gap: 20px;
+    padding: 16px;
+    background: var(--bg-body);
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+
+.book-cover {
+    width: 70px;
+    height: 98px;
+    object-fit: cover;
+    border-radius: 6px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.book-details {
+    flex: 1;
+}
+
+.book-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+.book-author {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+}
+
+.book-abstract {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.book-chapters {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--primary);
+    margin-top: 8px;
+}
+
+/* ===================== 章节选择 ===================== */
+
+.chapter-selection h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.chapter-range {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-input);
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.chapter-range label {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chapter-range input[type="radio"] {
+    display: none;
+}
+
+.chapter-range label:has(input:checked) {
+    background: #fff;
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    font-weight: 500;
+}
+
+/* Dark mode adjustment */
+@media (prefers-color-scheme: dark) {
+    .chapter-range label:has(input:checked) {
+        background: #3a3a3c;
+    }
+}
+
+.chapter-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-row label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.chapter-select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-body);
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.chapter-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+}
+
+/* 手动选择模式 */
+.chapter-manual-container {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.chapter-actions {
+    padding: 8px 12px;
+    background: var(--bg-input);
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+}
+
+.chapter-list {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 8px;
+    background: var(--bg-body);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.chapter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.chapter-item:hover {
+    background: var(--bg-input);
+}
+
+.chapter-item input[type="checkbox"] {
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+}
+
+.chapter-item span {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ===================== 更新弹窗 ===================== */
+
+.update-info p {
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.update-description {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg-input);
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.version-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.version-option {
+    display: flex;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.version-option:hover {
+    background: var(--bg-input);
+    border-color: var(--primary);
+}
+
+.version-option.recommended {
+    border-color: var(--primary);
+    background: rgba(0, 122, 255, 0.05);
+}
+
+.version-option input {
+    margin-top: 2px;
+    accent-color: var(--primary);
+}
