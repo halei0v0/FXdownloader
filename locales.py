@@ -47,6 +47,8 @@ MESSAGES = {
         "config_success": "成功加载配置，API 地址: {}",
         "config_fail": "获取远程配置失败: {}",
         "config_server_error": "警告: 无法连接配置服务器，程序可能无法正常工作",
+        "config_invalid_format": "警告: 远程配置格式无效",
+        "config_json_error": "警告: 远程配置 JSON 解析失败: {}",
         
         # main.py
         "main_app_closed": "应用已关闭",
@@ -70,12 +72,12 @@ MESSAGES = {
         "main_flask_fail": "Flask 应用启动失败: {}",
         
         # web_app.py
-        "web_update_check": "正在检查更新...",
         "web_update_status_dl": "正在下载: {}%",
         "web_update_status_connect": "正在连接服务器...",
         "web_update_status_start": "开始下载...",
+        "web_update_status_merging": "正在合并文件...",
+        "web_update_connect_fail": "无法连接到下载服务器，请检查网络或代理设置",
         "web_update_complete": "下载完成，点击\"应用更新\"安装",
-        "web_update_cancelled": "下载被取消",
         "web_update_fail": "下载失败: {}",
         "web_search_keyword_empty": "请输入搜索关键词",
         "web_api_not_init": "API未初始化",
@@ -85,20 +87,7 @@ MESSAGES = {
         "web_id_not_digit": "书籍ID应为纯数字",
         "web_book_info_fail": "获取书籍信息失败",
         "web_chapter_list_fail": "无法获取章节列表",
-        "web_get_info_fail": "获取信息失败: {}",
         "web_download_exists": "已有下载任务在进行",
-        "web_save_path_error": "保存路径错误: {}",
-        "web_task_added": "任务已加入队列",
-        "web_task_started": "下载任务已开始",
-        "web_auto_update_unsupported": "当前环境不支持自动更新，请手动替换程序文件",
-        "web_update_not_ready": "更新文件尚未下载完成",
-        "web_update_info_incomplete": "更新文件信息不完整",
-        "web_update_file_missing": "更新文件不存在: {}",
-        "web_update_start_success": "更新程序已启动，应用即将关闭并自动更新...",
-        "web_update_start_fail": "启动更新程序失败",
-        "web_apply_update_fail": "应用更新失败: {}",
-        "web_path_not_exist": "路径不存在",
-        "web_server_started": "系统已启动，等待操作...",
         
         # novel_downloader.py
         "dl_search_error": "搜索异常: {}",
@@ -146,8 +135,8 @@ MESSAGES = {
         "up_desc_linux_release": "发布版",
         
         # watermark.py
-        "wm_watermark_full": "当前小说使用https://github.com/halei0v0/FXdownloader下载，若您为此付费，请立即举报并退款！",
-        "wm_watermark_simple": "当前小说使用https://github.com/halei0v0/FXownloader下载",
+        "wm_watermark_full": "当前小说使用https://github.com/POf-L/Fanqie-novel-Downloader免费下载器下载，购买的请立即差评并申请退款和举报！",
+        "wm_watermark_simple": "当前小说使用https://github.com/POf-L/Fanqie-novel-Downloader下载",
 
         # web_app.py (New)
         "web_init": "初始化...",
@@ -161,14 +150,11 @@ MESSAGES = {
         "web_worker_error": "错误: {}",
         "web_module_loaded": "模块加载完成",
         "web_module_fail_msg": "模块加载失败",
-        "web_batch_running": "已有批量下载任务在进行",
-        "web_provide_ids": "请提供书籍ID列表",
-        "web_no_valid_ids": "没有有效的书籍ID",
-        "web_batch_start_count": "开始批量下载 {} 本书籍",
-        "web_batch_cancelled_msg": "批量下载已取消",
-        "web_folder_unselected": "未选择文件夹",
-        "web_folder_select_fail": "文件夹选择失败: {}",
-        "web_check_update_fail": "检查更新失败: {}",
+        "web_queue_submitted": "已提交 {} 本书到下载队列",
+        "web_queue_next": "本书完成（{}/{}），准备下一本...",
+        "web_queue_next_fail": "本书失败（{}/{}），继续下一本...",
+        "web_queue_complete": "队列下载完成，共 {} 本，已保存至 {}",
+        "web_queue_complete_fail": "队列结束（可能有失败），共 {} 本，保存至 {}",
 
         # novel_downloader.py (New)
         "dl_full_content_error": "获取整书内容异常: {}",
@@ -223,6 +209,8 @@ MESSAGES = {
         "config_success": "Config loaded, API base URL: {}",
         "config_fail": "Failed to fetch remote config: {}",
         "config_server_error": "Warning: Cannot connect to config server, app may not work properly",
+        "config_invalid_format": "Warning: Remote config format is invalid",
+        "config_json_error": "Warning: Failed to parse remote config JSON: {}",
         
         # main.py
         "main_app_closed": "Application closed",
@@ -246,12 +234,12 @@ MESSAGES = {
         "main_flask_fail": "Flask app failed to start: {}",
         
         # web_app.py
-        "web_update_check": "Checking for updates...",
         "web_update_status_dl": "Downloading: {}%",
         "web_update_status_connect": "Connecting to server...",
         "web_update_status_start": "Starting download...",
+        "web_update_status_merging": "Merging files...",
+        "web_update_connect_fail": "Cannot connect to download server, please check network or proxy settings",
         "web_update_complete": "Download complete, click 'Apply Update'",
-        "web_update_cancelled": "Download cancelled",
         "web_update_fail": "Download failed: {}",
         "web_search_keyword_empty": "Please enter search keyword",
         "web_api_not_init": "API not initialized",
@@ -261,20 +249,7 @@ MESSAGES = {
         "web_id_not_digit": "Book ID must be digits",
         "web_book_info_fail": "Failed to get book info",
         "web_chapter_list_fail": "Failed to get chapter list",
-        "web_get_info_fail": "Failed to get info: {}",
         "web_download_exists": "A download task is already running",
-        "web_save_path_error": "Invalid save path: {}",
-        "web_task_added": "Task added to queue",
-        "web_task_started": "Download task started",
-        "web_auto_update_unsupported": "Auto-update not supported in this environment",
-        "web_update_not_ready": "Update file not fully downloaded",
-        "web_update_info_incomplete": "Update info incomplete",
-        "web_update_file_missing": "Update file missing: {}",
-        "web_update_start_success": "Update started, app will close...",
-        "web_update_start_fail": "Failed to start updater",
-        "web_apply_update_fail": "Apply update failed: {}",
-        "web_path_not_exist": "Path does not exist",
-        "web_server_started": "System initialized, waiting for input...",
         
         # novel_downloader.py
         "dl_search_error": "Search error: {}",
@@ -337,14 +312,11 @@ MESSAGES = {
         "web_worker_error": "Error: {}",
         "web_module_loaded": "Modules loaded",
         "web_module_fail_msg": "Module load failed",
-        "web_batch_running": "Batch download is already running",
-        "web_provide_ids": "Please provide book IDs",
-        "web_no_valid_ids": "No valid book IDs",
-        "web_batch_start_count": "Starting batch download for {} books",
-        "web_batch_cancelled_msg": "Batch download cancelled",
-        "web_folder_unselected": "No folder selected",
-        "web_folder_select_fail": "Folder selection failed: {}",
-        "web_check_update_fail": "Update check failed: {}",
+        "web_queue_submitted": "Submitted {} books to download queue",
+        "web_queue_next": "Completed ({}/{}), preparing next...",
+        "web_queue_next_fail": "Failed ({}/{}), continuing...",
+        "web_queue_complete": "Queue complete: {} books, saved to {}",
+        "web_queue_complete_fail": "Queue finished (some may fail): {} books, saved to {}",
 
         # novel_downloader.py (New)
         "dl_full_content_error": "Get full content error: {}",

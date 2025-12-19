@@ -120,7 +120,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+# .env # Removed by Orchids to allow .env files
 .venv
 env/
 venv/
@@ -175,3 +175,15 @@ Desktop.ini
 
 # Linux
 *~
+
+
+# Kiro IDE
+.kiro/
+
+# Test artifacts
+.hypothesis/
+.pytest_cache/
+
+# Local development
+*.local
+*.local.*

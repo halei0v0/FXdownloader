@@ -36,7 +36,12 @@ class APIManager:
     """
     
     def __init__(self):
-        self.base_url = CONFIG["api_base_url"]
+        # 从 api_sources 获取第一个可用的 base_url（api_base_url 已废弃）
+        api_sources = CONFIG.get("api_sources", [])
+        if api_sources and isinstance(api_sources, list) and len(api_sources) > 0:
+            self.base_url = api_sources[0].get("base_url", "")
+        else:
+            self.base_url = CONFIG.get("api_base_url", "")
         self.endpoints = CONFIG["endpoints"]
         self._tls = threading.local()
         self._async_session: Optional[aiohttp.ClientSession] = None
@@ -113,7 +118,7 @@ class APIManager:
             return None
     
     def get_book_detail(self, book_id: str) -> Optional[Dict]:
-        """获取书籍详情"""
+        """获取书籍详情，返回 dict 或 None，如果书籍下架会返回 {'_error': 'BOOK_REMOVE'}"""
         try:
             url = f"{self.base_url}{self.endpoints['detail']}"
             params = {"book_id": book_id}
@@ -123,13 +128,44 @@ class APIManager:
                 data = response.json()
                 if data.get("code") == 200 and "data" in data:
                     level1_data = data["data"]
-                    if isinstance(level1_data, dict) and "data" in level1_data:
-                        return level1_data["data"]
+                    # 检查是否有错误信息（如书籍下架）
+                    if isinstance(level1_data, dict):
+                        inner_msg = level1_data.get("message", "")
+                        inner_code = level1_data.get("code")
+                        if inner_msg == "BOOK_REMOVE" or inner_code == 101109:
+                            return {"_error": "BOOK_REMOVE", "_message": "书籍已下架"}
+                        if "data" in level1_data:
+                            inner_data = level1_data["data"]
+                            # 如果内层 data 是空的，也可能是下架
+                            if isinstance(inner_data, dict) and not inner_data and inner_msg:
+                                return {"_error": inner_msg, "_message": inner_msg}
+                            return inner_data
                     return level1_data
             return None
         except Exception as e:
             with print_lock:
                 print(t("dl_detail_error", str(e)))
+            return None
+    
+    def get_directory(self, book_id: str) -> Optional[List[Dict]]:
+        """获取简化目录（更快，标题与整本下载内容一致）"""
+        try:
+            endpoint = self.endpoints.get('directory')
+            if not endpoint:
+                return None
+            
+            url = f"{self.base_url}{endpoint}"
+            params = {"book_id": book_id}
+            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=CONFIG["request_timeout"])
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("code") == 200 and "data" in data:
+                    lists = data["data"].get("lists", [])
+                    if lists:
+                        return lists
+            return None
+        except Exception:
             return None
     
     def get_chapter_list(self, book_id: str) -> Optional[List[Dict]]:
@@ -218,59 +254,195 @@ class APIManager:
     def get_full_content(self, book_id: str) -> Optional[str]:
         """获取整本小说内容(纯文本)"""
         try:
-            url = f"{self.base_url}{self.endpoints['content']}"
-            # 使用 tab='下载' 获取整书内容
-            params = {"book_id": book_id, "tab": "下载"}
-            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=60, stream=True)
+            # 使用 /api/content?tab=下载 端点进行整书下载
+            # 注意: /api/raw_full 需要 item_id（章节ID），不适用于整书下载
+            endpoint = self.endpoints.get('content')
+            if not endpoint:
+                return None
+                
+            url = f"{self.base_url}{endpoint}"
+            params = {"tab": "下载", "book_id": book_id}
             
-            if response.status_code == 200:
-                # 手动解码，防止编码问题
-                response.encoding = 'utf-8'
-                return response.text
-            return None
+            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=60, stream=True)
+            if response.status_code != 200:
+                return None
+            
+            raw_content = response.content
+            content_type = (response.headers.get('content-type') or '').lower()
+            
+            def _extract_text(payload):
+                if isinstance(payload, str):
+                    return payload
+                if isinstance(payload, dict):
+                    # 先看嵌套 data，再看常见文本字段
+                    nested = payload.get('data')
+                    if isinstance(nested, str):
+                        return nested
+                    if isinstance(nested, dict):
+                        for key in ("content", "text", "raw", "raw_text", "full_text"):
+                            val = nested.get(key)
+                            if isinstance(val, str):
+                                return val
+                    for key in ("content", "text", "raw", "raw_text", "full_text"):
+                        val = payload.get(key)
+                        if isinstance(val, str):
+                            return val
+                return None
+            
+            # 优先解析 JSON 返回（新接口可能返回 {code,data:{content:...}}）
+            is_json_like = 'application/json' in content_type or raw_content[:1] in (b'{', b'[')
+            if is_json_like:
+                try:
+                    data = json.loads(raw_content.decode('utf-8', errors='ignore'))
+                except Exception:
+                    data = None
+                text_from_json = _extract_text(data) if data is not None else None
+                if text_from_json:
+                    return text_from_json
+            
+            # 回退到纯文本解码
+            if not response.encoding:
+                response.encoding = response.apparent_encoding or 'utf-8'
+            return raw_content.decode(response.encoding or 'utf-8', errors='replace')
         except Exception as e:
             with print_lock:
                 print(t("dl_full_content_error", str(e)))
             return None
 
+def _normalize_title(title: str) -> str:
+    """标准化章节标题，用于模糊匹配"""
+    # 移除空格
+    s = re.sub(r'\s+', '', title)
+    # 统一标点：中文逗号、顿号、点号统一
+    s = re.sub(r'[,，、．.·]', '', s)
+    # 阿拉伯数字转中文数字的映射（用于比较）
+    return s.lower()
+
+
+def _extract_title_core(title: str) -> str:
+    """提取标题核心部分（去掉章节号前缀）"""
+    # 移除 "第x章"、"数字、"、"数字." 等前缀
+    s = re.sub(r'^(第[0-9一二三四五六七八九十百千]+章[、,，\s]*)', '', title)
+    s = re.sub(r'^(\d+[、,，.\s]+)', '', s)
+    return s.strip()
+
+
+def parse_novel_text_with_catalog(text: str, catalog: List[Dict]) -> List[Dict]:
+    """使用目录接口的章节标题来分割整本小说内容
+    
+    Args:
+        text: 整本小说的纯文本内容
+        catalog: 目录接口返回的章节列表 [{'title': '...', 'id': '...', 'index': ...}, ...]
+    
+    Returns:
+        带内容的章节列表 [{'title': '...', 'id': '...', 'index': ..., 'content': '...'}, ...]
+    """
+    if not catalog:
+        return []
+    
+    def escape_for_regex(s: str) -> str:
+        return re.escape(s)
+    
+    def find_title_in_text(title: str, search_text: str, start_offset: int = 0) -> Optional[tuple]:
+        """在文本中查找标题，返回 (match_start, match_end) 或 None"""
+        # 1. 精确匹配
+        pattern = re.compile(r'^[ \t]*' + escape_for_regex(title) + r'[ \t]*$', re.MULTILINE)
+        match = pattern.search(search_text)
+        if match:
+            return (start_offset + match.start(), start_offset + match.end())
+        
+        # 2. 模糊匹配：提取标题核心部分
+        title_core = _extract_title_core(title)
+        if title_core and len(title_core) >= 2:
+            # 匹配包含核心标题的行
+            pattern = re.compile(r'^[^\n]*' + escape_for_regex(title_core) + r'[^\n]*$', re.MULTILINE)
+            match = pattern.search(search_text)
+            if match:
+                return (start_offset + match.start(), start_offset + match.end())
+        
+        return None
+    
+    # 查找每个章节标题在文本中的位置
+    chapter_positions = []
+    for ch in catalog:
+        title = ch['title']
+        result = find_title_in_text(title, text)
+        if result:
+            chapter_positions.append({
+                'title': title,
+                'id': ch.get('id', ''),
+                'index': ch['index'],
+                'line_start': result[0],  # 标题行开始位置
+                'start': result[1]        # 内容开始位置（标题行之后）
+            })
+    
+    if not chapter_positions:
+        return []
+    
+    # 按位置排序
+    chapter_positions.sort(key=lambda x: x['line_start'])
+    
+    # 提取每章内容
+    chapters = []
+    for i, pos in enumerate(chapter_positions):
+        if i + 1 < len(chapter_positions):
+            end = chapter_positions[i + 1]['line_start']
+        else:
+            end = len(text)
+        
+        content = text[pos['start']:end].strip()
+        chapters.append({
+            'title': pos['title'],
+            'id': pos['id'],
+            'index': pos['index'],
+            'content': content
+        })
+    
+    # 按原始目录顺序重新排序
+    chapters.sort(key=lambda x: x['index'])
+    
+    return chapters
+
+
 def parse_novel_text(text: str) -> List[Dict]:
-    """解析整本小说文本，分离章节"""
+    """解析整本小说文本，分离章节（无目录时的降级方案）"""
     lines = text.splitlines()
     chapters = []
     
     current_chapter = None
     current_content = []
     
-    # 匹配章节标题 (支持 "第xxx章" 或 "数字. ")
-    chapter_pattern = re.compile(r'^\s*(第[0-9一二三四五六七八九十百千]+章|[0-9]+\.)\s*.*')
+    # 匹配常见章节格式
+    chapter_pattern = re.compile(
+        r'^\s*('
+        r'第[0-9一二三四五六七八九十百千]+章'  # 第x章
+        r'|[0-9]+[\.、,，]\s*\S'                # 1、标题 1.标题
+        r')\s*.*',
+        re.UNICODE
+    )
     
     for line in lines:
         match = chapter_pattern.match(line)
         if match:
-            # 保存上一章
             if current_chapter:
                 current_chapter['content'] = '\n'.join(current_content)
                 chapters.append(current_chapter)
             
-            # 开始新章
             title = line.strip()
             current_chapter = {
                 'title': title,
-                'id': str(len(chapters)), # 生成虚拟ID
+                'id': str(len(chapters)),
                 'index': len(chapters)
             }
             current_content = []
         else:
-            # 如果已经在章节中，添加到内容
             if current_chapter:
                 current_content.append(line)
-            # 否则忽略(头部元数据)
     
-    # 保存最后一章
     if current_chapter:
         current_chapter['content'] = '\n'.join(current_content)
         chapters.append(current_chapter)
-        
+    
     return chapters
 
 
@@ -643,19 +815,69 @@ def Run(book_id, save_path, file_format='txt', start_chapter=None, end_chapter=N
         chapter_results = {}
         use_full_download = False
         
+        # 先获取章节目录（优先使用 directory 接口，更快且标题与整本下载一致）
+        log_message("正在获取章节列表...", 15)
+        chapters = []
+        
+        # 优先尝试 directory 接口
+        directory_data = api.get_directory(book_id)
+        if directory_data:
+            for idx, ch in enumerate(directory_data):
+                item_id = ch.get("item_id")
+                title = ch.get("title", f"第{idx+1}章")
+                if item_id:
+                    chapters.append({"id": str(item_id), "title": title, "index": idx})
+        
+        # 降级到 book 接口
+        if not chapters:
+            chapters_data = api.get_chapter_list(book_id)
+            if chapters_data:
+                if isinstance(chapters_data, dict):
+                    all_item_ids = chapters_data.get("allItemIds", [])
+                    chapter_list = chapters_data.get("chapterListWithVolume", [])
+                    
+                    if chapter_list:
+                        idx = 0
+                        for volume in chapter_list:
+                            if isinstance(volume, list):
+                                for ch in volume:
+                                    if isinstance(ch, dict):
+                                        item_id = ch.get("itemId") or ch.get("item_id")
+                                        title = ch.get("title", f"第{idx+1}章")
+                                        if item_id:
+                                            chapters.append({"id": str(item_id), "title": title, "index": idx})
+                                            idx += 1
+                    else:
+                        for idx, item_id in enumerate(all_item_ids):
+                            chapters.append({"id": str(item_id), "title": f"第{idx+1}章", "index": idx})
+                elif isinstance(chapters_data, list):
+                    for idx, ch in enumerate(chapters_data):
+                        item_id = ch.get("item_id") or ch.get("chapter_id")
+                        title = ch.get("title", f"第{idx+1}章")
+                        if item_id:
+                            chapters.append({"id": str(item_id), "title": title, "index": idx})
+        
+        if not chapters:
+            log_message(t("dl_fetch_list_fail"))
+            return False
+        
+        total_chapters = len(chapters)
+        log_message(t("dl_found_chapters", total_chapters), 20)
+        
         # 尝试极速下载模式 (仅当没有指定范围且没有选择特定章节时)
         if start_chapter is None and end_chapter is None and not selected_chapters:
-            log_message(t("dl_try_speed_mode"), 15)
+            log_message(t("dl_try_speed_mode"), 25)
             full_text = api.get_full_content(book_id)
             if full_text:
                 log_message(t("dl_speed_mode_success"), 30)
-                chapters_parsed = parse_novel_text(full_text)
+                # 使用目录标题来分割内容
+                chapters_parsed = parse_novel_text_with_catalog(full_text, chapters)
                 
-                if chapters_parsed:
+                if chapters_parsed and len(chapters_parsed) >= len(chapters) * 0.8:
+                    # 成功解析出至少80%的章节
                     log_message(t("dl_speed_mode_parsed", len(chapters_parsed)), 50)
-                    # 处理章节内容
                     with tqdm(total=len(chapters_parsed), desc=t("dl_processing_chapters"), disable=gui_callback is not None) as pbar:
-                        for i, ch in enumerate(chapters_parsed):
+                        for ch in chapters_parsed:
                             processed = process_chapter_content(ch['content'])
                             chapter_results[ch['index']] = {
                                 'title': ch['title'],
@@ -666,43 +888,13 @@ def Run(book_id, save_path, file_format='txt', start_chapter=None, end_chapter=N
                     use_full_download = True
                     log_message(t("dl_process_complete"), 80)
                 else:
-                    log_message(t("dl_speed_mode_fail_parse"))
+                    parsed_count = len(chapters_parsed) if chapters_parsed else 0
+                    log_message(f"急速模式解析不完整 ({parsed_count}/{total_chapters})，切换到普通模式")
             else:
                 log_message(t("dl_speed_mode_fail"))
 
         # 如果没有使用极速模式，则走普通模式
         if not use_full_download:
-            log_message("正在获取章节列表...", 15)
-            chapters_data = api.get_chapter_list(book_id)
-            if not chapters_data:
-                log_message(t("dl_fetch_list_fail"))
-                return False
-            
-            chapters = []
-            if isinstance(chapters_data, dict):
-                all_item_ids = chapters_data.get("allItemIds", [])
-                chapter_list = chapters_data.get("chapterListWithVolume", [])
-                
-                if chapter_list:
-                    idx = 0
-                    for volume in chapter_list:
-                        if isinstance(volume, list):
-                            for ch in volume:
-                                if isinstance(ch, dict):
-                                    item_id = ch.get("itemId") or ch.get("item_id")
-                                    title = ch.get("title", f"第{idx+1}章")
-                                    if item_id:
-                                        chapters.append({"id": str(item_id), "title": title, "index": idx})
-                                        idx += 1
-                else:
-                    for idx, item_id in enumerate(all_item_ids):
-                        chapters.append({"id": str(item_id), "title": f"第{idx+1}章", "index": idx})
-            elif isinstance(chapters_data, list):
-                for idx, ch in enumerate(chapters_data):
-                    item_id = ch.get("item_id") or ch.get("chapter_id")
-                    title = ch.get("title", f"第{idx+1}章")
-                    if item_id:
-                        chapters.append({"id": str(item_id), "title": title, "index": idx})
             
             if not chapters:
                 log_message(t("dl_no_chapters_found"))
