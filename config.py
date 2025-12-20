@@ -4,13 +4,15 @@
 所有节点和配置必须通过远程服务器获取
 """
 
+# 默认版本信息（在本地开发时使用）
 __version__ = "1.1.1"
-__author__ = "Tomato Novel Downloader"
+__author__ = "FXdownloader"
 __description__ = "A modern novel downloader with GitHub auto-update support"
-__github_repo__ = "POf-L/Fanqie-novel-Downloader"
+__github_repo__ = "halei0v0/FXdownloader"
 __build_time__ = "2025-01-23 00:00:00 UTC"
 __build_channel__ = "custom"
 
+# 尝试从version.py文件读取版本信息（GitHub Actions构建时会生成此文件）
 try:
     import version as _ver
 except Exception:
