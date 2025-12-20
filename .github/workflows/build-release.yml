@@ -43,7 +43,30 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          VERSION=$(date -u +'%Y.%m.%d.%H%M')+$(echo ${{ github.sha }} | cut -c1-7)
+          # 从API获取最新版本号并递增
+          API_URL="https://api.github.com/repos/${{ github.repository }}/releases/latest"
+          HTTP_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $API_URL)
+          LATEST_VERSION=$(echo $HTTP_RESPONSE | grep '"tag_name":' | sed -E 's/.*"tag_name": ?"v?([^"]+).*/\1/')
+          
+          # 如果没有获取到版本号，使用默认版本
+          if [[ -z "$LATEST_VERSION" ]]; then
+            LATEST_VERSION="1.1.0"
+          fi
+          
+          # 解析版本号并递增
+          if [[ "$LATEST_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            MAJOR=${BASH_REMATCH[1]}
+            MINOR=${BASH_REMATCH[2]}
+            PATCH=${BASH_REMATCH[3]}
+            
+            # 递增补丁版本号
+            PATCH=$((PATCH + 1))
+            VERSION="$MAJOR.$MINOR.$PATCH"
+          else
+            # 如果格式不匹配，使用默认版本
+            VERSION="1.1.1"
+          fi
+          
           BUILD_TIME=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
           
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
@@ -67,22 +90,22 @@ jobs:
           body: |
             ## 🚀 FXdownloader ${{ steps.version.outputs.TAG_NAME }}
             
-            ### 🔄 构建状�?            
-            | 平台 | 状�?|
+            ### 🔄 构建状态            
+            | 平台 | 状态 |
             | :--- | :--- |
-            | 💻 Windows | �?编译�?.. |
-            | 📦 Windows Standalone | �?编译�?.. |
-            | 🐧 Linux | �?编译�?.. |
-            | 🍎 macOS | �?编译�?.. |
-            | 🤖 Termux ARM64 | �?编译�?.. |
+            | 💻 Windows | 🔄 编译中.. |
+            | 📦 Windows Standalone | 🔄 编译中.. |
+            | 🐧 Linux | 🔄 编译中.. |
+            | 🍎 macOS | 🔄 编译中.. |
+            | 🤖 Termux ARM64 | 🔄 编译中.. |
             
-            > **💡 提示**: 无需等待全部完成，文件出现在 Assets 即可下载使用�?            
+            > **💡 提示**: 无需等待全部完成，文件出现在 Assets 即可下载使用！            
             ---
             
             ### 📋 构建信息
             | 项目 | 详情 |
             | :--- | :--- |
-            | 🕒 **开始时�?* | ${{ steps.version.outputs.BUILD_TIME }} |
+            | 🕒 **开始时间** | ${{ steps.version.outputs.BUILD_TIME }} |
             | 🌿 **分支/Tag** | `${{ github.ref_name }}` |
             | 🔗 **Commit** | `${{ github.sha }}` |
           draft: false
@@ -202,7 +225,7 @@ jobs:
           echo "__build_time__ = \"$BUILD_TIME\"" >> version.py
           echo "__build_channel__ = \"github-actions\"" >> version.py
           
-          echo "�?更新后的version.py:"
+          echo "✅ 更新后的version.py:"
           cat version.py
         shell: bash
 
@@ -215,7 +238,7 @@ jobs:
       - name: Download WebView2 Runtime (Standalone only)
         if: matrix.variant == 'release-standalone'
         run: |
-          # 下载 WebView2 Fixed Version Runtime (通过 NuGet 包获�?
+          # 下载 WebView2 Fixed Version Runtime (通过 NuGet 包获取)
           curl -L -o webview2.zip "https://www.nuget.org/api/v2/package/WebView2.Runtime.X64/129.0.2792.52"
           7z x webview2.zip -oWebView2Temp
           
@@ -230,12 +253,13 @@ jobs:
           fi
           
           echo "Found runtime at $TARGET_DIR"
-          # 移动到项目根目录�?WebView2 文件�?          mv "$TARGET_DIR" ./WebView2
+          # 移动到项目根目录下 WebView2 文件夹
+          mv "$TARGET_DIR" ./WebView2
           
           # 清理临时文件
           rm -rf WebView2Temp webview2.zip
           
-          echo "�?WebView2 Runtime prepared"
+          echo "✅ WebView2 Runtime prepared"
         shell: bash
 
       - name: Build application (${{ matrix.variant }})
@@ -275,10 +299,10 @@ jobs:
           ls -la dist/
           target="dist/${{ matrix.executable }}${{ matrix.ext }}"
           if [ -f "$target" ]; then
-            echo "�?Build successful: $(basename "$target")"
+            echo "✅ Build successful: $(basename "$target")"
             echo "File size: $(ls -lh "$target" | awk '{print $5}')"
           else
-            echo "�?Build failed: $(basename "$target") not found"
+            echo "❌ Build failed: $(basename "$target") not found"
             exit 1
           fi
         shell: bash
@@ -310,7 +334,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build completed
-        run: echo "�?Build and artifact prepared for ${{ matrix.variant }}"
+        run: echo "✅ Build and artifact prepared for ${{ matrix.variant }}"
 
   # Termux ARM64 命令行版本构建
   build-termux:
@@ -362,13 +386,13 @@ jobs:
             apt-get install -y python3 python3-pip python3-venv python3-dev binutils git build-essential patchelf \
               libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libopenjp2-7-dev libtiff-dev tk-dev tcl-dev \
               libffi-dev libssl-dev libwebp-dev libxml2-dev libxslt-dev wget
-            # 安装新版 CMake (3.28+) 因为 termux-elf-cleaner 需�?3.25+
+            # 安装新版 CMake (3.28+) 因为 termux-elf-cleaner 需要 3.25+
             wget -q https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-aarch64.tar.gz
             tar -xzf cmake-3.28.3-linux-aarch64.tar.gz -C /opt
             ln -sf /opt/cmake-3.28.3-linux-aarch64/bin/cmake /usr/local/bin/cmake
             rm cmake-3.28.3-linux-aarch64.tar.gz
             cmake --version
-            # 从源码编译安�?termux-elf-cleaner
+            # 从源码编译安装 termux-elf-cleaner
             git clone https://github.com/termux/termux-elf-cleaner.git /tmp/termux-elf-cleaner
             cd /tmp/termux-elf-cleaner
             mkdir build
@@ -389,7 +413,7 @@ jobs:
             pip install --default-timeout=3600 --prefer-binary -r requirements-termux.txt
             pip install --default-timeout=3600 --prefer-binary pyinstaller
             
-            # 构建命令行版�?(使用 novel_downloader.py 作为入口)
+            # 构建命令行版本 (使用 novel_downloader.py 作为入口)
             pyinstaller --onefile \
               --name=FXdownloader-termux \
               --console \
@@ -408,7 +432,8 @@ jobs:
               --collect-submodules PIL \
               novel_downloader.py
             
-            # 使用 termux-elf-cleaner 修复 ELF 解释器路�?            termux-elf-cleaner dist/FXdownloader-termux || echo "termux-elf-cleaner warning (non-fatal)"
+            # 使用 termux-elf-cleaner 修复 ELF 解释器路径
+            termux-elf-cleaner dist/FXdownloader-termux || echo "termux-elf-cleaner warning (non-fatal)"
             
             # 在容器内完成重命名，避免权限问题
             cp dist/FXdownloader-termux dist/FXdownloader-termux-arm64
@@ -418,11 +443,11 @@ jobs:
         run: |
           ls -la dist/
           if [ -f "dist/FXdownloader-termux" ]; then
-            echo "�?Termux ARM64 build successful"
+            echo "✅ Termux ARM64 build successful"
             file dist/FXdownloader-termux
             echo "File size: $(ls -lh dist/FXdownloader-termux | awk '{print $5}')"
           else
-            echo "�?Termux build failed"
+            echo "❌ Termux build failed"
             exit 1
           fi
 
@@ -442,7 +467,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Termux build completed
-        run: echo "�?Termux ARM64 build completed"
+        run: echo "✅ Termux ARM64 build completed"
 
   # 所有构建完成后更新 Release 信息
   finalize-release:
@@ -485,14 +510,14 @@ jobs:
           BUILD_STATUS=""
           
           if [ "${{ needs.build.result }}" == "success" ]; then
-            BUILD_STATUS="�?主构建完�?
+            BUILD_STATUS="✅ 主构建完成"
           else
-            BUILD_STATUS="⚠️ 主构建部分失�?
+            BUILD_STATUS="⚠️ 主构建部分失败"
             ALL_SUCCESS="false"
           fi
           
           if [ "${{ needs.build-termux.result }}" == "success" ]; then
-            BUILD_STATUS="$BUILD_STATUS | �?Termux 构建完成"
+            BUILD_STATUS="$BUILD_STATUS | ✅ Termux 构建完成"
           else
             BUILD_STATUS="$BUILD_STATUS | ⚠️ Termux 构建失败"
             ALL_SUCCESS="false"
@@ -514,14 +539,14 @@ jobs:
             
             ---
             
-            ### 🔄 构建状�?            
-            | 平台 | 状�?|
+            ### 🔄 构建状态            
+            | 平台 | 状态 |
             | :--- | :--- |
-            | 💻 Windows | �?完成 |
-            | 📦 Windows Standalone | �?完成 |
-            | 🐧 Linux | �?完成 |
-            | 🍎 macOS | �?完成 |
-            | 🤖 Termux ARM64 | �?完成 |
+            | 💻 Windows | ✅ 完成 |
+            | 📦 Windows Standalone | ✅ 完成 |
+            | 🐧 Linux | ✅ 完成 |
+            | 🍎 macOS | ✅ 完成 |
+            | 🤖 Termux ARM64 | ✅ 完成 |
             
             ---
             
@@ -529,8 +554,8 @@ jobs:
             
             | 平台 | 推荐文件 | 说明 |
             | :--- | :--- | :--- |
-            | **🪟 Windows** | `...Standalone.exe` | �?**首�?* (内置运行库，开箱即�? |
-            | | `FXdownloader.exe` | 纯净�?(需自备 WebView2) |
+            | **🪟 Windows** | `...Standalone.exe` | 🌟 **首选** (内置运行库，开箱即用) |
+            | | `FXdownloader.exe` | 纯净版 (需自备 WebView2) |
             | **🐧 Linux** | `...linux` | x64 架构 (需安装 GTK3/WebKit) |
             | **🍎 macOS** | `...macos` | Intel 芯片 (x64) |
             | **🤖 Termux** | `...termux-arm64` | Android Termux 命令行版 |
@@ -556,15 +581,15 @@ jobs:
           body: |
             ## ⚠️ FXdownloader ${{ needs.prepare-release.outputs.tag_name }}
             
-            > 部分平台构建失败，但已完成的版本可正常使用�?            
-            ### 🔄 构建状�?            
+            > 部分平台构建失败，但已完成的版本可正常使用！            
+            ### 🔄 构建状态            
             ${{ steps.check_builds.outputs.status }}
             
             ---
             
             ### 📥 可用下载
             
-            请从下方 Assets 中选择已完成编译的版本下载�?            
+            请从下方 Assets 中选择已完成编译的版本下载！            
             ---
             
             ### 📋 构建信息
