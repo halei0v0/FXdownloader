@@ -43,58 +43,18 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          # 获取最新的release版本号
-          LATEST_VERSION=$(gh release list --limit 1 --json tagName | jq -r '.[0].tagName' 2>/dev/null || echo "v1.1.1")
-          
-          # 如果没有找到release，从v1.1.1开始
-          if [ "$LATEST_VERSION" == "null" ] || [ -z "$LATEST_VERSION" ]; then
-            LATEST_VERSION="v1.1.1"
-          fi
-          
-          # 解析版本号 (去掉v前缀)
-          VERSION_NUM=${LATEST_VERSION#v}
-          IFS='.' read -ra PARTS <<< "$VERSION_NUM"
-          
-          # 确保有三部分版本号
-          if [ ${#PARTS[@]} -ne 3 ]; then
-            MAJOR=1
-            MINOR=1
-            PATCH=1
-          else
-            MAJOR=${PARTS[0]}
-            MINOR=${PARTS[1]}
-            PATCH=${PARTS[2]}
-          fi
-          
-          # 递增版本号，次版本和修订版本最多到9，主版本号无上限
-          if [ $PATCH -lt 9 ]; then
-            PATCH=$((PATCH + 1))
-          elif [ $MINOR -lt 9 ]; then
-            PATCH=1
-            MINOR=$((MINOR + 1))
-          else
-            # 主版本号递增，次版本和修订版本重置为1
-            PATCH=1
-            MINOR=1
-            MAJOR=$((MAJOR + 1))
-          fi
-          
-          # 构建新版本号
-          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          VERSION=$(date -u +'%Y.%m.%d.%H%M')+$(echo ${{ github.sha }} | cut -c1-7)
           BUILD_TIME=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
           
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             TAG_NAME="${{ github.ref_name }}"
-            VERSION=${TAG_NAME#v}
           else
-            TAG_NAME="$NEW_VERSION"
-            VERSION=${NEW_VERSION#v}
+            TAG_NAME="v$VERSION"
           fi
           
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_OUTPUT
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "Previous version: $LATEST_VERSION"
           echo "Generated version: $VERSION"
           echo "Tag name: $TAG_NAME"
 
@@ -103,28 +63,26 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.TAG_NAME }}
-          name: "TomatoNovelDownloader ${{ steps.version.outputs.TAG_NAME }}"
+          name: "FXdownloader ${{ steps.version.outputs.TAG_NAME }}"
           body: |
-            ## 🚀 TomatoNovelDownloader ${{ steps.version.outputs.TAG_NAME }}
+            ## 🚀 FXdownloader ${{ steps.version.outputs.TAG_NAME }}
             
-            ### 🔄 构建状态
-            
-            | 平台 | 状态 |
+            ### 🔄 构建状�?            
+            | 平台 | 状�?|
             | :--- | :--- |
-            | 💻 Windows | ⏳ 编译中... |
-            | 📦 Windows Standalone | ⏳ 编译中... |
-            | 🐧 Linux | ⏳ 编译中... |
-            | 🍎 macOS | ⏳ 编译中... |
-            | 🤖 Termux ARM64 | ⏳ 编译中... |
+            | 💻 Windows | �?编译�?.. |
+            | 📦 Windows Standalone | �?编译�?.. |
+            | 🐧 Linux | �?编译�?.. |
+            | 🍎 macOS | �?编译�?.. |
+            | 🤖 Termux ARM64 | �?编译�?.. |
             
-            > **💡 提示**: 无需等待全部完成，文件出现在 Assets 即可下载使用。
-            
+            > **💡 提示**: 无需等待全部完成，文件出现在 Assets 即可下载使用�?            
             ---
             
             ### 📋 构建信息
             | 项目 | 详情 |
             | :--- | :--- |
-            | 🕒 **开始时间** | ${{ steps.version.outputs.BUILD_TIME }} |
+            | 🕒 **开始时�?* | ${{ steps.version.outputs.BUILD_TIME }} |
             | 🌿 **分支/Tag** | `${{ github.ref_name }}` |
             | 🔗 **Commit** | `${{ github.sha }}` |
           draft: false
@@ -140,61 +98,55 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows 发布版
-          - os: windows-latest
+          # Windows 发布�?          - os: windows-latest
             variant: release
-            executable: TomatoNovelDownloader
+            executable: FXdownloader
             ext: .exe
-            release_name: TomatoNovelDownloader.exe
-            artifact_name: TomatoNovelDownloader-windows-x64
+            release_name: FXdownloader.exe
+            artifact_name: FXdownloader-windows-x64
             build_flags: '--windowed'
-          # Windows 调试版
-          - os: windows-latest
+          # Windows 调试�?          - os: windows-latest
             variant: debug
-            executable: TomatoNovelDownloader-debug
+            executable: FXdownloader-debug
             ext: .exe
-            release_name: TomatoNovelDownloader-debug.exe
-            artifact_name: TomatoNovelDownloader-debug-windows-x64
+            release_name: FXdownloader-debug.exe
+            artifact_name: FXdownloader-debug-windows-x64
             build_flags: '--console'
           # Windows Standalone (内置 WebView2)
           - os: windows-latest
             variant: release-standalone
-            executable: TomatoNovelDownloader-Standalone
+            executable: FXdownloader-Standalone
             ext: .exe
-            release_name: TomatoNovelDownloader-Standalone.exe
-            artifact_name: TomatoNovelDownloader-standalone-windows-x64
+            release_name: FXdownloader-Standalone.exe
+            artifact_name: FXdownloader-standalone-windows-x64
             build_flags: '--windowed --add-data "WebView2;WebView2"'
-          # Linux 发布版
-          - os: ubuntu-latest
+          # Linux 发布�?          - os: ubuntu-latest
             variant: release
-            executable: TomatoNovelDownloader
+            executable: FXdownloader
             ext: ''
-            release_name: TomatoNovelDownloader-linux
-            artifact_name: TomatoNovelDownloader-linux-x64
+            release_name: FXdownloader-linux
+            artifact_name: FXdownloader-linux-x64
             build_flags: '--windowed'
-          # Linux 调试版
-          - os: ubuntu-latest
+          # Linux 调试�?          - os: ubuntu-latest
             variant: debug
-            executable: TomatoNovelDownloader-debug
+            executable: FXdownloader-debug
             ext: ''
-            release_name: TomatoNovelDownloader-debug-linux
-            artifact_name: TomatoNovelDownloader-debug-linux-x64
+            release_name: FXdownloader-debug-linux
+            artifact_name: FXdownloader-debug-linux-x64
             build_flags: '--console'
-          # macOS 发布版
-          - os: macos-latest
+          # macOS 发布�?          - os: macos-latest
             variant: release
-            executable: TomatoNovelDownloader
+            executable: FXdownloader
             ext: ''
-            release_name: TomatoNovelDownloader-macos
-            artifact_name: TomatoNovelDownloader-macos-x64
+            release_name: FXdownloader-macos
+            artifact_name: FXdownloader-macos-x64
             build_flags: '--windowed'
-          # macOS 调试版
-          - os: macos-latest
+          # macOS 调试�?          - os: macos-latest
             variant: debug
-            executable: TomatoNovelDownloader-debug
+            executable: FXdownloader-debug
             ext: ''
-            release_name: TomatoNovelDownloader-debug-macos
-            artifact_name: TomatoNovelDownloader-debug-macos-x64
+            release_name: FXdownloader-debug-macos
+            artifact_name: FXdownloader-debug-macos-x64
             build_flags: '--console'
 
     runs-on: ${{ matrix.os }}
@@ -244,7 +196,7 @@ jobs:
           echo "__build_time__ = \"$BUILD_TIME\"" >> version.py
           echo "__build_channel__ = \"github-actions\"" >> version.py
           
-          echo "✅ 更新后的version.py:"
+          echo "�?更新后的version.py:"
           cat version.py
         shell: bash
 
@@ -257,7 +209,7 @@ jobs:
       - name: Download WebView2 Runtime (Standalone only)
         if: matrix.variant == 'release-standalone'
         run: |
-          # 下载 WebView2 Fixed Version Runtime (通过 NuGet 包获取)
+          # 下载 WebView2 Fixed Version Runtime (通过 NuGet 包获�?
           curl -L -o webview2.zip "https://www.nuget.org/api/v2/package/WebView2.Runtime.X64/129.0.2792.52"
           7z x webview2.zip -oWebView2Temp
           
@@ -272,13 +224,12 @@ jobs:
           fi
           
           echo "Found runtime at $TARGET_DIR"
-          # 移动到项目根目录的 WebView2 文件夹
-          mv "$TARGET_DIR" ./WebView2
+          # 移动到项目根目录�?WebView2 文件�?          mv "$TARGET_DIR" ./WebView2
           
           # 清理临时文件
           rm -rf WebView2Temp webview2.zip
           
-          echo "✅ WebView2 Runtime prepared"
+          echo "�?WebView2 Runtime prepared"
         shell: bash
 
       - name: Build application (${{ matrix.variant }})
@@ -318,10 +269,10 @@ jobs:
           ls -la dist/
           target="dist/${{ matrix.executable }}${{ matrix.ext }}"
           if [ -f "$target" ]; then
-            echo "✅ Build successful: $(basename "$target")"
+            echo "�?Build successful: $(basename "$target")"
             echo "File size: $(ls -lh "$target" | awk '{print $5}')"
           else
-            echo "❌ Build failed: $(basename "$target") not found"
+            echo "�?Build failed: $(basename "$target") not found"
             exit 1
           fi
         shell: bash
@@ -353,10 +304,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build completed
-        run: echo "✅ Build and artifact prepared for ${{ matrix.variant }}"
+        run: echo "�?Build and artifact prepared for ${{ matrix.variant }}"
 
-  # Termux ARM64 命令行版本构建
-  build-termux:
+  # Termux ARM64 命令行版本构�?  build-termux:
     needs: [prepare-release]
     if: needs.prepare-release.result == 'success'
     runs-on: ubuntu-latest
@@ -405,13 +355,13 @@ jobs:
             apt-get install -y python3 python3-pip python3-venv python3-dev binutils git build-essential patchelf \
               libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libopenjp2-7-dev libtiff-dev tk-dev tcl-dev \
               libffi-dev libssl-dev libwebp-dev libxml2-dev libxslt-dev wget
-            # 安装新版 CMake (3.28+) 因为 termux-elf-cleaner 需要 3.25+
+            # 安装新版 CMake (3.28+) 因为 termux-elf-cleaner 需�?3.25+
             wget -q https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-aarch64.tar.gz
             tar -xzf cmake-3.28.3-linux-aarch64.tar.gz -C /opt
             ln -sf /opt/cmake-3.28.3-linux-aarch64/bin/cmake /usr/local/bin/cmake
             rm cmake-3.28.3-linux-aarch64.tar.gz
             cmake --version
-            # 从源码编译安装 termux-elf-cleaner
+            # 从源码编译安�?termux-elf-cleaner
             git clone https://github.com/termux/termux-elf-cleaner.git /tmp/termux-elf-cleaner
             cd /tmp/termux-elf-cleaner
             mkdir build
@@ -432,9 +382,9 @@ jobs:
             pip install --default-timeout=3600 --prefer-binary -r requirements-termux.txt
             pip install --default-timeout=3600 --prefer-binary pyinstaller
             
-            # 构建命令行版本 (使用 novel_downloader.py 作为入口)
+            # 构建命令行版�?(使用 novel_downloader.py 作为入口)
             pyinstaller --onefile \
-              --name=TomatoNovelDownloader-termux \
+              --name=FXdownloader-termux \
               --console \
               --hidden-import=requests \
               --hidden-import=aiohttp \
@@ -451,42 +401,41 @@ jobs:
               --collect-submodules PIL \
               novel_downloader.py
             
-            # 使用 termux-elf-cleaner 修复 ELF 解释器路径
-            termux-elf-cleaner dist/TomatoNovelDownloader-termux || echo "termux-elf-cleaner warning (non-fatal)"
+            # 使用 termux-elf-cleaner 修复 ELF 解释器路�?            termux-elf-cleaner dist/FXdownloader-termux || echo "termux-elf-cleaner warning (non-fatal)"
             
             # 在容器内完成重命名，避免权限问题
-            cp dist/TomatoNovelDownloader-termux dist/TomatoNovelDownloader-termux-arm64
+            cp dist/FXdownloader-termux dist/FXdownloader-termux-arm64
             ls -la dist/
 
       - name: Verify Termux build
         run: |
           ls -la dist/
-          if [ -f "dist/TomatoNovelDownloader-termux" ]; then
-            echo "✅ Termux ARM64 build successful"
-            file dist/TomatoNovelDownloader-termux
-            echo "File size: $(ls -lh dist/TomatoNovelDownloader-termux | awk '{print $5}')"
+          if [ -f "dist/FXdownloader-termux" ]; then
+            echo "�?Termux ARM64 build successful"
+            file dist/FXdownloader-termux
+            echo "File size: $(ls -lh dist/FXdownloader-termux | awk '{print $5}')"
           else
-            echo "❌ Termux build failed"
+            echo "�?Termux build failed"
             exit 1
           fi
 
       - name: Upload Termux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TomatoNovelDownloader-termux-arm64
-          path: dist/TomatoNovelDownloader-termux-arm64
+          name: FXdownloader-termux-arm64
+          path: dist/FXdownloader-termux-arm64
           if-no-files-found: error
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag_name }}
-          files: dist/TomatoNovelDownloader-termux-arm64
+          files: dist/FXdownloader-termux-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Termux build completed
-        run: echo "✅ Termux ARM64 build completed"
+        run: echo "�?Termux ARM64 build completed"
 
   # 所有构建完成后更新 Release 信息
   finalize-release:
@@ -510,7 +459,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: 'TomatoNovelDownloader-*'
+          pattern: 'FXdownloader-*'
           merge-multiple: true
 
       - name: List all artifacts
@@ -529,14 +478,14 @@ jobs:
           BUILD_STATUS=""
           
           if [ "${{ needs.build.result }}" == "success" ]; then
-            BUILD_STATUS="✅ 主构建完成"
+            BUILD_STATUS="�?主构建完�?
           else
-            BUILD_STATUS="⚠️ 主构建部分失败"
+            BUILD_STATUS="⚠️ 主构建部分失�?
             ALL_SUCCESS="false"
           fi
           
           if [ "${{ needs.build-termux.result }}" == "success" ]; then
-            BUILD_STATUS="$BUILD_STATUS | ✅ Termux 构建完成"
+            BUILD_STATUS="$BUILD_STATUS | �?Termux 构建完成"
           else
             BUILD_STATUS="$BUILD_STATUS | ⚠️ Termux 构建失败"
             ALL_SUCCESS="false"
@@ -550,23 +499,22 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag_name }}
-          name: TomatoNovelDownloader ${{ needs.prepare-release.outputs.tag_name }}
+          name: FXdownloader ${{ needs.prepare-release.outputs.tag_name }}
           body: |
-            ## 🎉 TomatoNovelDownloader ${{ needs.prepare-release.outputs.tag_name }}
+            ## 🎉 FXdownloader ${{ needs.prepare-release.outputs.tag_name }}
             
             > ${{ steps.get_commit_msg.outputs.msg }}
             
             ---
             
-            ### 🔄 构建状态
-            
-            | 平台 | 状态 |
+            ### 🔄 构建状�?            
+            | 平台 | 状�?|
             | :--- | :--- |
-            | 💻 Windows | ✅ 完成 |
-            | 📦 Windows Standalone | ✅ 完成 |
-            | 🐧 Linux | ✅ 完成 |
-            | 🍎 macOS | ✅ 完成 |
-            | 🤖 Termux ARM64 | ✅ 完成 |
+            | 💻 Windows | �?完成 |
+            | 📦 Windows Standalone | �?完成 |
+            | 🐧 Linux | �?完成 |
+            | 🍎 macOS | �?完成 |
+            | 🤖 Termux ARM64 | �?完成 |
             
             ---
             
@@ -574,8 +522,8 @@ jobs:
             
             | 平台 | 推荐文件 | 说明 |
             | :--- | :--- | :--- |
-            | **🪟 Windows** | `...Standalone.exe` | ✅ **首选** (内置运行库，开箱即用) |
-            | | `TomatoNovelDownloader.exe` | 纯净版 (需自备 WebView2) |
+            | **🪟 Windows** | `...Standalone.exe` | �?**首�?* (内置运行库，开箱即�? |
+            | | `FXdownloader.exe` | 纯净�?(需自备 WebView2) |
             | **🐧 Linux** | `...linux` | x64 架构 (需安装 GTK3/WebKit) |
             | **🍎 macOS** | `...macos` | Intel 芯片 (x64) |
             | **🤖 Termux** | `...termux-arm64` | Android Termux 命令行版 |
@@ -597,22 +545,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag_name }}
-          name: "⚠️ TomatoNovelDownloader ${{ needs.prepare-release.outputs.tag_name }}"
+          name: "⚠️ FXdownloader ${{ needs.prepare-release.outputs.tag_name }}"
           body: |
-            ## ⚠️ TomatoNovelDownloader ${{ needs.prepare-release.outputs.tag_name }}
+            ## ⚠️ FXdownloader ${{ needs.prepare-release.outputs.tag_name }}
             
-            > 部分平台构建失败，但已完成的版本可正常使用。
-            
-            ### 🔄 构建状态
-            
+            > 部分平台构建失败，但已完成的版本可正常使用�?            
+            ### 🔄 构建状�?            
             ${{ steps.check_builds.outputs.status }}
             
             ---
             
             ### 📥 可用下载
             
-            请从下方 Assets 中选择已完成编译的版本下载。
-            
+            请从下方 Assets 中选择已完成编译的版本下载�?            
             ---
             
             ### 📋 构建信息
