@@ -555,7 +555,7 @@ jobs:
             | 平台 | 推荐文件 | 说明 |
             | :--- | :--- | :--- |
             | **🪟 Windows** | `...Standalone.exe` | 🌟 **首选** (内置运行库，开箱即用) |
-            | | `FXdownloader.exe` | 纯净版 (需自备 WebView2) |
+            | **📦 Windows Standalone** | 纯净版 (需自备 WebView2) |
             | **🐧 Linux** | `...linux` | x64 架构 (需安装 GTK3/WebKit) |
             | **🍎 macOS** | `...macos` | Intel 芯片 (x64) |
             | **🤖 Termux** | `...termux-arm64` | Android Termux 命令行版 |
