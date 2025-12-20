@@ -1653,204 +1653,123 @@ def api_select_folder():
 
 @app.route('/api/check-update', methods=['GET'])
 def api_check_update():
-    """检查更新"""
-    try:
-        import sys
+    """检查更新 - 已禁用"""
+    return jsonify({
+        'success': True,
+        'has_update': False,
+        'message': '更新检查已禁用'
+    })
+    
+    # try:
+    #     import sys
         
-        # 源代码运行时不检查更新
-        if not getattr(sys, 'frozen', False):
-            return jsonify({
-                'success': True,
-                'has_update': False,
-                'is_source': True,
-                'message': '源代码运行模式，不检查更新'
-            })
+    #     # 源代码运行时不检查更新
+    #     if not getattr(sys, 'frozen', False):
+    #         return jsonify({
+    #             'success': True,
+    #             'has_update': False,
+    #             'is_source': True,
+    #             'message': '源代码运行模式，不检查更新'
+    #         })
         
-        from updater import check_and_notify
-        from config import __version__, __github_repo__
+    #     from updater import check_and_notify
+    #     from config import __version__, __github_repo__
         
-        update_info = check_and_notify(__version__, __github_repo__, silent=True)
+    #     update_info = check_and_notify(__version__, __github_repo__, silent=True)
         
-        if update_info:
-            return jsonify({
-                'success': True,
-                'has_update': update_info.get('has_update', False),
-                'data': update_info
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'has_update': False
-            })
-    except Exception as e:
-        return jsonify({'success': False, 'message': t('web_check_update_fail', str(e))}), 500
+    #     if update_info:
+    #         return jsonify({
+    #             'success': True,
+    #             'has_update': update_info.get('has_update', False),
+    #             'data': update_info
+    #         })
+    #     else:
+    #         return jsonify({
+    #             'success': True,
+    #             'has_update': False
+    #         })
+    # except Exception as e:
+    #     return jsonify({'success': False, 'message': t('web_check_update_fail', str(e))}), 500
 
 @app.route('/api/get-update-assets', methods=['GET'])
 def api_get_update_assets():
-    """获取更新文件的下载选项"""
-    try:
-        from updater import get_latest_release, parse_release_assets
-        from config import __github_repo__
-        import platform
+    """获取更新资源列表 - 已禁用"""
+    return jsonify({
+        'success': False,
+        'message': '更新功能已禁用'
+    })
+    
+    # try:
+    #     from updater import get_latest_release, parse_release_assets
+    #     from config import __github_repo__
+    #     import platform
         
-        # 获取最新版本信息
-        latest_info = get_latest_release(__github_repo__)
-        if not latest_info:
-            return jsonify({'success': False, 'message': '无法获取版本信息'}), 500
+    #     # 获取最新版本信息
+    #     latest_info = get_latest_release(__github_repo__)
+    #     if not latest_info:
+    #         return jsonify({'success': False, 'message': '无法获取版本信息'}), 500
         
-        # 检测当前平台
-        system = platform.system().lower()
-        if system == 'darwin':
-            platform_name = 'macos'
-        elif system == 'linux':
-            platform_name = 'linux'
-        else:
-            platform_name = 'windows'
+        #     # 检测当前平台
+    #     system = platform.system().lower()
+    #     if system == 'darwin':
+    #         platform_name = 'macos'
+    #     elif system == 'linux':
+    #         platform_name = 'linux'
+    #     else:
+    #         platform_name = 'windows'
         
-        # 解析 assets
-        assets = parse_release_assets(latest_info, platform_name)
+    #     # 解析 assets
+    #     assets = parse_release_assets(latest_info, platform_name)
         
-        return jsonify({
-            'success': True,
-            'platform': platform_name,
-            'assets': assets,
-            'release_url': latest_info.get('html_url', '')
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取下载选项失败: {str(e)}'}), 500
+    #     return jsonify({
+    #         'success': True,
+    #         'platform': platform_name,
+    #         'assets': assets,
+    #         'release_url': latest_info.get('html_url', '')
+    #     })
+    # except Exception as e:
+    #     return jsonify({'success': False, 'message': f'获取下载选项失败: {str(e)}'}), 500
 
 @app.route('/api/download-update', methods=['POST'])
 def api_download_update():
-    """开始下载更新包"""
-    data = request.get_json()
-    url = data.get('url')
-    filename = data.get('filename')
-    
-    if not url or not filename:
-        return jsonify({'success': False, 'message': '参数错误'}), 400
-        
-    # 使用默认下载路径或配置路径
-    save_path = get_default_download_path()
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                save_path = config.get('save_path', save_path)
-        except:
-            pass
-            
-    if not os.path.exists(save_path):
-        try:
-            os.makedirs(save_path)
-        except:
-            save_path = get_default_download_path()
-
-    # 启动下载线程
-    t = threading.Thread(
-        target=update_download_worker, 
-        args=(url, save_path, filename),
-        daemon=True
-    )
-    t.start()
-    
-    return jsonify({'success': True, 'message': '开始下载'})
+    """下载更新 - 已禁用"""
+    return jsonify({
+        'success': False,
+        'message': '更新功能已禁用'
+    })
 
 @app.route('/api/update-status', methods=['GET'])
 def api_get_update_status_route():
-    """获取更新下载状态"""
-    return jsonify(get_update_status())
+    """获取更新状态 - 已禁用"""
+    return jsonify({
+        'is_downloading': False,
+        'progress': 0,
+        'message': '更新功能已禁用'
+    })
 
 @app.route('/api/can-auto-update', methods=['GET'])
+
 def api_can_auto_update():
-    """检查是否支持自动更新"""
-    try:
-        from updater import can_auto_update
-        return jsonify({
-            'success': True,
-            'can_auto_update': can_auto_update()
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+
+    """检查是否支持自动更新 - 已禁用"""
+
+    return jsonify({
+
+        'success': True,
+
+        'can_auto_update': False,
+
+        'message': '更新功能已禁用'
+
+    })
 
 @app.route('/api/apply-update', methods=['POST'])
 def api_apply_update():
-    """应用已下载的更新（支持 Windows/Linux/macOS）"""
-    print('[DEBUG] api_apply_update called')
-    try:
-        from updater import apply_update, can_auto_update
-        import sys
-        
-        print(f'[DEBUG] sys.frozen: {getattr(sys, "frozen", False)}')
-        print(f'[DEBUG] sys.executable: {sys.executable}')
-        
-        # 检查是否支持自动更新
-        can_update = can_auto_update()
-        print(f'[DEBUG] can_auto_update: {can_update}')
-        if not can_update:
-            return jsonify({
-                'success': False, 
-                'message': t('web_auto_update_unsupported')
-            }), 400
-        
-        # 获取下载的更新文件信息
-        status = get_update_status()
-        print(f'[DEBUG] update_status: {status}')
-        if not status.get('completed'):
-            return jsonify({
-                'success': False, 
-                'message': t('web_update_not_ready')
-            }), 400
-        
-        # 使用临时文件路径
-        new_file_path = status.get('temp_file_path', '')
-        print(f'[DEBUG] temp_file_path: {new_file_path}')
-        
-        print(f'[DEBUG] new_file_path: {new_file_path}')
-        
-        if not new_file_path:
-            return jsonify({
-                'success': False, 
-                'message': t('web_update_info_incomplete')
-            }), 400
-        
-        print(f'[DEBUG] file exists: {os.path.exists(new_file_path)}')
-        
-        if not os.path.exists(new_file_path):
-            return jsonify({
-                'success': False, 
-                'message': t('web_update_file_missing', new_file_path)
-            }), 400
-        
-        print(f'[DEBUG] file size: {os.path.getsize(new_file_path)} bytes')
-        
-        # 应用更新（自动检测平台）
-        print('[DEBUG] Calling apply_update...')
-        if apply_update(new_file_path):
-            # 更新成功启动，准备退出程序
-            # 等待足够时间确保更新脚本已启动并开始监控进程
-            def delayed_exit():
-                import time
-                print('[DEBUG] Waiting for update script to start...')
-                time.sleep(3)  # 给更新脚本足够的启动时间
-                print('[DEBUG] Exiting application for update...')
-                os._exit(0)
-            
-            # 使用非守护线程确保退出逻辑能完成
-            exit_thread = threading.Thread(target=delayed_exit, daemon=False)
-            exit_thread.start()
-            
-            return jsonify({
-                'success': True, 
-                'message': t('web_update_start_success')
-            })
-        else:
-            return jsonify({
-                'success': False, 
-                'message': t('web_update_start_fail')
-            }), 500
-            
-    except Exception as e:
-        return jsonify({'success': False, 'message': t('web_apply_update_fail', str(e))}), 500
+    """应用更新 - 已禁用"""
+    return jsonify({
+        'success': False,
+        'message': '更新功能已禁用'
+    })
 
 @app.route('/api/open-folder', methods=['POST'])
 def api_open_folder():

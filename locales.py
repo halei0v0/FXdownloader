@@ -135,8 +135,8 @@ MESSAGES = {
         "up_desc_linux_release": "发布版",
         
         # watermark.py
-        "wm_watermark_full": "当前小说使用https://github.com/POf-L/Fanqie-novel-Downloader免费下载器下载，购买的请立即差评并申请退款和举报！",
-        "wm_watermark_simple": "当前小说使用https://github.com/POf-L/Fanqie-novel-Downloader下载",
+        "wm_watermark_full": "当前小说由【FXdownloader】提供下载，项目地址：https://github.com/halei0v0/FXdownloader 。如有付费购买，请立即举报并退款！",
+        "wm_watermark_simple": "当前小说由【FXdownloader】提供下载，项目地址：https://github.com/halei0v0/FXdownloader ",
 
         # web_app.py (New)
         "web_init": "初始化...",
@@ -297,8 +297,8 @@ MESSAGES = {
         "up_desc_linux_release": "Release",
         
         # watermark.py
-        "wm_watermark_full": "This novel is downloaded using https://github.com/POf-L/Fanqie-novel-Downloader. If you paid for this, please report and refund immediately!",
-        "wm_watermark_simple": "Downloaded using https://github.com/POf-L/Fanqie-novel-Downloader",
+        "wm_watermark_full": "This novel is downloaded using https://github.com/halei0v0/FXdownloader. If you paid for this, please report and refund immediately!",
+        "wm_watermark_simple": "Downloaded using https://github.com/halei0v0/FXdownloader",
 
         # web_app.py (New)
         "web_init": "Initializing...",

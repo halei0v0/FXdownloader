@@ -131,6 +131,11 @@ PACKAGE_SUBMODULES = {
         'pillow_heif.misc',
         'pillow_heif.options',
     ],
+    'pywebview': [
+        'pywebview',
+        'pywebview.window',
+        'pywebview.util',
+    ],
 }
 
 # 标准库模块（需要显式导入的）
@@ -313,13 +318,14 @@ def get_executable_name(base_name: str, platform: str, variant: str) -> str:
     return name
 
 
-def build_executable(variant="release", executable_name=None, target_platform=None):
+def build_executable(variant="release", executable_name=None, target_platform=None, icon_path=None):
     """编译可执行文件
     
     Args:
         variant: 构建变体 ('release' 或 'debug')
         executable_name: 自定义可执行文件名称（不包含扩展名）
         target_platform: 目标平台 ('windows', 'linux', 'darwin')，默认为当前平台
+        icon_path: 图标文件路径（仅Windows有效）
     
     Returns:
         tuple: (success, built_name, target_name)
@@ -348,6 +354,13 @@ def build_executable(variant="release", executable_name=None, target_platform=No
         "--onefile",
         f"--name={target_name}",
     ]
+    
+    # 添加图标（仅Windows）
+    if current_platform == 'windows' and icon_path and os.path.exists(icon_path):
+        cmd.extend(["--icon", icon_path])
+        print(f"Using icon: {icon_path}")
+    elif current_platform == 'windows':
+        print("No icon specified or icon file not found, using default")
     
     # 根据变体选择窗口模式或控制台模式
     if variant == "debug":
@@ -442,11 +455,12 @@ def main():
     parser.add_argument("--variant", choices=["release", "debug"], default="release",
                        help="Build variant (release or debug)")
     parser.add_argument("--name", type=str, help="Custom executable name (without extension)")
+    parser.add_argument("--icon", type=str, help="Icon file path (ICO format for Windows)")
     
     args = parser.parse_args()
     
     # 构建可执行文件
-    success, built_name, target_name = build_executable(args.variant, args.name)
+    success, built_name, target_name = build_executable(args.variant, args.name, icon_path=args.icon)
     
     if success:
         # 先检查构建输出

@@ -194,18 +194,18 @@ def main():
     # 查找可用端口
     port = find_free_port()
     
-    # 检查更新(异步，不阻塞启动)
-    def check_update_async():
-        try:
-            from updater import check_and_notify
-            import time
-            time.sleep(2)
-            check_and_notify(__version__, __github_repo__, silent=False)
-        except Exception:
-            pass
+    # 更新检查已禁用
+    # def check_update_async():
+    #     try:
+    #         from updater import check_and_notify
+    #         import time
+    #         time.sleep(2)
+    #         check_and_notify(__version__, __github_repo__, silent=False)
+    #     except Exception:
+    #         pass
     
-    update_thread = threading.Thread(target=check_update_async, daemon=True)
-    update_thread.start()
+    # update_thread = threading.Thread(target=check_update_async, daemon=True)
+    # update_thread.start()
     
     # 检查依赖
     print("\n" + t("main_check_deps"))

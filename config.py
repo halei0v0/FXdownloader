@@ -4,7 +4,7 @@
 所有节点和配置必须通过远程服务器获取
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.1"
 __author__ = "Tomato Novel Downloader"
 __description__ = "A modern novel downloader with GitHub auto-update support"
 __github_repo__ = "POf-L/Fanqie-novel-Downloader"

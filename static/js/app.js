@@ -1703,15 +1703,18 @@ function closeChapterModal() {
 }
 
 async function checkForUpdate() {
-    try {
-        const result = await api.checkUpdate();
+    // 更新检查已禁用
+    return;
+    
+    // try {
+    //     const result = await api.checkUpdate();
         
-        if (result.success && result.has_update) {
-            showUpdateModal(result.data);
-        }
-    } catch (error) {
-        console.error('检查更新失败:', error);
-    }
+    //     if (result.success && result.has_update) {
+    //         showUpdateModal(result.data);
+    //     }
+    // } catch (error) {
+    //     console.error('检查更新失败:', error);
+    // }
 }
 
 function simpleMarkdownToHtml(markdown) {
@@ -2868,24 +2871,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         logger.logKey('msg_token_loaded');
     }
     
-    // 并发执行：更新检查 + 模块初始化
-    const [updateResult, initSuccess] = await Promise.all([
-        api.checkUpdate().catch(() => ({ success: false })),
-        api.init()
-    ]);
+    // 更新检查已禁用，直接初始化
+    const initSuccess = await api.init();
     
-    // 如果有更新，显示更新弹窗，不再加载节点
-    if (updateResult.success && updateResult.has_update) {
-        initializeUI(true); // 跳过节点加载
-        showUpdateModal(updateResult.data);
+    // 直接初始化UI，跳过更新检查
+    initializeUI(false); // 正常加载节点
+    if (initSuccess) {
+        logger.logKey('msg_ready');
     } else {
-        initializeUI(false); // 正常加载节点
-        if (initSuccess) {
-            logger.logKey('msg_ready');
-        } else {
-            logger.logKey('msg_init_partial');
-            logger.logKey('msg_check_network');
-        }
+        logger.logKey('msg_init_partial');
+        logger.logKey('msg_check_network');
     }
 });
 
@@ -2900,6 +2895,56 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+/* ===================== 主题切换功能 ===================== */
+
+class ThemeManager {
+    static STORAGE_KEY = 'fanqie_theme';
+    static THEME_LIGHT = 'light';
+    static THEME_DARK = 'dark';
+    
+    static init() {
+        // 从本地存储加载主题偏好，默认为亮色
+        const savedTheme = localStorage.getItem(this.STORAGE_KEY) || this.THEME_LIGHT;
+        this.setTheme(savedTheme);
+        
+        // 绑定主题切换按钮
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => this.toggleTheme());
+        }
+    }
+    
+    static setTheme(theme) {
+        const html = document.documentElement;
+        const themeIcon = document.getElementById('themeIcon');
+        
+        if (theme === this.THEME_DARK) {
+            html.setAttribute('data-theme', 'dark');
+            if (themeIcon) {
+                themeIcon.setAttribute('icon', 'line-md:moon-twotone-alt');
+            }
+        } else {
+            html.removeAttribute('data-theme');
+            if (themeIcon) {
+                themeIcon.setAttribute('icon', 'line-md:sun-rising-twotone-loop');
+            }
+        }
+        
+        // 保存到本地存储
+        localStorage.setItem(this.STORAGE_KEY, theme);
+    }
+    
+    static toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || this.THEME_LIGHT;
+        const newTheme = currentTheme === this.THEME_DARK ? this.THEME_LIGHT : this.THEME_DARK;
+        this.setTheme(newTheme);
+    }
+    
+    static getCurrentTheme() {
+        return document.documentElement.getAttribute('data-theme') || this.THEME_LIGHT;
+    }
+}
 
 /* ===================== 窗口控制 (无边框模式) ===================== */
 
@@ -2932,7 +2977,154 @@ function initWindowControls() {
             window.close();
         }
     });
+    
+    // 初始化窗口拖动功能
+    initWindowDrag();
 }
 
-// 初始化窗口控制
-document.addEventListener('DOMContentLoaded', initWindowControls);
+/* ===================== 窗口拖动管理 ===================== */
+
+class WindowManager {
+    static STORAGE_KEY = 'fanqie_window_position';
+    
+    static init() {
+        // 恢复窗口位置
+        this.restoreWindowPosition();
+        
+        // 保存窗口位置
+        this.saveWindowPosition();
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', () => {
+            this.saveWindowPosition();
+        });
+    }
+    
+    static saveWindowPosition() {
+        try {
+            const position = {
+                left: window.screenX || window.screenLeft,
+                top: window.screenY || window.screenTop,
+                width: window.outerWidth,
+                height: window.outerHeight
+            };
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(position));
+        } catch (e) {
+            // 忽略存储错误
+        }
+    }
+    
+    static restoreWindowPosition() {
+        try {
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            if (!saved) return;
+            
+            const position = JSON.parse(saved);
+            
+            // 检查位置是否在屏幕范围内
+            if (this.isPositionValid(position)) {
+                // 在pywebview环境中移动窗口
+                if (window.pywebview && window.pywebview.api) {
+                    window.pywebview.api.set_window_position(position.left, position.top);
+                }
+            }
+        } catch (e) {
+            // 忽略恢复错误
+        }
+    }
+    
+    static isPositionValid(position) {
+        // 检查位置是否在屏幕范围内
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+        
+        // 确保窗口不会完全移出屏幕
+        const isVisible = 
+            position.left + position.width > 100 &&
+            position.top + position.height > 100 &&
+            position.left < screenWidth - 100 &&
+            position.top < screenHeight - 100;
+            
+        return isVisible;
+    }
+}
+
+function initWindowDrag() {
+    const header = document.querySelector('.dashboard-header');
+    if (!header) return;
+    
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+    
+    // 检测是否在 pywebview 环境中
+    const isPyWebView = () => window.pywebview && window.pywebview.api;
+    
+    header.addEventListener('mousedown', (e) => {
+        // 排除按钮和可交互元素
+        if (e.target.closest('.header-actions') || 
+            e.target.closest('button') || 
+            e.target.closest('select') ||
+            e.target.closest('input')) {
+            return;
+        }
+        
+        if (isPyWebView()) {
+            // pywebview环境使用原生拖动
+            return;
+        }
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeft = window.screenX || window.screenLeft;
+        initialTop = window.screenY || window.screenTop;
+        
+        header.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging || isPyWebView()) return;
+        
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        const newLeft = initialLeft + deltaX;
+        const newTop = initialTop + deltaY;
+        
+        // 边界检查
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+        const windowWidth = window.outerWidth;
+        const windowHeight = window.outerHeight;
+        
+        const boundedLeft = Math.max(0, Math.min(newLeft, screenWidth - windowWidth));
+        const boundedTop = Math.max(0, Math.min(newTop, screenHeight - windowHeight));
+        
+        window.moveTo(boundedLeft, boundedTop);
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            header.style.cursor = '';
+            WindowManager.saveWindowPosition();
+        }
+    });
+    
+    // 双击标题栏最大化/还原
+    header.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.header-actions')) return;
+        
+        if (isPyWebView()) {
+            window.pywebview.api.toggle_maximize();
+        }
+    });
+}
+
+// 初始化窗口控制和主题管理
+document.addEventListener('DOMContentLoaded', () => {
+    initWindowControls();
+    ThemeManager.init();
+    WindowManager.init();
+});
