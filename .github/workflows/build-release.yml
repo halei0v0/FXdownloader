@@ -98,14 +98,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows 发布�?          - os: windows-latest
+          # Windows 发布版
+          - os: windows-latest
             variant: release
             executable: FXdownloader
             ext: .exe
             release_name: FXdownloader.exe
             artifact_name: FXdownloader-windows-x64
             build_flags: '--windowed'
-          # Windows 调试�?          - os: windows-latest
+          # Windows 调试版
+          - os: windows-latest
             variant: debug
             executable: FXdownloader-debug
             ext: .exe
@@ -120,28 +122,32 @@ jobs:
             release_name: FXdownloader-Standalone.exe
             artifact_name: FXdownloader-standalone-windows-x64
             build_flags: '--windowed --add-data "WebView2;WebView2"'
-          # Linux 发布�?          - os: ubuntu-latest
+          # Linux 发布版
+          - os: ubuntu-latest
             variant: release
             executable: FXdownloader
             ext: ''
             release_name: FXdownloader-linux
             artifact_name: FXdownloader-linux-x64
             build_flags: '--windowed'
-          # Linux 调试�?          - os: ubuntu-latest
+          # Linux 调试版
+          - os: ubuntu-latest
             variant: debug
             executable: FXdownloader-debug
             ext: ''
             release_name: FXdownloader-debug-linux
             artifact_name: FXdownloader-debug-linux-x64
             build_flags: '--console'
-          # macOS 发布�?          - os: macos-latest
+          # macOS 发布版
+          - os: macos-latest
             variant: release
             executable: FXdownloader
             ext: ''
             release_name: FXdownloader-macos
             artifact_name: FXdownloader-macos-x64
             build_flags: '--windowed'
-          # macOS 调试�?          - os: macos-latest
+          # macOS 调试版
+          - os: macos-latest
             variant: debug
             executable: FXdownloader-debug
             ext: ''
