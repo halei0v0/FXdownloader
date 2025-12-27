@@ -411,13 +411,13 @@ class APIManager:
                             bulk_map = _extract_bulk_map(data)
                             if bulk_map:
                                 with print_lock:
-                                    print(f"[DEBUG] 急速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
+                                    print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                                 return bulk_map
                             
                             text_from_json = _extract_text(data)
                             if text_from_json and len(text_from_json) > 1000:
                                 with print_lock:
-                                    print(f"[DEBUG] 急速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
+                                    print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                                 return text_from_json
                             break
                         
@@ -425,7 +425,7 @@ class APIManager:
                         text = raw_content.decode(encoding, errors='replace')
                         if len(text) > 1000:
                             with print_lock:
-                                print(f"[DEBUG] 急速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
+                                print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                             return text
                         break
                     except transient_errors as e:

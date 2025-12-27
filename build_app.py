@@ -343,7 +343,7 @@ def build_executable(variant="release", executable_name=None, target_platform=No
     if executable_name:
         target_name = executable_name
     else:
-        target_name = get_executable_name("TomatoNovelDownloader", current_platform, variant)
+        target_name = get_executable_name("FXdownloader", current_platform, variant)
     
     # Web版本使用 main.py 作为入口
     print("Building Web version with main.py as entry point")
