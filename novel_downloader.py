@@ -14,12 +14,11 @@ import signal
 import sys
 import inspect
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import asyncio
+# asyncio 和 aiohttp 延迟导入，仅在异步方法中使用
 from tqdm import tqdm
 from typing import Optional, Dict, List, Union
-from ebooklib import epub
+# ebooklib 延迟导入，仅在生成 EPUB 时使用
 from config import CONFIG, print_lock, get_headers
-import aiohttp
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from watermark import apply_watermark_to_chapter
@@ -52,10 +51,11 @@ class APIManager:
             self.base_url = (base_url or "").strip().rstrip('/')
         self.endpoints = CONFIG["endpoints"]
         self._tls = threading.local()
-        self._async_session: Optional[aiohttp.ClientSession] = None
+        # 异步相关属性延迟初始化
+        self._async_session = None
         self.semaphore = None
         self.last_request_time = 0
-        self.request_lock = asyncio.Lock()
+        self.request_lock = None
 
     def _get_session(self) -> requests.Session:
         """获取同步HTTP会话"""
@@ -82,8 +82,14 @@ class APIManager:
             self._tls.session = sess
         return sess
 
-    async def _get_async_session(self) -> aiohttp.ClientSession:
+    async def _get_async_session(self):
         """获取异步HTTP会话"""
+        try:
+            import aiohttp
+            import asyncio
+        except ImportError:
+            raise ImportError("Async features require aiohttp package. Please install it with: pip install aiohttp")
+
         if self._async_session is None or self._async_session.closed:
             timeout = aiohttp.ClientTimeout(total=CONFIG["request_timeout"], connect=5, sock_read=15)
             connector = aiohttp.TCPConnector(
@@ -95,12 +101,14 @@ class APIManager:
                 keepalive_timeout=30
             )
             self._async_session = aiohttp.ClientSession(
-                headers=get_headers(), 
-                timeout=timeout, 
+                headers=get_headers(),
+                timeout=timeout,
                 connector=connector,
                 trust_env=True
             )
-            self.semaphore = asyncio.Semaphore(CONFIG.get("max_workers", 5))
+            if self.semaphore is None:
+                import asyncio
+                self.semaphore = asyncio.Semaphore(CONFIG.get("max_workers", 5))
         return self._async_session
 
     async def close_async(self):
@@ -219,6 +227,11 @@ class APIManager:
 
     async def get_chapter_content_async(self, item_id: str) -> Optional[Dict]:
         """获取章节内容(异步)"""
+        try:
+            import asyncio
+        except ImportError:
+            raise ImportError("Async features require asyncio package")
+
         max_retries = CONFIG.get("max_retries", 3)
         
         async with self.semaphore:
@@ -822,6 +835,13 @@ def download_cover(cover_url, headers):
 
 def create_epub(name, author_name, description, cover_url, chapters, save_path):
     """创建EPUB文件"""
+    try:
+        from ebooklib import epub
+    except ImportError:
+        with print_lock:
+            print("EPUB format requires ebooklib package. Please install it with: pip install ebooklib")
+        return False
+
     book = epub.EpubBook()
     book.set_identifier(f'fanqie_{int(time.time())}')
     book.set_title(name)

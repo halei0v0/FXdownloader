@@ -155,6 +155,12 @@ MESSAGES = {
         "web_queue_next_fail": "本书失败（{}/{}），继续下一本...",
         "web_queue_complete": "队列下载完成，共 {} 本，已保存至 {}",
         "web_queue_complete_fail": "队列结束（可能有失败），共 {} 本，保存至 {}",
+        "web_queue_export_success": "已导出 {} 本书到 {}",
+        "web_queue_export_fail": "导出失败: {}",
+        "web_queue_import_success": "成功导入 {} 本书",
+        "web_queue_import_fail": "导入失败: {}",
+        "web_queue_import_empty": "文件中未找到有效的书籍ID",
+        "web_queue_import_invalid": "文件格式无效，仅支持txt格式",
 
         # novel_downloader.py (New)
         "dl_full_content_error": "获取整书内容异常: {}",
@@ -317,6 +323,12 @@ MESSAGES = {
         "web_queue_next_fail": "Failed ({}/{}), continuing...",
         "web_queue_complete": "Queue complete: {} books, saved to {}",
         "web_queue_complete_fail": "Queue finished (some may fail): {} books, saved to {}",
+        "web_queue_export_success": "Exported {} books to {}",
+        "web_queue_export_fail": "Export failed: {}",
+        "web_queue_import_success": "Successfully imported {} books",
+        "web_queue_import_fail": "Import failed: {}",
+        "web_queue_import_empty": "No valid book IDs found in file",
+        "web_queue_import_invalid": "Invalid file format, only txt format is supported",
 
         # novel_downloader.py (New)
         "dl_full_content_error": "Get full content error: {}",
