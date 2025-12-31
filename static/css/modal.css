@@ -492,6 +492,54 @@
     font-size: 14px;
 }
 
+/* 文件项样式 */
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+}
+
+.file-item:hover {
+    background: var(--bg-input);
+}
+
+.file-item.selected {
+    background: rgba(0, 122, 255, 0.1);
+    border: 1px solid var(--primary);
+}
+
+.file-item iconify-icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+.file-item.selected iconify-icon {
+    color: var(--primary);
+}
+
+.file-item span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.file-size {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.file-item.selected .file-size {
+    color: var(--primary);
+}
+
 .folder-loading,
 .folder-empty,
 .folder-error {

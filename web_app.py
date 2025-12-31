@@ -1316,6 +1316,418 @@ def api_cancel():
             return jsonify({'success': False, 'message': str(e)}), 400
     return jsonify({'success': False}), 400
 
+
+# ===================== 待下载列表导入导出 =====================
+
+@app.route('/api/queue/export', methods=['POST'])
+def api_queue_export():
+    """导出待下载列表到txt文件"""
+    try:
+        data = request.get_json() or {}
+        tasks = data.get('tasks', [])
+        save_path = data.get('save_path', get_default_download_path()).strip()
+
+        if not tasks or not isinstance(tasks, list):
+            return jsonify({'success': False, 'message': '待下载列表为空'}), 400
+
+        # 确保目录存在
+        os.makedirs(save_path, exist_ok=True)
+
+        # 生成文件名（带时间戳）
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'书籍ID列表_{timestamp}.txt'
+        filepath = os.path.join(save_path, filename)
+
+        # 提取所有书籍ID
+        book_ids = []
+        book_names = []
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+            book_id = str(task.get('book_id', '')).strip()
+            book_name = str(task.get('book_name', '')).strip()
+            if book_id:
+                book_ids.append(book_id)
+                if book_name:
+                    book_names.append(book_name)
+
+        # 写入txt文件（按照参考格式）
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(f'# FXdownloader 书籍ID列表【项目地址：https://github.com/halei0v0/FXdownloader】\n')
+            f.write(f'# 导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n')
+            f.write(f'# 共 {len(book_ids)} 本书\n')
+            f.write(f'# 书籍目录（书籍名称，以（《书籍名》，《书籍名》）形式排列）：\n')
+            if book_names:
+                book_names_str = '、'.join([f'《{name}》' for name in book_names])
+                f.write(f'# {book_names_str}\n')
+            f.write(f'# 书籍ID列表（以逗号间隔）: \n')
+            f.write(','.join(book_ids) + '\n')
+            f.write('#\n')
+            f.write(f'# 详细对应关系表（每行一本）：\n')
+            f.write(f'# 格式：书籍ID - 《书籍名称》\n')
+            f.write(f'# ========================================\n')
+            for i, task in enumerate(tasks):
+                if not isinstance(task, dict):
+                    continue
+                book_id = str(task.get('book_id', '')).strip()
+                book_name = str(task.get('book_name', '')).strip()
+                if book_id:
+                    if book_name:
+                        f.write(f'# {book_id} - 《{book_name}》\n')
+                    else:
+                        f.write(f'# {book_id}\n')
+
+        return jsonify({
+            'success': True,
+            'message': f'已导出 {len(book_ids)} 本书到 {filename}',
+            'filename': filename,
+            'filepath': filepath
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'导出失败: {str(e)}'}), 500
+
+
+@app.route('/api/queue/import', methods=['POST'])
+
+
+def api_queue_import():
+
+
+    """从txt文件导入待下载列表"""
+
+
+    try:
+
+
+        data = request.get_json() or {}
+
+
+        filepath = data.get('filepath', '').strip()
+
+
+
+
+
+        if not filepath:
+
+
+            return jsonify({'success': False, 'message': '未指定文件路径'}), 400
+
+
+
+
+
+        if not os.path.exists(filepath):
+
+
+            return jsonify({'success': False, 'message': '文件不存在'}), 400
+
+
+
+
+
+        if not filepath.lower().endswith('.txt'):
+
+
+            return jsonify({'success': False, 'message': '仅支持txt格式文件'}), 400
+
+
+
+
+
+        # 读取文件
+
+
+        imported_tasks = []
+
+
+        book_names_dict = {}  # 存储书籍ID和名称的对应关系
+
+
+        
+
+
+        with open(filepath, 'r', encoding='utf-8') as f:
+
+
+            content = f.read()
+
+
+            
+
+
+            # 首先尝试解析书籍名称对应关系
+
+
+            for line in content.split('\n'):
+
+
+                line = line.strip()
+
+
+                if line.startswith('#') and ' - 《' in line:
+
+
+                    # 解析格式：# 6982529841564224526 - 《我在精神病院学斩神》
+
+
+                    match = re.search(r'#\s*(\d+)\s*-\s*《([^》]+)》', line)
+
+
+                    if match:
+
+
+                        book_id = match.group(1)
+
+
+                        book_name = match.group(2)
+
+
+                        book_names_dict[book_id] = book_name
+
+
+            
+
+
+            # 然后解析书籍ID
+
+
+            for line in content.split('\n'):
+
+
+                line = line.strip()
+
+
+                # 跳过空行和注释行
+
+
+                if not line or line.startswith('#'):
+
+
+                    continue
+
+
+
+
+
+                # 尝试解析逗号间隔的书籍ID（新格式）
+
+
+                if ',' in line and not '|' in line:
+
+
+                    book_ids = [book_id.strip() for book_id in line.split(',') if book_id.strip()]
+
+
+                    for book_id in book_ids:
+
+
+                        if book_id.isdigit():
+
+
+                            task = {'book_id': book_id}
+
+
+                            # 如果有书籍名称，添加到任务中
+
+
+                            if book_id in book_names_dict:
+
+
+                                task['book_name'] = book_names_dict[book_id]
+
+
+                            imported_tasks.append(task)
+
+
+                else:
+
+
+                    # 尝试解析旧格式（兼容性）
+
+
+                    parts = line.split('|')
+
+
+                    if len(parts) >= 1:
+
+
+                        book_id = parts[0].strip()
+
+
+                        if book_id and book_id.isdigit():
+
+
+                            task = {'book_id': book_id}
+
+
+                            
+
+
+                            # 如果有书籍名称，添加到任务中
+
+
+                            if book_id in book_names_dict:
+
+
+                                task['book_name'] = book_names_dict[book_id]
+
+
+
+
+
+                            # 解析章节范围和选中章节
+
+
+                            if len(parts) >= 4:
+
+
+                                start_chapter = parts[1].strip() if parts[1].strip() else None
+
+
+                                end_chapter = parts[2].strip() if parts[2].strip() else None
+
+
+                                selected_str = parts[3].strip() if parts[3].strip() else None
+
+
+
+
+
+                                # 优先处理手动选择的章节
+
+
+                                if selected_str:
+
+
+                                    try:
+
+
+                                        selected_chapters = [int(x.strip()) for x in selected_str.split(',') if x.strip().isdigit()]
+
+
+                                        if selected_chapters:
+
+
+                                            task['selected_chapters'] = selected_chapters
+
+
+                                    except Exception:
+
+
+                                        pass
+
+
+
+
+
+                                # 处理范围选择
+
+
+                                if 'selected_chapters' not in task and (start_chapter or end_chapter):
+
+
+                                    try:
+
+
+                                        if start_chapter:
+
+
+                                            task['start_chapter'] = int(start_chapter)
+
+
+                                        if end_chapter:
+
+
+                                            task['end_chapter'] = int(end_chapter)
+
+
+                                    except Exception:
+
+
+                                        pass
+
+
+
+
+
+                            imported_tasks.append(task)
+
+
+
+
+
+                # 从URL提取ID（兼容性）
+
+
+                if 'fanqienovel.com' in line:
+
+
+                    match = re.search(r'/page/(\d+)', line)
+
+
+                    if match:
+
+
+                        book_id = match.group(1)
+
+
+                        if book_id.isdigit():
+
+
+                            task = {'book_id': book_id}
+
+
+                            if book_id in book_names_dict:
+
+
+                                task['book_name'] = book_names_dict[book_id]
+
+
+                            imported_tasks.append(task)
+
+
+
+
+
+        if not imported_tasks:
+
+
+            return jsonify({'success': False, 'message': '文件中未找到有效的书籍ID'}), 400
+
+
+
+
+
+        return jsonify({
+
+
+            'success': True,
+
+
+            'message': f'成功导入 {len(imported_tasks)} 本书',
+
+
+            'tasks': imported_tasks
+
+
+        })
+
+
+    except Exception as e:
+
+
+        import traceback
+
+
+        traceback.print_exc()
+
+
+        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
+
 # ===================== 批量下载状态 =====================
 batch_download_status = {
     'is_downloading': False,
@@ -1503,6 +1915,8 @@ def api_list_directory():
     try:
         data = request.get_json() or {}
         path = data.get('path', '')
+        show_files = data.get('show_files', False)  # 是否显示文件
+        file_filter = data.get('file_filter', '')   # 文件过滤器
         
         # 如果没有指定路径，使用默认下载路径
         if not path:
@@ -1527,6 +1941,7 @@ def api_list_directory():
     
         # 获取目录列表
         directories = []
+        files = []
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
             if os.path.isdir(item_path):
@@ -1534,9 +1949,19 @@ def api_list_directory():
                     'name': item,
                     'path': item_path
                 })
+            elif show_files and os.path.isfile(item_path):
+                # 如果需要显示文件
+                if not file_filter or item.lower().endswith(file_filter.lower()):
+                    files.append({
+                        'name': item,
+                        'path': item_path,
+                        'size': os.path.getsize(item_path),
+                        'modified': os.path.getmtime(item_path)
+                    })
         
         # 按名称排序
         directories.sort(key=lambda x: x['name'].lower())
+        files.sort(key=lambda x: x['name'].lower())
         
         # 获取父目录
         parent_path = os.path.dirname(path)
@@ -1601,6 +2026,7 @@ def api_list_directory():
                 'current_path': path,
                 'parent_path': parent_path if not is_root else None,
                 'directories': directories,
+                'files': files if show_files else None,
                 'is_root': is_root,
                 'drives': drives if os.name == 'nt' else None,
                 'quick_paths': quick_paths
