@@ -30,17 +30,14 @@ CORS(app)
 # 访问令牌（由main.py在启动时设置）
 ACCESS_TOKEN = None
 
-
 def set_access_token(token):
     """设置访问令牌"""
     global ACCESS_TOKEN
     ACCESS_TOKEN = token
 
-
 # 配置文件路径 - 保存到系统临时目录（跨平台兼容）
 TEMP_DIR = tempfile.gettempdir()
 CONFIG_FILE = os.path.join(TEMP_DIR, 'fanqie_novel_downloader_config.json')
-
 
 def _read_local_config() -> dict:
     try:
@@ -52,7 +49,6 @@ def _read_local_config() -> dict:
         pass
     return {}
 
-
 def _write_local_config(updates: dict) -> bool:
     try:
         cfg = _read_local_config()
@@ -63,10 +59,8 @@ def _write_local_config(updates: dict) -> bool:
     except Exception:
         return False
 
-
 def _normalize_base_url(url: str) -> str:
     return (url or '').strip().rstrip('/')
-
 
 def get_default_download_path():
     """获取默认下载路径（跨平台兼容）"""
@@ -90,16 +84,15 @@ def get_default_download_path():
             else:
                 # 回退到用户主目录
                 downloads = home
-
+    
     # 确保目录存在
     if not os.path.exists(downloads):
         try:
             os.makedirs(downloads, exist_ok=True)
-        except BaseException:
+        except:
             downloads = home
-
+    
     return downloads
-
 
 # 全局变量
 download_queue = queue.Queue()
@@ -135,12 +128,10 @@ update_download_status = {
 }
 update_lock = threading.Lock()
 
-
 def get_update_status():
     """获取更新下载状态"""
     with update_lock:
         return update_download_status.copy()
-
 
 def set_update_status(**kwargs):
     """设置更新下载状态"""
@@ -149,13 +140,12 @@ def set_update_status(**kwargs):
             if key in update_download_status:
                 update_download_status[key] = value
 
-
 def test_url_connectivity(url, timeout=8):
     """测试 URL 连通性"""
     from urllib.parse import urlparse
     parsed = urlparse(url)
     test_url = f"{parsed.scheme}://{parsed.netloc}"
-
+    
     # requests 默认会使用系统代理，直接测试即可
     print(f'[DEBUG] Testing connection to: {test_url}')
     try:
@@ -165,9 +155,8 @@ def test_url_connectivity(url, timeout=8):
             return True
     except Exception as e:
         print(f'[DEBUG] Connection failed: {e}')
-
+    
     return False
-
 
 def download_chunk_adaptive(url, start, end, chunk_id, temp_file, progress_dict, total_size, cancel_flag):
     """下载文件的一个分块（自适应版本）"""
@@ -175,13 +164,13 @@ def download_chunk_adaptive(url, start, end, chunk_id, temp_file, progress_dict,
     try:
         response = requests.get(url, headers=headers, stream=True, timeout=120, allow_redirects=True)
         response.raise_for_status()
-
+        
         chunk_size = 32768  # 32KB chunks for better throughput measurement
         downloaded = 0
         chunk_total = end - start + 1
         last_time = time.time()
         last_downloaded = 0
-
+        
         with open(temp_file, 'wb') as f:
             for chunk in response.iter_content(chunk_size=chunk_size):
                 if cancel_flag.get('cancelled'):
@@ -189,7 +178,7 @@ def download_chunk_adaptive(url, start, end, chunk_id, temp_file, progress_dict,
                 if chunk:
                     f.write(chunk)
                     downloaded += len(chunk)
-
+                    
                     # 计算速度（每秒更新一次）
                     now = time.time()
                     if now - last_time >= 0.5:
@@ -209,12 +198,11 @@ def download_chunk_adaptive(url, start, end, chunk_id, temp_file, progress_dict,
                             'percent': int((downloaded / chunk_total) * 100) if chunk_total > 0 else 0,
                             'speed': progress_dict.get(chunk_id, {}).get('speed', 0)
                         }
-
+        
         return {'success': True, 'chunk_id': chunk_id}
     except Exception as e:
         print(f'[DEBUG] Chunk {chunk_id} download error: {e}')
         return {'success': False, 'reason': str(e), 'chunk_id': chunk_id}
-
 
 def update_download_worker(url, save_path, filename):
     """更新下载工作线程 - 自适应多线程下载"""
@@ -222,18 +210,18 @@ def update_download_worker(url, save_path, filename):
     print(f'[DEBUG]   url: {url}')
     print(f'[DEBUG]   save_path: {save_path}')
     print(f'[DEBUG]   filename: {filename}')
-
+    
     MIN_THREADS = 1
     MAX_THREADS = 64
     MIN_CHUNK_SIZE = 256 * 1024  # 最小分块 256KB
     SPEED_CHECK_INTERVAL = 1.0  # 速度检测间隔（秒）
     SPEED_THRESHOLD = 0.8  # 带宽利用率阈值，低于此值增加线程
-
+    
     try:
         set_update_status(
-            is_downloading=True,
-            progress=0,
-            message=t('web_update_status_connect'),
+            is_downloading=True, 
+            progress=0, 
+            message=t('web_update_status_connect'), 
             filename=filename,
             completed=False,
             error=None,
@@ -242,44 +230,44 @@ def update_download_worker(url, save_path, filename):
             thread_progress=[],
             merging=False
         )
-
+        
         import tempfile
         from concurrent.futures import ThreadPoolExecutor, as_completed
-
+        
         # 先测试连通性
         set_update_status(message=t('web_update_status_connect'))
         if not test_url_connectivity(url, timeout=8):
             raise Exception(t('web_update_connect_fail'))
-
+        
         # 获取文件大小
         print(f'[DEBUG] Getting file info from: {url}')
         head_response = requests.get(url, stream=True, timeout=30, allow_redirects=True)
         head_response.raise_for_status()
-
+        
         final_url = head_response.url
         print(f'[DEBUG] Final URL after redirect: {final_url}')
-
+        
         total_size = int(head_response.headers.get('content-length', 0))
         supports_range = head_response.headers.get('accept-ranges', '').lower() == 'bytes'
         head_response.close()
-
+        
         print(f'[DEBUG] Total size: {total_size} bytes, supports_range: {supports_range}')
-
+        
         temp_dir = tempfile.gettempdir()
         temp_filename = filename + '.new'
         full_path = os.path.join(temp_dir, temp_filename)
-
+        
         # 不支持分块或文件太小，使用单线程
         if total_size == 0 or not supports_range or total_size < 1024 * 1024:
             print(f'[DEBUG] Using single-threaded download')
             set_update_status(thread_count=1, total_size=total_size, message=t('web_update_status_start'))
-
+            
             response = requests.get(final_url, stream=True, timeout=120, allow_redirects=True)
             response.raise_for_status()
-
+            
             if total_size == 0:
                 total_size = int(response.headers.get('content-length', 0))
-
+            
             downloaded = 0
             with open(full_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -288,13 +276,7 @@ def update_download_worker(url, save_path, filename):
                     if chunk:
                         f.write(chunk)
                         downloaded += len(chunk)
-                        progress = int(
-                            (downloaded /
-                             total_size) *
-                            100) if total_size > 0 else min(
-                            99,
-                            downloaded //
-                            100000)
+                        progress = int((downloaded / total_size) * 100) if total_size > 0 else min(99, downloaded // 100000)
                         set_update_status(
                             progress=progress,
                             downloaded_size=downloaded,
@@ -306,7 +288,7 @@ def update_download_worker(url, save_path, filename):
             # 自适应多线程下载
             print(f'[DEBUG] Using adaptive multi-threaded download')
             set_update_status(total_size=total_size, message=t('web_update_status_start'))
-
+            
             cancel_flag = {'cancelled': False}
             progress_dict = {}
             active_chunks = []  # [(chunk_id, start, end, temp_file, future), ...]
@@ -317,13 +299,13 @@ def update_download_worker(url, save_path, filename):
             last_speed_check = time.time()
             last_total_downloaded = 0
             peak_speed = 0
-
+            
             def get_next_chunk(chunk_id, start, size):
                 """获取下一个分块"""
                 end = min(start + size - 1, total_size - 1)
                 temp_file = os.path.join(temp_dir, f'{filename}.part{chunk_id}')
                 return (chunk_id, start, end, temp_file)
-
+            
             def update_progress():
                 """更新总进度"""
                 total_downloaded = sum(p.get('downloaded', 0) for p in progress_dict.values())
@@ -333,13 +315,15 @@ def update_download_worker(url, save_path, filename):
                     if cid in progress_dict:
                         total_downloaded = sum(p.get('downloaded', 0) for p in progress_dict.values())
                         break
-
+                
                 overall_progress = int((total_downloaded / total_size) * 100) if total_size > 0 else 0
                 overall_progress = min(99, overall_progress)  # 下载阶段最多99%
-
-                thread_progress = [{'downloaded': p.get('downloaded', 0), 'total': p.get('total', 0), 'percent': p.get(
-                    'percent', 0), 'speed': p.get('speed', 0)} for p in progress_dict.values()]
-
+                
+                thread_progress = [
+                    {'downloaded': p.get('downloaded', 0), 'total': p.get('total', 0), 'percent': p.get('percent', 0), 'speed': p.get('speed', 0)}
+                    for p in progress_dict.values()
+                ]
+                
                 set_update_status(
                     progress=overall_progress,
                     downloaded_size=total_downloaded,
@@ -348,10 +332,10 @@ def update_download_worker(url, save_path, filename):
                     message=t('web_update_status_dl', overall_progress)
                 )
                 return total_downloaded
-
+            
             # 初始分块大小
             initial_chunk_size = max(MIN_CHUNK_SIZE, total_size // 4)
-
+            
             with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
                 # 启动初始线程
                 for _ in range(MIN_THREADS):
@@ -360,19 +344,19 @@ def update_download_worker(url, save_path, filename):
                         chunk_id, start, end, temp_file = chunk
                         remaining_start = end + 1
                         next_chunk_id += 1
-
+                        
                         future = executor.submit(
-                            download_chunk_adaptive, final_url, start, end,
+                            download_chunk_adaptive, final_url, start, end, 
                             chunk_id, temp_file, progress_dict, total_size, cancel_flag
                         )
                         active_chunks.append((chunk_id, start, end, temp_file, future))
-
+                
                 # 主循环：监控进度并动态调整线程
                 while active_chunks or remaining_start < total_size:
                     if not get_update_status()['is_downloading']:
                         cancel_flag['cancelled'] = True
                         break
-
+                    
                     # 检查已完成的任务
                     still_active = []
                     for chunk_info in active_chunks:
@@ -394,25 +378,25 @@ def update_download_worker(url, save_path, filename):
                         else:
                             still_active.append(chunk_info)
                     active_chunks = still_active
-
+                    
                     # 更新进度
                     total_downloaded = update_progress()
-
+                    
                     # 速度检测和线程调整
                     now = time.time()
                     if now - last_speed_check >= SPEED_CHECK_INTERVAL:
                         current_speed = (total_downloaded - last_total_downloaded) / (now - last_speed_check)
                         last_speed_check = now
                         last_total_downloaded = total_downloaded
-
+                        
                         if current_speed > peak_speed:
                             peak_speed = current_speed
-
+                        
                         # 如果当前速度低于峰值速度的阈值，且还有剩余数据，增加线程
-                        if (peak_speed > 0 and current_speed < peak_speed * SPEED_THRESHOLD and
+                        if (peak_speed > 0 and current_speed < peak_speed * SPEED_THRESHOLD and 
                             remaining_start < total_size and current_threads < MAX_THREADS and
-                                len(active_chunks) < MAX_THREADS):
-
+                            len(active_chunks) < MAX_THREADS):
+                            
                             # 计算新分块大小（剩余数据平均分配给新线程）
                             remaining_size = total_size - remaining_start
                             threads_to_add = min(
@@ -420,9 +404,9 @@ def update_download_worker(url, save_path, filename):
                                 max(1, remaining_size // MIN_CHUNK_SIZE),
                                 4  # 每次最多增加4个线程
                             )
-
+                            
                             new_chunk_size = max(MIN_CHUNK_SIZE, remaining_size // (threads_to_add + 1))
-
+                            
                             for _ in range(threads_to_add):
                                 if remaining_start < total_size:
                                     chunk = get_next_chunk(next_chunk_id, remaining_start, new_chunk_size)
@@ -430,16 +414,16 @@ def update_download_worker(url, save_path, filename):
                                     remaining_start = end + 1
                                     next_chunk_id += 1
                                     current_threads += 1
-
+                                    
                                     future = executor.submit(
                                         download_chunk_adaptive, final_url, start, end,
                                         chunk_id, temp_file, progress_dict, total_size, cancel_flag
                                     )
                                     active_chunks.append((chunk_id, start, end, temp_file, future))
                                     print(f'[DEBUG] Added thread {current_threads}, chunk {chunk_id}')
-
+                    
                     time.sleep(0.1)
-
+                
                 # 等待所有任务完成
                 for chunk_info in active_chunks:
                     chunk_id, start, end, temp_file, future = chunk_info
@@ -449,7 +433,7 @@ def update_download_worker(url, save_path, filename):
                             completed_chunks.append((chunk_id, temp_file))
                     except Exception as e:
                         print(f'[DEBUG] Chunk {chunk_id} final error: {e}')
-
+            
             if cancel_flag['cancelled']:
                 # 清理临时文件
                 for _, temp_file in completed_chunks:
@@ -457,7 +441,7 @@ def update_download_worker(url, save_path, filename):
                         os.remove(temp_file)
                 print(f'[DEBUG] Download was cancelled')
                 return
-
+            
             # 合并文件
             if completed_chunks and get_update_status()['is_downloading']:
                 print(f'[DEBUG] Merging {len(completed_chunks)} chunks...')
@@ -466,10 +450,10 @@ def update_download_worker(url, save_path, filename):
                     message=t('web_update_status_merging'),
                     merging=True
                 )
-
+                
                 # 按 chunk_id 排序
                 completed_chunks.sort(key=lambda x: x[0])
-
+                
                 with open(full_path, 'wb') as outfile:
                     for chunk_id, temp_file in completed_chunks:
                         if os.path.exists(temp_file):
@@ -482,16 +466,16 @@ def update_download_worker(url, save_path, filename):
                 for _, temp_file in completed_chunks:
                     if os.path.exists(temp_file):
                         os.remove(temp_file)
-
+        
         if get_update_status()['is_downloading']:
             print(f'[DEBUG] Download completed successfully!')
             print(f'[DEBUG] File saved to: {full_path}')
             if os.path.exists(full_path):
                 print(f'[DEBUG] File size: {os.path.getsize(full_path)} bytes')
             set_update_status(
-                is_downloading=False,
-                completed=True,
-                progress=100,
+                is_downloading=False, 
+                completed=True, 
+                progress=100, 
                 message=t('web_update_complete'),
                 temp_file_path=full_path,
                 merging=False
@@ -500,26 +484,24 @@ def update_download_worker(url, save_path, filename):
             print(f'[DEBUG] Download was cancelled')
             if os.path.exists(full_path):
                 os.remove(full_path)
-
+                
     except Exception as e:
         import traceback
         print(f'[DEBUG] Download failed with exception:')
         print(f'[DEBUG]   {type(e).__name__}: {str(e)}')
         traceback.print_exc()
         set_update_status(
-            is_downloading=False,
-            error=str(e),
+            is_downloading=False, 
+            error=str(e), 
             message=t('web_update_fail', str(e)),
             merging=False
         )
-
 
 # 延迟导入重型模块
 api = None
 api_manager = None
 novel_downloader = None
 downloader_instance = None
-
 
 def init_modules(skip_api_select=False):
     """初始化核心模块"""
@@ -684,7 +666,6 @@ def _ensure_api_base_url(force_mode=None) -> str:
     # 若没有可用项，仍返回当前（可能为空）
     return current
 
-
 def get_status():
     """获取当前下载状态"""
     with status_lock:
@@ -693,7 +674,6 @@ def get_status():
         status['messages'] = current_download_status['messages'].copy()
         current_download_status['messages'] = []
         return status
-
 
 def update_status(progress=None, message=None, **kwargs):
     """更新下载状态"""
@@ -711,7 +691,6 @@ def update_status(progress=None, message=None, **kwargs):
             if key in current_download_status:
                 current_download_status[key] = value
 
-
 def download_worker():
     """后台下载工作线程"""
     while True:
@@ -719,7 +698,7 @@ def download_worker():
             task = download_queue.get(timeout=1)
             if task is None:
                 break
-
+            
             book_id = task.get('book_id')
             save_path = task.get('save_path', os.getcwd())
             file_format = task.get('file_format', 'txt')
@@ -737,11 +716,11 @@ def download_worker():
                     current_download_status['queue_current'] = queue_current
 
             update_status(is_downloading=True, progress=0, message=t('web_init'))
-
+            
             if not api:
                 update_status(message=t('web_api_not_init'), progress=0, is_downloading=False)
                 continue
-
+            
             try:
                 # 设置进度回调
                 def progress_callback(progress, message):
@@ -749,14 +728,14 @@ def download_worker():
                         update_status(progress=progress, message=message)
                     else:
                         update_status(message=message)
-
+                
                 # 强制刷新 API 实例，防止线程间 Session 污染
                 if hasattr(api_manager, '_tls'):
                     api_manager._tls = threading.local()
-
+                
                 # 获取书籍信息
                 update_status(message=t('web_connecting_book'))
-
+                
                 # 增加超时重试机制
                 book_detail = None
                 for _ in range(3):
@@ -764,11 +743,11 @@ def download_worker():
                     if book_detail:
                         break
                     time.sleep(1)
-
+                
                 if not book_detail:
                     update_status(message=t('web_book_info_fail_check'), is_downloading=False)
                     continue
-
+                
                 # 检查是否有错误（如书籍下架）
                 if isinstance(book_detail, dict) and book_detail.get('_error'):
                     error_type = book_detail.get('_error')
@@ -777,14 +756,13 @@ def download_worker():
                     else:
                         update_status(message=f'获取书籍信息失败: {error_type}', is_downloading=False)
                     continue
-
+                
                 book_name = book_detail.get('book_name', book_id)
                 update_status(book_name=book_name, message=t('web_preparing_download', book_name))
-
+                
                 # 执行下载
                 update_status(message=t('web_starting_engine'))
-                success = api.run_download(book_id, save_path, file_format, start_chapter,
-                                           end_chapter, selected_chapters, progress_callback)
+                success = api.run_download(book_id, save_path, file_format, start_chapter, end_chapter, selected_chapters, progress_callback)
 
                 # 更新队列进度
                 has_more = False
@@ -817,12 +795,7 @@ def download_worker():
                                 queue_current=0
                             )
                         else:
-                            update_status(
-                                progress=100,
-                                message=t(
-                                    'web_download_success_path',
-                                    save_path),
-                                is_downloading=False)
+                            update_status(progress=100, message=t('web_download_success_path', save_path), is_downloading=False)
                 else:
                     if has_more:
                         update_status(
@@ -843,14 +816,14 @@ def download_worker():
                             )
                         else:
                             update_status(message=t('web_download_interrupted'), progress=0, is_downloading=False)
-
+                    
             except Exception as e:
                 import traceback
                 traceback.print_exc()
                 error_str = str(e)
                 update_status(message=t('web_download_exception', error_str), progress=0, is_downloading=False)
                 print(f"下载异常: {error_str}")
-
+        
         except queue.Empty:
             continue
         except Exception as e:
@@ -858,13 +831,11 @@ def download_worker():
             update_status(message=t('web_worker_error', error_str), progress=0, is_downloading=False)
             print(f"工作线程异常: {error_str}")
 
-
 # 启动后台下载线程
 download_thread = threading.Thread(target=download_worker, daemon=True)
 download_thread.start()
 
 # ===================== 访问控制中间件 =====================
-
 
 @app.before_request
 def check_access():
@@ -872,17 +843,16 @@ def check_access():
     # 静态文件不需要验证
     if request.path.startswith('/static/'):
         return None
-
+    
     # 验证token
     if ACCESS_TOKEN is not None:
         token = request.args.get('token') or request.headers.get('X-Access-Token')
         if token != ACCESS_TOKEN:
             return jsonify({'error': 'Forbidden'}), 403
-
+    
     return None
 
 # ===================== API 路由 =====================
-
 
 @app.route('/')
 def index():
@@ -891,7 +861,6 @@ def index():
     token = request.args.get('token', '')
     return render_template('index.html', version=__version__, access_token=token)
 
-
 @app.route('/api/init', methods=['POST'])
 def api_init():
     """初始化模块（跳过节点探测，由前端单独调用 /api/api-sources）"""
@@ -899,13 +868,11 @@ def api_init():
         return jsonify({'success': True, 'message': t('web_module_loaded')})
     return jsonify({'success': False, 'message': t('web_module_fail_msg')}), 500
 
-
 @app.route('/api/version', methods=['GET'])
 def api_version():
     """获取当前版本号"""
     from config import __version__
     return jsonify({'success': True, 'version': __version__})
-
 
 @app.route('/api/status', methods=['GET'])
 def api_status():
@@ -989,20 +956,19 @@ def api_api_sources_select():
 
     return jsonify({'success': True, 'mode': 'manual', 'current': base_url, 'probe': probe})
 
-
 @app.route('/api/search', methods=['POST'])
 def api_search():
     """搜索书籍"""
     data = request.get_json()
     keyword = data.get('keyword', '').strip()
     offset = data.get('offset', 0)
-
+    
     if not keyword:
         return jsonify({'success': False, 'message': t('web_search_keyword_empty')}), 400
-
+    
     if not api_manager:
         return jsonify({'success': False, 'message': t('web_api_not_init')}), 500
-
+    
     try:
         result = api_manager.search_books(keyword, offset)
         if result and result.get('data'):
@@ -1010,7 +976,7 @@ def api_search():
             search_data = result.get('data', {})
             books = []
             has_more = False
-
+            
             # 新 API 数据结构: data.search_tabs[].data[].book_data[]
             # 需要找到 tab_type=3 (书籍) 的 tab
             search_tabs = search_data.get('search_tabs', [])
@@ -1029,17 +995,17 @@ def api_search():
                                     if isinstance(word_count, str):
                                         try:
                                             word_count = int(word_count)
-                                        except BaseException:
+                                        except:
                                             word_count = 0
-
+                                    
                                     # 解析章节数
                                     chapter_count = book.get('serial_count', 0) or book.get('chapter_count', 0)
                                     if isinstance(chapter_count, str):
                                         try:
                                             chapter_count = int(chapter_count)
-                                        except BaseException:
+                                        except:
                                             chapter_count = 0
-
+                                    
                                     # 解析状态 (0=已完结, 1=连载中, 2=完结)
                                     status_code = book.get('creation_status', '')
                                     # 转换为字符串进行比较
@@ -1052,7 +1018,7 @@ def api_search():
                                         status = t('dl_status_completed_2')
                                     else:
                                         status = ''
-
+                                    
                                     books.append({
                                         'book_id': str(book.get('book_id', '')),
                                         'book_name': book.get('book_name', t('dl_unknown_book')),
@@ -1065,7 +1031,7 @@ def api_search():
                                         'category': book.get('category', '') or book.get('genre', '')
                                     })
                     break  # 找到书籍 tab 后退出
-
+            
             return jsonify({
                 'success': True,
                 'data': {
@@ -1090,17 +1056,16 @@ def api_search():
         traceback.print_exc()
         return jsonify({'success': False, 'message': t('web_search_fail', str(e))}), 500
 
-
 @app.route('/api/book-info', methods=['POST'])
 def api_book_info():
     """获取书籍详情和章节列表"""
     print(f"[DEBUG] Received book-info request: {request.data}")
     data = request.get_json()
     book_id = data.get('book_id', '').strip()
-
+    
     if not book_id:
         return jsonify({'success': False, 'message': t('web_book_id_empty')}), 400
-
+    
     # 从URL中提取ID
     if 'fanqienovel.com' in book_id:
         match = re.search(r'/page/(\d+)', book_id)
@@ -1108,14 +1073,14 @@ def api_book_info():
             book_id = match.group(1)
         else:
             return jsonify({'success': False, 'message': t('web_url_error')}), 400
-
+    
     # 验证book_id是数字
     if not book_id.isdigit():
         return jsonify({'success': False, 'message': t('web_id_not_digit')}), 400
-
+    
     if not api:
         return jsonify({'success': False, 'message': t('web_api_not_init')}), 500
-
+    
     try:
         # 获取书籍信息
         print(f"[DEBUG] calling get_book_detail for {book_id}")
@@ -1123,26 +1088,26 @@ def api_book_info():
         print(f"[DEBUG] book_detail result: {str(book_detail)[:100]}")
         if not book_detail:
             return jsonify({'success': False, 'message': t('web_book_info_fail')}), 400
-
+        
         # 检查是否有错误（如书籍下架）
         if isinstance(book_detail, dict) and book_detail.get('_error'):
             error_type = book_detail.get('_error')
             if error_type == 'BOOK_REMOVE':
                 return jsonify({'success': False, 'message': '该书籍已下架，无法下载'}), 400
             return jsonify({'success': False, 'message': f'获取书籍信息失败: {error_type}'}), 400
-
+        
         # 获取章节列表
         print(f"[DEBUG] calling get_chapter_list for {book_id}")
         chapters_data = api_manager.get_chapter_list(book_id)
         print(f"[DEBUG] chapters_data type: {type(chapters_data)}")
         if not chapters_data:
             return jsonify({'success': False, 'message': t('web_chapter_list_fail')}), 400
-
+        
         chapters = []
         if isinstance(chapters_data, dict):
             all_item_ids = chapters_data.get("allItemIds", [])
             chapter_list = chapters_data.get("chapterListWithVolume", [])
-
+            
             if chapter_list:
                 idx = 0
                 for volume in chapter_list:
@@ -1150,20 +1115,20 @@ def api_book_info():
                         for ch in volume:
                             if isinstance(ch, dict):
                                 item_id = ch.get("itemId") or ch.get("item_id")
-                                title = ch.get("title", t("dl_chapter_title", idx + 1))
+                                title = ch.get("title", t("dl_chapter_title", idx+1))
                                 if item_id:
                                     chapters.append({"id": str(item_id), "title": title, "index": idx})
                                     idx += 1
             else:
                 for idx, item_id in enumerate(all_item_ids):
-                    chapters.append({"id": str(item_id), "title": t("dl_chapter_title", idx + 1), "index": idx})
+                    chapters.append({"id": str(item_id), "title": t("dl_chapter_title", idx+1), "index": idx})
         elif isinstance(chapters_data, list):
             for idx, ch in enumerate(chapters_data):
                 item_id = ch.get("item_id") or ch.get("chapter_id")
-                title = ch.get("title", t("dl_chapter_title", idx + 1))
+                title = ch.get("title", t("dl_chapter_title", idx+1))
                 if item_id:
                     chapters.append({"id": str(item_id), "title": title, "index": idx})
-
+        
         print(f"[DEBUG] Found {len(chapters)} chapters")
 
         # 返回书籍信息和章节列表
@@ -1183,25 +1148,24 @@ def api_book_info():
         traceback.print_exc()
         return jsonify({'success': False, 'message': t('web_get_info_fail', str(e))}), 500
 
-
 @app.route('/api/download', methods=['POST'])
 def api_download():
     """开始下载"""
     data = request.get_json()
-
+    
     if get_status()['is_downloading']:
         return jsonify({'success': False, 'message': t('web_download_exists')}), 400
-
+    
     book_id = data.get('book_id', '').strip()
     save_path = data.get('save_path', get_default_download_path()).strip()
     file_format = data.get('file_format', 'txt')
     start_chapter = data.get('start_chapter')
     end_chapter = data.get('end_chapter')
     selected_chapters = data.get('selected_chapters')
-
+    
     if not book_id:
         return jsonify({'success': False, 'message': t('web_book_id_empty')}), 400
-
+    
     # 从URL中提取ID
     if 'fanqienovel.com' in book_id:
         match = re.search(r'/page/(\d+)', book_id)
@@ -1209,17 +1173,17 @@ def api_download():
             book_id = match.group(1)
         else:
             return jsonify({'success': False, 'message': t('web_url_error')}), 400
-
+    
     # 验证book_id是数字
     if not book_id.isdigit():
         return jsonify({'success': False, 'message': t('web_id_not_digit')}), 400
-
+    
     # 确保路径存在
     try:
         os.makedirs(save_path, exist_ok=True)
     except Exception as e:
         return jsonify({'success': False, 'message': t('web_save_path_error', str(e))}), 400
-
+    
     # 添加到下载队列
     task = {
         'book_id': book_id,
@@ -1231,7 +1195,7 @@ def api_download():
     }
     download_queue.put(task)
     update_status(is_downloading=True, progress=0, message=t('web_task_added'))
-
+    
     return jsonify({'success': True, 'message': t('web_task_started')})
 
 
@@ -1340,7 +1304,6 @@ def api_queue_start():
 
     return jsonify({'success': True, 'count': len(cleaned_tasks)})
 
-
 @app.route('/api/cancel', methods=['POST'])
 def api_cancel():
     """取消下载"""
@@ -1353,278 +1316,6 @@ def api_cancel():
             return jsonify({'success': False, 'message': str(e)}), 400
     return jsonify({'success': False}), 400
 
-
-# ===================== 待下载列表导入导出 =====================
-
-@app.route('/api/queue/export', methods=['POST'])
-def api_queue_export():
-    """导出待下载列表到txt文件"""
-    try:
-        data = request.get_json() or {}
-        tasks = data.get('tasks', [])
-        save_path = data.get('save_path', get_default_download_path()).strip()
-
-        if not tasks or not isinstance(tasks, list):
-            return jsonify({'success': False, 'message': '待下载列表为空'}), 400
-
-        # 确保目录存在
-        os.makedirs(save_path, exist_ok=True)
-
-        # 生成文件名（带时间戳）
-        from datetime import datetime
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'书籍ID列表_{timestamp}.txt'
-        filepath = os.path.join(save_path, filename)
-
-        # 提取所有书籍ID
-        book_ids = []
-        book_names = []
-        for task in tasks:
-            if not isinstance(task, dict):
-                continue
-            book_id = str(task.get('book_id', '')).strip()
-            book_name = str(task.get('book_name', '')).strip()
-            if book_id:
-                book_ids.append(book_id)
-                if book_name:
-                    book_names.append(book_name)
-
-        # 写入txt文件（按照参考格式）
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(f'# FXdownloader 书籍ID列表【项目地址：https://github.com/halei0v0/FXdownloader】\n')
-            f.write(f'# 导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n')
-            f.write(f'# 共 {len(book_ids)} 本书\n')
-            f.write(f'# 书籍目录（书籍名称，以（《书籍名》，《书籍名》）形式排列）：\n')
-            if book_names:
-                book_names_str = '、'.join([f'《{name}》' for name in book_names])
-                f.write(f'# {book_names_str}\n')
-            f.write(f'# 书籍ID列表（以逗号间隔）: \n')
-            f.write(','.join(book_ids) + '\n')
-            f.write('#\n')
-            f.write(f'# 详细对应关系表（每行一本）：\n')
-            f.write(f'# 格式：书籍ID - 《书籍名称》\n')
-            f.write(f'# ========================================\n')
-            for i, task in enumerate(tasks):
-                if not isinstance(task, dict):
-                    continue
-                book_id = str(task.get('book_id', '')).strip()
-                book_name = str(task.get('book_name', '')).strip()
-                if book_id:
-                    if book_name:
-                        f.write(f'# {book_id} - 《{book_name}》\n')
-                    else:
-                        f.write(f'# {book_id}\n')
-
-        return jsonify({
-            'success': True,
-            'message': f'已导出 {len(book_ids)} 本书到 {filename}',
-            'filename': filename,
-            'filepath': filepath
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'message': f'导出失败: {str(e)}'}), 500
-
-
-@app.route('/api/queue/import', methods=['POST'])
-def api_queue_import():
-    """从txt文件导入待下载列表"""
-
-    try:
-
-        data = request.get_json() or {}
-
-        filepath = data.get('filepath', '').strip()
-
-        if not filepath:
-
-            return jsonify({'success': False, 'message': '未指定文件路径'}), 400
-
-        if not os.path.exists(filepath):
-
-            return jsonify({'success': False, 'message': '文件不存在'}), 400
-
-        if not filepath.lower().endswith('.txt'):
-
-            return jsonify({'success': False, 'message': '仅支持txt格式文件'}), 400
-
-        # 读取文件
-
-        imported_tasks = []
-
-        book_names_dict = {}  # 存储书籍ID和名称的对应关系
-
-        with open(filepath, 'r', encoding='utf-8') as f:
-
-            content = f.read()
-
-            # 首先尝试解析书籍名称对应关系
-
-            for line in content.split('\n'):
-
-                line = line.strip()
-
-                if line.startswith('#') and ' - 《' in line:
-
-                    # 解析格式：# 6982529841564224526 - 《我在精神病院学斩神》
-
-                    match = re.search(r'#\s*(\d+)\s*-\s*《([^》]+)》', line)
-
-                    if match:
-
-                        book_id = match.group(1)
-
-                        book_name = match.group(2)
-
-                        book_names_dict[book_id] = book_name
-
-            # 然后解析书籍ID
-
-            for line in content.split('\n'):
-
-                line = line.strip()
-
-                # 跳过空行和注释行
-
-                if not line or line.startswith('#'):
-
-                    continue
-
-                # 尝试解析逗号间隔的书籍ID（新格式）
-
-                if ',' in line and '|' not in line:
-
-                    book_ids = [book_id.strip() for book_id in line.split(',') if book_id.strip()]
-
-                    for book_id in book_ids:
-
-                        if book_id.isdigit():
-
-                            task = {'book_id': book_id}
-
-                            # 如果有书籍名称，添加到任务中
-
-                            if book_id in book_names_dict:
-
-                                task['book_name'] = book_names_dict[book_id]
-
-                            imported_tasks.append(task)
-
-                else:
-
-                    # 尝试解析旧格式（兼容性）
-
-                    parts = line.split('|')
-
-                    if len(parts) >= 1:
-
-                        book_id = parts[0].strip()
-
-                        if book_id and book_id.isdigit():
-
-                            task = {'book_id': book_id}
-
-                            # 如果有书籍名称，添加到任务中
-
-                            if book_id in book_names_dict:
-
-                                task['book_name'] = book_names_dict[book_id]
-
-                            # 解析章节范围和选中章节
-
-                            if len(parts) >= 4:
-
-                                start_chapter = parts[1].strip() if parts[1].strip() else None
-
-                                end_chapter = parts[2].strip() if parts[2].strip() else None
-
-                                selected_str = parts[3].strip() if parts[3].strip() else None
-
-                                # 优先处理手动选择的章节
-
-                                if selected_str:
-
-                                    try:
-
-                                        selected_chapters = [int(x.strip())
-                                                             for x in selected_str.split(',') if x.strip().isdigit()]
-
-                                        if selected_chapters:
-
-                                            task['selected_chapters'] = selected_chapters
-
-                                    except Exception:
-
-                                        pass
-
-                                # 处理范围选择
-
-                                if 'selected_chapters' not in task and (start_chapter or end_chapter):
-
-                                    try:
-
-                                        if start_chapter:
-
-                                            task['start_chapter'] = int(start_chapter)
-
-                                        if end_chapter:
-
-                                            task['end_chapter'] = int(end_chapter)
-
-                                    except Exception:
-
-                                        pass
-
-                            imported_tasks.append(task)
-
-                # 从URL提取ID（兼容性）
-
-                if 'fanqienovel.com' in line:
-
-                    match = re.search(r'/page/(\d+)', line)
-
-                    if match:
-
-                        book_id = match.group(1)
-
-                        if book_id.isdigit():
-
-                            task = {'book_id': book_id}
-
-                            if book_id in book_names_dict:
-
-                                task['book_name'] = book_names_dict[book_id]
-
-                            imported_tasks.append(task)
-
-        if not imported_tasks:
-
-            return jsonify({'success': False, 'message': '文件中未找到有效的书籍ID'}), 400
-
-        return jsonify({
-
-
-            'success': True,
-
-
-            'message': f'成功导入 {len(imported_tasks)} 本书',
-
-
-            'tasks': imported_tasks
-
-
-        })
-
-    except Exception as e:
-
-        import traceback
-
-        traceback.print_exc()
-
-        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
-
-
 # ===================== 批量下载状态 =====================
 batch_download_status = {
     'is_downloading': False,
@@ -1636,12 +1327,10 @@ batch_download_status = {
 }
 batch_lock = threading.Lock()
 
-
 def get_batch_status():
     """获取批量下载状态"""
     with batch_lock:
         return batch_download_status.copy()
-
 
 def update_batch_status(**kwargs):
     """更新批量下载状态"""
@@ -1650,11 +1339,10 @@ def update_batch_status(**kwargs):
             if key in batch_download_status:
                 batch_download_status[key] = value
 
-
 def batch_download_worker(book_ids, save_path, file_format):
     """批量下载工作线程"""
     from novel_downloader import batch_downloader
-
+    
     def progress_callback(current, total, book_name, status, message):
         update_batch_status(
             current_index=current,
@@ -1662,7 +1350,7 @@ def batch_download_worker(book_ids, save_path, file_format):
             current_book=book_name,
             message=f'[{current}/{total}] {book_name}: {message}'
         )
-
+    
     try:
         update_batch_status(
             is_downloading=True,
@@ -1671,41 +1359,40 @@ def batch_download_worker(book_ids, save_path, file_format):
             results=[],
             message='开始批量下载...'
         )
-
+        
         result = batch_downloader.run_batch(
             book_ids, save_path, file_format,
             progress_callback=progress_callback,
             delay_between_books=2.0
         )
-
+        
         update_batch_status(
             is_downloading=False,
             results=result.get('results', []),
             message=f"✅ 批量下载完成: {result['message']}"
         )
-
+        
     except Exception as e:
         update_batch_status(
             is_downloading=False,
             message=f'❌ 批量下载失败: {str(e)}'
         )
 
-
 @app.route('/api/batch-download', methods=['POST'])
 def api_batch_download():
     """开始批量下载"""
     data = request.get_json()
-
+    
     if get_batch_status()['is_downloading']:
         return jsonify({'success': False, 'message': t('web_batch_running')}), 400
-
+    
     book_ids = data.get('book_ids', [])
     save_path = data.get('save_path', get_default_download_path()).strip()
     file_format = data.get('file_format', 'txt')
-
+    
     if not book_ids:
         return jsonify({'success': False, 'message': t('web_provide_ids')}), 400
-
+    
     # 清理和验证book_ids
     cleaned_ids = []
     for bid in book_ids:
@@ -1717,13 +1404,13 @@ def api_batch_download():
                 bid = match.group(1)
         if bid.isdigit():
             cleaned_ids.append(bid)
-
+    
     if not cleaned_ids:
         return jsonify({'success': False, 'message': t('web_no_valid_ids')}), 400
-
+    
     # 确保保存目录存在
     os.makedirs(save_path, exist_ok=True)
-
+    
     # 启动批量下载线程
     t = threading.Thread(
         target=batch_download_worker,
@@ -1731,25 +1418,23 @@ def api_batch_download():
         daemon=True
     )
     t.start()
-
+    
     return jsonify({
         'success': True,
         'message': t('web_batch_start_count', len(cleaned_ids)),
         'count': len(cleaned_ids)
     })
 
-
 @app.route('/api/batch-status', methods=['GET'])
 def api_batch_status():
     """获取批量下载状态"""
     return jsonify(get_batch_status())
 
-
 @app.route('/api/batch-cancel', methods=['POST'])
 def api_batch_cancel():
     """取消批量下载"""
     from novel_downloader import batch_downloader
-
+    
     try:
         batch_downloader.cancel()
         update_batch_status(
@@ -1760,12 +1445,11 @@ def api_batch_cancel():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-
 @app.route('/api/language', methods=['GET', 'POST'])
 def api_language():
     """获取/设置语言配置"""
     from locales import get_current_lang, set_current_lang
-
+    
     if request.method == 'GET':
         return jsonify({'language': get_current_lang()})
     else:
@@ -1778,37 +1462,36 @@ def api_language():
         else:
             return jsonify({'success': False, 'message': 'Failed to save language'}), 500
 
-
 @app.route('/api/config/save-path', methods=['GET', 'POST'])
 def api_config_save_path():
     """获取/保存下载路径配置"""
-
+    
     if request.method == 'GET':
         try:
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     return jsonify({'path': config.get('save_path', get_default_download_path())})
-        except BaseException:
+        except:
             pass
         return jsonify({'path': get_default_download_path()})
-
+    
     else:
         data = request.get_json()
         path = data.get('path', get_default_download_path())
-
+        
         try:
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     config = json.load(f)
             else:
                 config = {}
-
+            
             config['save_path'] = path
-
+            
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
-
+            
             return jsonify({'success': True})
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)}), 500
@@ -1820,33 +1503,30 @@ def api_list_directory():
     try:
         data = request.get_json() or {}
         path = data.get('path', '')
-        show_files = data.get('show_files', False)  # 是否显示文件
-        file_filter = data.get('file_filter', '')   # 文件过滤器
-
+        
         # 如果没有指定路径，使用默认下载路径
         if not path:
             path = get_default_download_path()
-
+        
         # 规范化路径
         path = os.path.normpath(os.path.expanduser(path))
-
+    
         # 检查路径是否存在
         if not os.path.exists(path):
             return jsonify({
                 'success': False,
                 'message': '目录不存在'
             })
-
+        
         # 检查是否是目录
         if not os.path.isdir(path):
             return jsonify({
                 'success': False,
                 'message': '路径不是目录'
             })
-
+    
         # 获取目录列表
         directories = []
-        files = []
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
             if os.path.isdir(item_path):
@@ -1854,24 +1534,14 @@ def api_list_directory():
                     'name': item,
                     'path': item_path
                 })
-            elif show_files and os.path.isfile(item_path):
-                # 如果需要显示文件
-                if not file_filter or item.lower().endswith(file_filter.lower()):
-                    files.append({
-                        'name': item,
-                        'path': item_path,
-                        'size': os.path.getsize(item_path),
-                        'modified': os.path.getmtime(item_path)
-                    })
-
+        
         # 按名称排序
         directories.sort(key=lambda x: x['name'].lower())
-        files.sort(key=lambda x: x['name'].lower())
-
+        
         # 获取父目录
         parent_path = os.path.dirname(path)
         is_root = (parent_path == path) or (path in ['/', '\\'])
-
+        
         # Windows 驱动器列表
         drives = []
         if os.name == 'nt':
@@ -1883,11 +1553,11 @@ def api_list_directory():
                         'name': f'{letter}:',
                         'path': drive
                     })
-
+        
         # 快捷路径（用户常用文件夹）
         quick_paths = []
         home = os.path.expanduser('~')
-
+        
         # Windows 特殊文件夹
         if os.name == 'nt':
             shell_folders = [
@@ -1924,14 +1594,13 @@ def api_list_directory():
                         'path': folder_path,
                         'icon': icon
                     })
-
+        
         return jsonify({
             'success': True,
             'data': {
                 'current_path': path,
                 'parent_path': parent_path if not is_root else None,
                 'directories': directories,
-                'files': files if show_files else None,
                 'is_root': is_root,
                 'drives': drives if os.name == 'nt' else None,
                 'quick_paths': quick_paths
@@ -1957,14 +1626,14 @@ def api_select_folder():
     """保存选择的文件夹路径"""
     data = request.get_json() or {}
     selected_path = data.get('path', '')
-
+    
     if not selected_path:
         return jsonify({'success': False, 'message': '未选择文件夹'})
-
+    
     # 验证路径存在且是目录
     if not os.path.exists(selected_path) or not os.path.isdir(selected_path):
         return jsonify({'success': False, 'message': '无效的目录路径'})
-
+    
     # 保存选择的路径到配置
     try:
         if os.path.exists(CONFIG_FILE):
@@ -1972,16 +1641,15 @@ def api_select_folder():
                 config = json.load(f)
         else:
             config = {}
-
+        
         config['save_path'] = selected_path
-
+        
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
-
+        
         return jsonify({'success': True, 'path': selected_path})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-
 
 @app.route('/api/check-update', methods=['GET'])
 def api_check_update():
@@ -1991,10 +1659,10 @@ def api_check_update():
         'has_update': False,
         'message': '更新检查已禁用'
     })
-
+    
     # try:
     #     import sys
-
+        
     #     # 源代码运行时不检查更新
     #     if not getattr(sys, 'frozen', False):
     #         return jsonify({
@@ -2003,12 +1671,12 @@ def api_check_update():
     #             'is_source': True,
     #             'message': '源代码运行模式，不检查更新'
     #         })
-
+        
     #     from updater import check_and_notify
     #     from config import __version__, __github_repo__
-
+        
     #     update_info = check_and_notify(__version__, __github_repo__, silent=True)
-
+        
     #     if update_info:
     #         return jsonify({
     #             'success': True,
@@ -2023,7 +1691,6 @@ def api_check_update():
     # except Exception as e:
     #     return jsonify({'success': False, 'message': t('web_check_update_fail', str(e))}), 500
 
-
 @app.route('/api/get-update-assets', methods=['GET'])
 def api_get_update_assets():
     """获取更新资源列表 - 已禁用"""
@@ -2031,18 +1698,18 @@ def api_get_update_assets():
         'success': False,
         'message': '更新功能已禁用'
     })
-
+    
     # try:
     #     from updater import get_latest_release, parse_release_assets
     #     from config import __github_repo__
     #     import platform
-
+        
     #     # 获取最新版本信息
     #     latest_info = get_latest_release(__github_repo__)
     #     if not latest_info:
     #         return jsonify({'success': False, 'message': '无法获取版本信息'}), 500
-
-    #     # 检测当前平台
+        
+        #     # 检测当前平台
     #     system = platform.system().lower()
     #     if system == 'darwin':
     #         platform_name = 'macos'
@@ -2050,10 +1717,10 @@ def api_get_update_assets():
     #         platform_name = 'linux'
     #     else:
     #         platform_name = 'windows'
-
+        
     #     # 解析 assets
     #     assets = parse_release_assets(latest_info, platform_name)
-
+        
     #     return jsonify({
     #         'success': True,
     #         'platform': platform_name,
@@ -2063,7 +1730,6 @@ def api_get_update_assets():
     # except Exception as e:
     #     return jsonify({'success': False, 'message': f'获取下载选项失败: {str(e)}'}), 500
 
-
 @app.route('/api/download-update', methods=['POST'])
 def api_download_update():
     """下载更新 - 已禁用"""
@@ -2071,7 +1737,6 @@ def api_download_update():
         'success': False,
         'message': '更新功能已禁用'
     })
-
 
 @app.route('/api/update-status', methods=['GET'])
 def api_get_update_status_route():
@@ -2082,9 +1747,10 @@ def api_get_update_status_route():
         'message': '更新功能已禁用'
     })
 
-
 @app.route('/api/can-auto-update', methods=['GET'])
+
 def api_can_auto_update():
+
     """检查是否支持自动更新 - 已禁用"""
 
     return jsonify({
@@ -2097,7 +1763,6 @@ def api_can_auto_update():
 
     })
 
-
 @app.route('/api/apply-update', methods=['POST'])
 def api_apply_update():
     """应用更新 - 已禁用"""
@@ -2106,16 +1771,15 @@ def api_apply_update():
         'message': '更新功能已禁用'
     })
 
-
 @app.route('/api/open-folder', methods=['POST'])
 def api_open_folder():
     """打开文件夹"""
     data = request.get_json()
     path = data.get('path')
-
+    
     if not path or not os.path.exists(path):
         return jsonify({'success': False, 'message': t('web_path_not_exist')}), 400
-
+        
     try:
         if os.name == 'nt':
             os.startfile(path)
@@ -2126,7 +1790,6 @@ def api_open_folder():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-
 
 if __name__ == '__main__':
     print(f'配置文件位置: {CONFIG_FILE}')

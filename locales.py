@@ -14,7 +14,6 @@ DEFAULT_LANG = "zh"
 # 配置文件路径（与 web_app.py 保持一致）
 _CONFIG_FILE = os.path.join(tempfile.gettempdir(), 'fanqie_novel_downloader_config.json')
 
-
 def get_current_lang():
     """从配置文件读取当前语言设置"""
     try:
@@ -22,10 +21,9 @@ def get_current_lang():
             with open(_CONFIG_FILE, 'r', encoding='utf-8') as f:
                 config = json.load(f)
                 return config.get('language', DEFAULT_LANG)
-    except BaseException:
+    except:
         pass
     return DEFAULT_LANG
-
 
 def set_current_lang(lang):
     """保存语言设置到配置文件"""
@@ -38,9 +36,8 @@ def set_current_lang(lang):
         with open(_CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
         return True
-    except BaseException:
+    except:
         return False
-
 
 # Translations
 MESSAGES = {
@@ -52,7 +49,7 @@ MESSAGES = {
         "config_server_error": "警告: 无法连接配置服务器，程序可能无法正常工作",
         "config_invalid_format": "警告: 远程配置格式无效",
         "config_json_error": "警告: 远程配置 JSON 解析失败: {}",
-
+        
         # main.py
         "main_app_closed": "应用已关闭",
         "main_webview_init_fail": "PyWebView 浏览器引擎初始化失败: {}",
@@ -73,7 +70,7 @@ MESSAGES = {
         "main_server_timeout": "服务器启动超时",
         "main_opening_interface": "打开应用界面...",
         "main_flask_fail": "Flask 应用启动失败: {}",
-
+        
         # web_app.py
         "web_update_status_dl": "正在下载: {}%",
         "web_update_status_connect": "正在连接服务器...",
@@ -91,7 +88,7 @@ MESSAGES = {
         "web_book_info_fail": "获取书籍信息失败",
         "web_chapter_list_fail": "无法获取章节列表",
         "web_download_exists": "已有下载任务在进行",
-
+        
         # novel_downloader.py
         "dl_search_error": "搜索异常: {}",
         "dl_detail_error": "获取书籍详情异常: {}",
@@ -125,7 +122,7 @@ MESSAGES = {
         "dl_status_finished": "已完结",
         "dl_status_serializing": "连载中",
         "dl_status_completed_2": "完结",
-
+        
         # updater.py
         "up_check_fail": "无法检查更新，请检查网络连接",
         "up_latest": "当前已是最新版本 ({})",
@@ -136,7 +133,7 @@ MESSAGES = {
         "up_desc_standard": "标准版 - 需要系统已安装 WebView2",
         "up_desc_linux_debug": "调试版",
         "up_desc_linux_release": "发布版",
-
+        
         # watermark.py
         "wm_watermark_full": "当前小说由【FXdownloader】提供下载，项目地址：https://github.com/halei0v0/FXdownloader 。如有付费购买，请立即举报并退款！",
         "wm_watermark_simple": "当前小说由【FXdownloader】提供下载，项目地址：https://github.com/halei0v0/FXdownloader ",
@@ -158,12 +155,6 @@ MESSAGES = {
         "web_queue_next_fail": "本书失败（{}/{}），继续下一本...",
         "web_queue_complete": "队列下载完成，共 {} 本，已保存至 {}",
         "web_queue_complete_fail": "队列结束（可能有失败），共 {} 本，保存至 {}",
-        "web_queue_export_success": "已导出 {} 本书到 {}",
-        "web_queue_export_fail": "导出失败: {}",
-        "web_queue_import_success": "成功导入 {} 本书",
-        "web_queue_import_fail": "导入失败: {}",
-        "web_queue_import_empty": "文件中未找到有效的书籍ID",
-        "web_queue_import_invalid": "文件格式无效，仅支持txt格式",
 
         # novel_downloader.py (New)
         "dl_full_content_error": "获取整书内容异常: {}",
@@ -213,14 +204,14 @@ MESSAGES = {
         "up_new_missing_linux": "新版本文件不存在: {}",
     },
     "en": {
-        # config.py
+         # config.py
         "config_fetching": "Fetching latest API config: {}",
         "config_success": "Config loaded, API base URL: {}",
         "config_fail": "Failed to fetch remote config: {}",
         "config_server_error": "Warning: Cannot connect to config server, app may not work properly",
         "config_invalid_format": "Warning: Remote config format is invalid",
         "config_json_error": "Warning: Failed to parse remote config JSON: {}",
-
+        
         # main.py
         "main_app_closed": "Application closed",
         "main_webview_init_fail": "PyWebView engine init failed: {}",
@@ -241,7 +232,7 @@ MESSAGES = {
         "main_server_timeout": "Server start timeout",
         "main_opening_interface": "Opening application interface...",
         "main_flask_fail": "Flask app failed to start: {}",
-
+        
         # web_app.py
         "web_update_status_dl": "Downloading: {}%",
         "web_update_status_connect": "Connecting to server...",
@@ -259,7 +250,7 @@ MESSAGES = {
         "web_book_info_fail": "Failed to get book info",
         "web_chapter_list_fail": "Failed to get chapter list",
         "web_download_exists": "A download task is already running",
-
+        
         # novel_downloader.py
         "dl_search_error": "Search error: {}",
         "dl_detail_error": "Get book detail error: {}",
@@ -293,7 +284,7 @@ MESSAGES = {
         "dl_status_finished": "Finished",
         "dl_status_serializing": "Ongoing",
         "dl_status_completed_2": "Completed",
-
+        
         # updater.py
         "up_check_fail": "Update check failed, check network",
         "up_latest": "Already latest version ({})",
@@ -304,7 +295,7 @@ MESSAGES = {
         "up_desc_standard": "Standard - Requires system WebView2",
         "up_desc_linux_debug": "Debug",
         "up_desc_linux_release": "Release",
-
+        
         # watermark.py
         "wm_watermark_full": "This novel is downloaded using https://github.com/halei0v0/FXdownloader. If you paid for this, please report and refund immediately!",
         "wm_watermark_simple": "Downloaded using https://github.com/halei0v0/FXdownloader",
@@ -326,12 +317,6 @@ MESSAGES = {
         "web_queue_next_fail": "Failed ({}/{}), continuing...",
         "web_queue_complete": "Queue complete: {} books, saved to {}",
         "web_queue_complete_fail": "Queue finished (some may fail): {} books, saved to {}",
-        "web_queue_export_success": "Exported {} books to {}",
-        "web_queue_export_fail": "Export failed: {}",
-        "web_queue_import_success": "Successfully imported {} books",
-        "web_queue_import_fail": "Import failed: {}",
-        "web_queue_import_empty": "No valid book IDs found in file",
-        "web_queue_import_invalid": "Invalid file format, only txt format is supported",
 
         # novel_downloader.py (New)
         "dl_full_content_error": "Get full content error: {}",
@@ -382,7 +367,6 @@ MESSAGES = {
     }
 }
 
-
 def t(key, *args):
     """
     Get translated string
@@ -394,15 +378,15 @@ def t(key, *args):
     # Fallback to zh if lang not found
     if lang_code not in MESSAGES:
         lang_code = "zh"
-
+        
     lang_dict = MESSAGES.get(lang_code, {})
-
+    
     # If key not in current lang, try zh
     if key not in lang_dict:
         msg = MESSAGES.get("zh", {}).get(key, key)
     else:
         msg = lang_dict[key]
-
+        
     if args:
         try:
             return msg.format(*args)

@@ -134,9 +134,7 @@ class FolderBrowser {
         return new Promise((resolve) => {
             const {
                 title = i18n.t('folder_browser_title') || '选择文件夹',
-                initialPath = '',
-                mode = 'folder', // 'folder' 或 'file'
-                fileFilter = '.txt' // 文件过滤器
+                initialPath = ''
             } = options;
 
             const modal = document.createElement('div');
@@ -197,15 +195,10 @@ class FolderBrowser {
                     if (AppState.accessToken) {
                         headers['X-Access-Token'] = AppState.accessToken;
                     }
-                    const requestBody = { path: path || '' };
-                    if (mode === 'file') {
-                        requestBody.show_files = true;
-                        requestBody.file_filter = fileFilter;
-                    }
                     const response = await fetch('/api/list-directory', {
                         method: 'POST',
                         headers: headers,
-                        body: JSON.stringify(requestBody)
+                        body: JSON.stringify({ path: path || '' })
                     });
                     
                     if (!response.ok) {
@@ -248,59 +241,22 @@ class FolderBrowser {
                             drivesContainer.style.display = 'none';
                         }
                         
-                        // 显示目录列表和文件列表
-                        let html = '';
-                        
-                        // 显示文件夹
-                        if (result.data.directories.length > 0) {
-                            html += result.data.directories.map(d => `
-                                <div class="folder-item" data-path="${d.path}" data-type="directory">
+                        // 显示目录列表
+                        if (result.data.directories.length === 0) {
+                            listContainer.innerHTML = `<div class="folder-empty"><iconify-icon icon="line-md:folder-off-twotone"></iconify-icon></div>`;
+                        } else {
+                            listContainer.innerHTML = result.data.directories.map(d => `
+                                <div class="folder-item" data-path="${d.path}">
                                     <iconify-icon icon="line-md:folder-twotone"></iconify-icon>
                                     <span>${d.name}</span>
                                 </div>
                             `).join('');
-                        }
-                        
-                        // 显示文件（如果是文件选择模式）
-                        if (mode === 'file' && result.data.files && result.data.files.length > 0) {
-                            html += result.data.files.map(f => `
-                                <div class="file-item" data-path="${f.path}" data-type="file">
-                                    <iconify-icon icon="line-md:document"></iconify-icon>
-                                    <span>${f.name}</span>
-                                    <small class="file-size">(${Math.round(f.size / 1024)}KB)</small>
-                                </div>
-                            `).join('');
-                        }
-                        
-                        if (html === '') {
-                            listContainer.innerHTML = `<div class="folder-empty"><iconify-icon icon="line-md:folder-off-twotone"></iconify-icon></div>`;
-                        } else {
-                            listContainer.innerHTML = html;
                             
-                            // 绑定文件夹事件
                             listContainer.querySelectorAll('.folder-item').forEach(item => {
                                 item.addEventListener('dblclick', () => loadDirectory(item.dataset.path));
                                 item.addEventListener('click', () => {
-                                    listContainer.querySelectorAll('.folder-item, .file-item').forEach(i => i.classList.remove('selected'));
+                                    listContainer.querySelectorAll('.folder-item').forEach(i => i.classList.remove('selected'));
                                     item.classList.add('selected');
-                                });
-                            });
-                            
-                            // 绑定文件事件
-                            listContainer.querySelectorAll('.file-item').forEach(item => {
-                                item.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    listContainer.querySelectorAll('.folder-item, .file-item').forEach(i => i.classList.remove('selected'));
-                                    item.classList.add('selected');
-                                });
-                                
-                                // 添加双击事件，双击文件直接选择并关闭
-                                item.addEventListener('dblclick', (e) => {
-                                    e.stopPropagation();
-                                    listContainer.querySelectorAll('.folder-item, .file-item').forEach(i => i.classList.remove('selected'));
-                                    item.classList.add('selected');
-                                    // 模拟点击选择按钮
-                                    selectBtn.click();
                                 });
                             });
                         }
@@ -325,35 +281,21 @@ class FolderBrowser {
             });
 
             selectBtn.addEventListener('click', async () => {
-                const selectedItem = listContainer.querySelector('.selected');
-                
-                if (selectedItem) {
-                    const selectedPath = selectedItem.dataset.path;
-                    const selectedType = selectedItem.dataset.type;
-                    
-                    // 如果是文件选择模式且选择了文件，直接返回文件路径
-                    if (mode === 'file' && selectedType === 'file') {
-                        close(selectedPath);
-                        return;
-                    }
-                    
-                    // 如果是文件夹或者是文件夹选择模式
-                    if (selectedType === 'directory' || mode === 'folder') {
-                        try {
-                            const headers = { 'Content-Type': 'application/json' };
-                            if (AppState.accessToken) {
-                                headers['X-Access-Token'] = AppState.accessToken;
-                            }
-                            await fetch('/api/select-folder', {
-                                method: 'POST',
-                                headers: headers,
-                                body: JSON.stringify({ path: selectedPath })
-                            });
-                        } catch (e) {
-                            console.error('Save path failed:', e);
+                if (currentPath) {
+                    try {
+                        const headers = { 'Content-Type': 'application/json' };
+                        if (AppState.accessToken) {
+                            headers['X-Access-Token'] = AppState.accessToken;
                         }
-                        close(selectedPath);
+                        await fetch('/api/select-folder', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify({ path: currentPath })
+                        });
+                    } catch (e) {
+                        console.error('Save path failed:', e);
                     }
+                    close(currentPath);
                 }
             });
 
@@ -907,37 +849,6 @@ class APIClient {
         }
     }
 
-    async exportQueue(tasks, savePath) {
-        try {
-            const result = await this.request('/api/queue/export', {
-                method: 'POST',
-                body: JSON.stringify({
-                    tasks,
-                    save_path: savePath
-                })
-            });
-            return result;
-        } catch (error) {
-            console.error('导出待下载列表失败:', error);
-            return { success: false, message: error.message };
-        }
-    }
-
-    async importQueue(filepath) {
-        try {
-            const result = await this.request('/api/queue/import', {
-                method: 'POST',
-                body: JSON.stringify({
-                    filepath
-                })
-            });
-            return result;
-        } catch (error) {
-            console.error('导入待下载列表失败:', error);
-            return { success: false, message: error.message };
-        }
-    }
-
     // ========== 下载接口选择 API ==========
     async getApiSources() {
         try {
@@ -1232,68 +1143,6 @@ async function handleClearQueue() {
     logger.logKey('msg_queue_cleared');
 }
 
-async function handleExportQueue() {
-    const tasks = Array.isArray(AppState.downloadQueue) ? AppState.downloadQueue : [];
-    if (tasks.length === 0) {
-        Toast.warning(i18n.t('alert_queue_empty'));
-        return;
-    }
-
-    const savePath = document.getElementById('savePath').value.trim();
-    if (!savePath) {
-        Toast.warning(i18n.t('alert_select_path'));
-        switchTab('download');
-        return;
-    }
-
-    const result = await api.exportQueue(tasks, savePath);
-    if (result && result.success) {
-        logger.logKey('web_queue_export_success', tasks.length, result.filename);
-        Toast.success(result.message || i18n.t('web_queue_export_success', tasks.length, result.filename));
-    } else {
-        const message = result?.message || i18n.t('web_queue_export_fail', '');
-        logger.log(message);
-        Toast.error(message);
-    }
-}
-
-async function handleImportQueue() {
-    // 使用文件浏览器选择txt文件
-    const savePath = document.getElementById('savePath').value.trim();
-    const selectedPath = await FolderBrowser.show({
-        title: '选择待下载列表文件',
-        initialPath: savePath,
-        mode: 'file',
-        fileFilter: '.txt'
-    });
-
-    if (!selectedPath) {
-        return;
-    }
-
-    // 检查是否是txt文件
-    if (!selectedPath.toLowerCase().endsWith('.txt')) {
-        Toast.warning(i18n.t('web_queue_import_invalid'));
-        return;
-    }
-
-    const result = await api.importQueue(selectedPath);
-    if (result && result.success) {
-        const importedTasks = result.tasks || [];
-        importedTasks.forEach(task => {
-            // 为每个导入的任务生成唯一ID
-            task.id = Date.now() + Math.random().toString(36).substr(2, 9);
-            AppState.addToQueue(task);
-        });
-        logger.logKey('web_queue_import_success', importedTasks.length);
-        Toast.success(result.message || i18n.t('web_queue_import_success', importedTasks.length));
-    } else {
-        const message = result?.message || i18n.t('web_queue_import_fail', '');
-        logger.log(message);
-        Toast.error(message);
-    }
-}
-
 /* ===================== 下载接口选择 ===================== */
 
 let apiSourcesCache = null;
@@ -1453,10 +1302,6 @@ function initializeUI(skipApiSources = false) {
     // 队列按钮
     const startQueueBtn = document.getElementById('startQueueBtn');
     if (startQueueBtn) startQueueBtn.addEventListener('click', handleStartQueueDownload);
-    const exportQueueBtn = document.getElementById('exportQueueBtn');
-    if (exportQueueBtn) exportQueueBtn.addEventListener('click', handleExportQueue);
-    const importQueueBtn = document.getElementById('importQueueBtn');
-    if (importQueueBtn) importQueueBtn.addEventListener('click', handleImportQueue);
     const clearQueueBtn = document.getElementById('clearQueueBtn');
     if (clearQueueBtn) clearQueueBtn.addEventListener('click', handleClearQueue);
     

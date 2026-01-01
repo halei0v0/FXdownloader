@@ -14,11 +14,12 @@ import signal
 import sys
 import inspect
 from concurrent.futures import ThreadPoolExecutor, as_completed
-# asyncio 和 aiohttp 延迟导入，仅在异步方法中使用
+import asyncio
 from tqdm import tqdm
 from typing import Optional, Dict, List, Union
-# ebooklib 延迟导入，仅在生成 EPUB 时使用
+from ebooklib import epub
 from config import CONFIG, print_lock, get_headers
+import aiohttp
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from watermark import apply_watermark_to_chapter
@@ -29,12 +30,11 @@ requests.packages.urllib3.disable_warnings()
 
 # ===================== 官方API管理器 =====================
 
-
 class APIManager:
     """番茄小说官方API统一管理器 - https://fq.shusan.cn/docs
     支持同步和异步两种调用方式，支持多节点自动切换
     """
-
+    
     def __init__(self):
         # 优先使用已选择的 api_base_url；否则回退到 api_sources 第一个
         preferred_base_url = (CONFIG.get("api_base_url") or "").strip().rstrip('/')
@@ -52,11 +52,10 @@ class APIManager:
             self.base_url = (base_url or "").strip().rstrip('/')
         self.endpoints = CONFIG["endpoints"]
         self._tls = threading.local()
-        # 异步相关属性延迟初始化
-        self._async_session = None
+        self._async_session: Optional[aiohttp.ClientSession] = None
         self.semaphore = None
         self.last_request_time = 0
-        self.request_lock = None
+        self.request_lock = asyncio.Lock()
 
     def _get_session(self) -> requests.Session:
         """获取同步HTTP会话"""
@@ -72,8 +71,8 @@ class APIManager:
             )
             pool_size = CONFIG.get("connection_pool_size", 10)
             adapter = HTTPAdapter(
-                pool_connections=pool_size,
-                pool_maxsize=pool_size,
+                pool_connections=pool_size, 
+                pool_maxsize=pool_size, 
                 max_retries=retries,
                 pool_block=False
             )
@@ -83,14 +82,8 @@ class APIManager:
             self._tls.session = sess
         return sess
 
-    async def _get_async_session(self):
+    async def _get_async_session(self) -> aiohttp.ClientSession:
         """获取异步HTTP会话"""
-        try:
-            import aiohttp
-            import asyncio
-        except ImportError:
-            raise ImportError("Async features require aiohttp package. Please install it with: pip install aiohttp")
-
         if self._async_session is None or self._async_session.closed:
             timeout = aiohttp.ClientTimeout(total=CONFIG["request_timeout"], connect=5, sock_read=15)
             connector = aiohttp.TCPConnector(
@@ -102,32 +95,26 @@ class APIManager:
                 keepalive_timeout=30
             )
             self._async_session = aiohttp.ClientSession(
-                headers=get_headers(),
-                timeout=timeout,
+                headers=get_headers(), 
+                timeout=timeout, 
                 connector=connector,
                 trust_env=True
             )
-            if self.semaphore is None:
-                # import asyncio
-                self.semaphore = asyncio.Semaphore(CONFIG.get("max_workers", 5))
+            self.semaphore = asyncio.Semaphore(CONFIG.get("max_workers", 5))
         return self._async_session
 
     async def close_async(self):
         """关闭异步会话"""
         if self._async_session:
             await self._async_session.close()
-
+    
     def search_books(self, keyword: str, offset: int = 0) -> Optional[Dict]:
         """搜索书籍"""
         try:
             url = f"{self.base_url}{self.endpoints['search']}"
             params = {"key": keyword, "tab_type": "3", "offset": str(offset)}
-            response = self._get_session().get(
-                url,
-                params=params,
-                headers=get_headers(),
-                timeout=CONFIG["request_timeout"])
-
+            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=CONFIG["request_timeout"])
+            
             if response.status_code == 200:
                 data = response.json()
                 if data.get("code") == 200:
@@ -137,18 +124,14 @@ class APIManager:
             with print_lock:
                 print(t("dl_search_error", str(e)))
             return None
-
+    
     def get_book_detail(self, book_id: str) -> Optional[Dict]:
         """获取书籍详情，返回 dict 或 None，如果书籍下架会返回 {'_error': 'BOOK_REMOVE'}"""
         try:
             url = f"{self.base_url}{self.endpoints['detail']}"
             params = {"book_id": book_id}
-            response = self._get_session().get(
-                url,
-                params=params,
-                headers=get_headers(),
-                timeout=CONFIG["request_timeout"])
-
+            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=CONFIG["request_timeout"])
+            
             if response.status_code == 200:
                 data = response.json()
                 if data.get("code") == 200 and "data" in data:
@@ -171,7 +154,7 @@ class APIManager:
             with print_lock:
                 print(t("dl_detail_error", str(e)))
             return None
-
+    
     def get_directory(self, book_id: str) -> Optional[List[Dict]]:
         """获取简化目录（更快，标题与整本下载内容一致）
         GET /api/directory - 参数: fq_id
@@ -179,12 +162,8 @@ class APIManager:
         try:
             url = f"{self.base_url}/api/directory"
             params = {"fq_id": book_id}
-            response = self._get_session().get(
-                url,
-                params=params,
-                headers=get_headers(),
-                timeout=CONFIG["request_timeout"])
-
+            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=CONFIG["request_timeout"])
+            
             if response.status_code == 200:
                 data = response.json()
                 if data.get("code") == 200 and "data" in data:
@@ -194,24 +173,20 @@ class APIManager:
             return None
         except Exception:
             return None
-
+    
     def get_chapter_list(self, book_id: str) -> Optional[List[Dict]]:
         """获取章节列表"""
         try:
             with print_lock:
                 print(t("dl_chapter_list_start", book_id))
-
+                
             url = f"{self.base_url}{self.endpoints['book']}"
             params = {"book_id": book_id}
-            response = self._get_session().get(
-                url,
-                params=params,
-                headers=get_headers(),
-                timeout=CONFIG["request_timeout"])
-
+            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=CONFIG["request_timeout"])
+            
             with print_lock:
                 print(t("dl_chapter_list_resp", response.status_code))
-
+            
             if response.status_code == 200:
                 data = response.json()
                 if data.get("code") == 200 and "data" in data:
@@ -224,18 +199,14 @@ class APIManager:
             with print_lock:
                 print(t("dl_chapter_list_error", str(e)))
             return None
-
+    
     def get_chapter_content(self, item_id: str) -> Optional[Dict]:
         """获取章节内容(同步)"""
         try:
             url = f"{self.base_url}{self.endpoints['content']}"
             params = {"tab": "小说", "item_id": item_id}
-            response = self._get_session().get(
-                url,
-                params=params,
-                headers=get_headers(),
-                timeout=CONFIG["request_timeout"])
-
+            response = self._get_session().get(url, params=params, headers=get_headers(), timeout=CONFIG["request_timeout"])
+            
             if response.status_code == 200:
                 data = response.json()
                 if data.get("code") == 200 and "data" in data:
@@ -248,13 +219,8 @@ class APIManager:
 
     async def get_chapter_content_async(self, item_id: str) -> Optional[Dict]:
         """获取章节内容(异步)"""
-        try:
-            import asyncio
-        except ImportError:
-            raise ImportError("Async features require asyncio package")
-
         max_retries = CONFIG.get("max_retries", 3)
-
+        
         async with self.semaphore:
             async with self.request_lock:
                 current_time = time.time()
@@ -262,11 +228,11 @@ class APIManager:
                 if time_since_last < CONFIG.get("download_delay", 0.5):
                     await asyncio.sleep(CONFIG.get("download_delay", 0.5) - time_since_last)
                 self.last_request_time = time.time()
-
+            
             session = await self._get_async_session()
             url = f"{self.base_url}{self.endpoints['content']}"
             params = {"tab": "小说", "item_id": item_id}
-
+            
             for attempt in range(max_retries):
                 try:
                     async with session.get(url, params=params) as response:
@@ -288,7 +254,7 @@ class APIManager:
                         await asyncio.sleep(0.3)
                         continue
                     return None
-
+            
             return None
 
     def get_full_content(self, book_id: str) -> Optional[Union[str, Dict[str, str]]]:
@@ -299,7 +265,7 @@ class APIManager:
         """
         max_retries = max(1, int(CONFIG.get("max_retries", 3) or 3))
         api_sources = CONFIG.get("api_sources", [])
-
+        
         def _extract_bulk_map(payload) -> Optional[Dict[str, str]]:
             if not isinstance(payload, dict):
                 return None
@@ -329,7 +295,7 @@ class APIManager:
                 if isinstance(content, str) and content.strip():
                     result[item_id] = content
             return result or None
-
+        
         def _extract_text(payload) -> Optional[str]:
             if isinstance(payload, str):
                 return payload
@@ -347,11 +313,11 @@ class APIManager:
                     if isinstance(val, str):
                         return val
             return None
-
+        
         endpoint = self.endpoints.get('content')
         if not endpoint:
             return None
-
+        
         # 构建要尝试的节点列表（优先当前 base_url）
         urls_to_try: List[str] = []
         if self.base_url:
@@ -365,27 +331,27 @@ class APIManager:
             base = (base or "").strip().rstrip('/')
             if base and base not in urls_to_try:
                 urls_to_try.append(base)
-
+        
         # 下载模式：批量模式优先（可按 item_id 对齐）
         download_modes = [
             {"tab": "批量", "book_id": book_id},
             {"tab": "下载", "book_id": book_id},
         ]
-
+        
         headers = get_headers()
         headers['Connection'] = 'close'
         session = self._get_session()
         connect_timeout = 10
         read_timeout = max(120, int((CONFIG.get("request_timeout", 30) or 30) * 10))
         timeout = (connect_timeout, read_timeout)
-
+        
         transient_errors = (
             requests.exceptions.ConnectionError,
             requests.exceptions.Timeout,
             requests.exceptions.ChunkedEncodingError,
             requests.exceptions.ContentDecodingError,
         )
-
+        
         for base_url in urls_to_try:
             url = f"{base_url}{endpoint}"
             for mode in download_modes:
@@ -406,55 +372,55 @@ class APIManager:
                             status_code = response.status_code
                             resp_headers = dict(response.headers)
                             resp_encoding = response.encoding
-
+                            
                             if status_code == 400:
                                 # 该节点不支持此模式，尝试下一个模式
                                 break
-
+                            
                             if status_code != 200:
                                 # 429/5xx 交给会话重试；这里额外做少量退避
                                 if status_code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
                                     time.sleep(min(2 ** attempt, 10))
                                     continue
                                 break
-
+                            
                             raw_buf = bytearray()
                             for chunk in response.iter_content(chunk_size=131072):
                                 if chunk:
                                     raw_buf.extend(chunk)
                             raw_content = bytes(raw_buf)
-
+                        
                         if len(raw_content) < 1000:
                             break
-
+                        
                         content_type = (resp_headers.get('content-type') or '').lower()
                         is_json_like = 'application/json' in content_type or raw_content[:1] in (b'{', b'[')
-
+                        
                         if is_json_like:
                             try:
                                 data = json.loads(raw_content.decode('utf-8', errors='ignore'))
                             except Exception:
                                 data = None
-
+                            
                             if not data:
                                 if attempt < max_retries - 1:
                                     time.sleep(min(2 ** attempt, 10))
                                     continue
                                 break
-
+                            
                             bulk_map = _extract_bulk_map(data)
                             if bulk_map:
                                 with print_lock:
                                     print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                                 return bulk_map
-
+                            
                             text_from_json = _extract_text(data)
                             if text_from_json and len(text_from_json) > 1000:
                                 with print_lock:
                                     print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                                 return text_from_json
                             break
-
+                        
                         encoding = resp_encoding or 'utf-8'
                         text = raw_content.decode(encoding, errors='replace')
                         if len(text) > 1000:
@@ -475,11 +441,10 @@ class APIManager:
                         with print_lock:
                             print(f"[DEBUG] 节点 {base_url} 异常: {type(e).__name__}")
                         break
-
+        
         with print_lock:
             print(t("dl_full_content_error", "所有节点均失败"))
         return None
-
 
 def _normalize_title(title: str) -> str:
     """标准化章节标题，用于模糊匹配"""
@@ -501,20 +466,20 @@ def _extract_title_core(title: str) -> str:
 
 def parse_novel_text_with_catalog(text: str, catalog: List[Dict]) -> List[Dict]:
     """使用目录接口的章节标题来分割整本小说内容
-
+    
     Args:
         text: 整本小说的纯文本内容
         catalog: 目录接口返回的章节列表 [{'title': '...', 'id': '...', 'index': ...}, ...]
-
+    
     Returns:
         带内容的章节列表 [{'title': '...', 'id': '...', 'index': ..., 'content': '...'}, ...]
     """
     if not catalog:
         return []
-
+    
     def escape_for_regex(s: str) -> str:
         return re.escape(s)
-
+    
     def find_title_in_text(title: str, search_text: str, start_offset: int = 0) -> Optional[tuple]:
         """在文本中查找标题，返回 (match_start, match_end) 或 None"""
         # 1. 精确匹配
@@ -522,7 +487,7 @@ def parse_novel_text_with_catalog(text: str, catalog: List[Dict]) -> List[Dict]:
         match = pattern.search(search_text)
         if match:
             return (start_offset + match.start(), start_offset + match.end())
-
+        
         # 2. 模糊匹配：提取标题核心部分
         title_core = _extract_title_core(title)
         if title_core and len(title_core) >= 2:
@@ -531,9 +496,9 @@ def parse_novel_text_with_catalog(text: str, catalog: List[Dict]) -> List[Dict]:
             match = pattern.search(search_text)
             if match:
                 return (start_offset + match.start(), start_offset + match.end())
-
+        
         return None
-
+    
     # 查找每个章节标题在文本中的位置
     chapter_positions = []
     for ch in catalog:
@@ -547,13 +512,13 @@ def parse_novel_text_with_catalog(text: str, catalog: List[Dict]) -> List[Dict]:
                 'line_start': result[0],  # 标题行开始位置
                 'start': result[1]        # 内容开始位置（标题行之后）
             })
-
+    
     if not chapter_positions:
         return []
-
+    
     # 按位置排序
     chapter_positions.sort(key=lambda x: x['line_start'])
-
+    
     # 提取每章内容
     chapters = []
     for i, pos in enumerate(chapter_positions):
@@ -561,7 +526,7 @@ def parse_novel_text_with_catalog(text: str, catalog: List[Dict]) -> List[Dict]:
             end = chapter_positions[i + 1]['line_start']
         else:
             end = len(text)
-
+        
         content = text[pos['start']:end].strip()
         chapters.append({
             'title': pos['title'],
@@ -569,10 +534,10 @@ def parse_novel_text_with_catalog(text: str, catalog: List[Dict]) -> List[Dict]:
             'index': pos['index'],
             'content': content
         })
-
+    
     # 按原始目录顺序重新排序
     chapters.sort(key=lambda x: x['index'])
-
+    
     return chapters
 
 
@@ -580,10 +545,10 @@ def parse_novel_text(text: str) -> List[Dict]:
     """解析整本小说文本，分离章节（无目录时的降级方案）"""
     lines = text.splitlines()
     chapters = []
-
+    
     current_chapter = None
     current_content = []
-
+    
     # 匹配常见章节格式
     chapter_pattern = re.compile(
         r'^\s*('
@@ -592,14 +557,14 @@ def parse_novel_text(text: str) -> List[Dict]:
         r')\s*.*',
         re.UNICODE
     )
-
+    
     for line in lines:
         match = chapter_pattern.match(line)
         if match:
             if current_chapter:
                 current_chapter['content'] = '\n'.join(current_content)
                 chapters.append(current_chapter)
-
+            
             title = line.strip()
             current_chapter = {
                 'title': title,
@@ -610,17 +575,16 @@ def parse_novel_text(text: str) -> List[Dict]:
         else:
             if current_chapter:
                 current_content.append(line)
-
+    
     if current_chapter:
         current_chapter['content'] = '\n'.join(current_content)
         chapters.append(current_chapter)
-
+    
     return chapters
 
 
 # 全局API管理器实例
 api_manager = None
-
 
 def get_api_manager():
     """获取API管理器实例"""
@@ -636,23 +600,23 @@ def process_chapter_content(content):
     """处理章节内容"""
     if not content:
         return ""
-
+    
     # 将br标签和p标签替换为换行符
     content = re.sub(r'<br\s*/?>\s*', '\n', content)
     content = re.sub(r'<p[^>]*>\s*', '\n', content)
     content = re.sub(r'</p>\s*', '\n', content)
-
+    
     # 移除其他HTML标签
     content = re.sub(r'<[^>]+>', '', content)
-
+    
     # 清理空白字符
     content = re.sub(r'[ \t]+', ' ', content)  # 多个空格或制表符替换为单个空格
     content = re.sub(r'\n[ \t]+', '\n', content)  # 行首空白
     content = re.sub(r'[ \t]+\n', '\n', content)  # 行尾空白
-
+    
     # 将多个连续换行符规范化为双换行（段落分隔）
     content = re.sub(r'\n{3,}', '\n\n', content)
-
+    
     # 处理段落：确保每个非空行都是一个段落
     lines = content.split('\n')
     paragraphs = []
@@ -660,20 +624,20 @@ def process_chapter_content(content):
         line = line.strip()
         if line:  # 非空行
             paragraphs.append(line)
-
+    
     # 用双换行符连接段落
     content = '\n\n'.join(paragraphs)
-
+    
     # 应用水印处理
     content = apply_watermark_to_chapter(content)
-
+    
     return content
 
 
 def _get_status_file_path(book_id: str) -> str:
     """获取下载状态文件路径（保存在临时目录，不污染小说目录）"""
     import tempfile
-    # import hashlib
+    import hashlib
     # 使用 book_id 的哈希作为文件名，避免冲突
     status_dir = os.path.join(tempfile.gettempdir(), 'fanqie_novel_downloader')
     os.makedirs(status_dir, exist_ok=True)
@@ -690,7 +654,7 @@ def load_status(book_id: str):
                 data = json.load(f)
                 if isinstance(data, list):
                     return set(data)
-        except BaseException:
+        except:
             pass
     return set()
 
@@ -712,19 +676,19 @@ def clear_status(book_id: str):
     try:
         if os.path.exists(status_file):
             os.remove(status_file)
-    except BaseException:
+    except:
         pass
 
 
 def analyze_download_completeness(chapter_results: dict, expected_chapters: list = None, log_func=None) -> dict:
     """
     分析下载完整性
-
+    
     Args:
         chapter_results: 已下载的章节结果 {index: {'title': ..., 'content': ...}}
         expected_chapters: 期望的章节列表 [{'id': ..., 'title': ..., 'index': ...}]
         log_func: 日志输出函数
-
+    
     Returns:
         分析结果字典:
         - total_expected: 期望总章节数
@@ -738,7 +702,7 @@ def analyze_download_completeness(chapter_results: dict, expected_chapters: list
             log_func(msg, progress)
         else:
             print(msg)
-
+    
     result = {
         'total_expected': 0,
         'total_downloaded': len(chapter_results),
@@ -746,60 +710,60 @@ def analyze_download_completeness(chapter_results: dict, expected_chapters: list
         'order_correct': True,
         'completeness_percent': 100.0
     }
-
+    
     if not chapter_results:
         log(t("dl_analyze_no_chapters"))
         result['completeness_percent'] = 0
         return result
-
+    
     # 获取已下载的章节索引
     downloaded_indices = set(chapter_results.keys())
-
+    
     # 如果有期望的章节列表，进行完整性比对
     if expected_chapters:
         expected_indices = set(ch['index'] for ch in expected_chapters)
         result['total_expected'] = len(expected_indices)
-
+        
         # 查找缺失的章节
         missing_indices = expected_indices - downloaded_indices
         result['missing_indices'] = sorted(list(missing_indices))
-
+        
         if missing_indices:
             missing_count = len(missing_indices)
             log(t("dl_analyze_summary", len(expected_indices), len(downloaded_indices), missing_count))
-
+            
             # 显示部分缺失章节信息
             if missing_count <= 10:
                 missing_titles = []
                 for ch in expected_chapters:
                     if ch['index'] in missing_indices:
-                        missing_titles.append(f"{t('dl_chapter_title', ch['index'] + 1)}: {ch['title']}")
+                        missing_titles.append(f"{t('dl_chapter_title', ch['index']+1)}: {ch['title']}")
                 log(t("dl_analyze_missing", ', '.join(missing_titles[:5])))
         else:
             log(t("dl_analyze_pass", len(expected_indices)))
     else:
         # 没有期望列表，使用已下载内容分析
         result['total_expected'] = len(chapter_results)
-
+        
         # 检查索引是否连续
         sorted_indices = sorted(downloaded_indices)
         if sorted_indices:
             min_idx, max_idx = sorted_indices[0], sorted_indices[-1]
             expected_range = set(range(min_idx, max_idx + 1))
             missing_in_range = expected_range - downloaded_indices
-
+            
             if missing_in_range:
                 result['missing_indices'] = sorted(list(missing_in_range))
                 log(t("dl_analyze_gap", sorted(missing_in_range)[:10]))
-
+    
     # 验证章节顺序（检查标题中的章节号是否递增）
     sorted_results = sorted(chapter_results.items(), key=lambda x: x[0])
     order_issues = []
-
+    
     for i in range(1, len(sorted_results)):
-        prev_idx, prev_data = sorted_results[i - 1]
+        prev_idx, prev_data = sorted_results[i-1]
         curr_idx, curr_data = sorted_results[i]
-
+        
         # 检查索引是否连续
         if curr_idx != prev_idx + 1:
             order_issues.append({
@@ -808,18 +772,18 @@ def analyze_download_completeness(chapter_results: dict, expected_chapters: list
                 'to_index': curr_idx,
                 'gap': curr_idx - prev_idx - 1
             })
-
+    
     if order_issues:
         result['order_correct'] = False
         total_gaps = sum(issue['gap'] for issue in order_issues)
         log(t("dl_analyze_order_fail", len(order_issues), total_gaps))
     else:
         log(t("dl_analyze_order_pass"))
-
+    
     # 计算完整度
     if result['total_expected'] > 0:
         result['completeness_percent'] = (result['total_downloaded'] / result['total_expected']) * 100
-
+    
     return result
 
 
@@ -827,18 +791,18 @@ def download_cover(cover_url, headers):
     """下载封面图片"""
     if not cover_url:
         return None, None, None
-
+    
     try:
         response = requests.get(cover_url, headers=headers, timeout=15)
         if response.status_code != 200:
             return None, None, None
-
+        
         content_type = response.headers.get('content-type', '')
         content_bytes = response.content
-
+        
         if len(content_bytes) < 1000:
             return None, None, None
-
+        
         if 'jpeg' in content_type or 'jpg' in content_type:
             file_ext, mime_type = '.jpg', 'image/jpeg'
         elif 'png' in content_type:
@@ -847,9 +811,9 @@ def download_cover(cover_url, headers):
             file_ext, mime_type = '.webp', 'image/webp'
         else:
             file_ext, mime_type = '.jpg', 'image/jpeg'
-
+        
         return content_bytes, file_ext, mime_type
-
+        
     except Exception as e:
         with print_lock:
             print(t("dl_cover_fail", str(e)))
@@ -858,24 +822,17 @@ def download_cover(cover_url, headers):
 
 def create_epub(name, author_name, description, cover_url, chapters, save_path):
     """创建EPUB文件"""
-    try:
-        from ebooklib import epub
-    except ImportError:
-        with print_lock:
-            print("EPUB format requires ebooklib package. Please install it with: pip install ebooklib")
-        return False
-
     book = epub.EpubBook()
     book.set_identifier(f'fanqie_{int(time.time())}')
     book.set_title(name)
     book.set_language('zh-CN')
-
+    
     if author_name:
         book.add_author(author_name)
-
+    
     if description:
         book.add_metadata('DC', 'description', description)
-
+    
     if cover_url:
         try:
             cover_content, file_ext, mime_type = download_cover(cover_url, get_headers())
@@ -884,15 +841,15 @@ def create_epub(name, author_name, description, cover_url, chapters, save_path):
         except Exception as e:
             with print_lock:
                 print(t("dl_cover_add_fail", str(e)))
-
+    
     spine_items = ['nav']
     toc_items = []
-
+    
     # 创建书籍信息页 (简介页)
     intro_html = f'<h1>{name}</h1>'
     if author_name:
         intro_html += f'<p><strong>作者：</strong> {author_name}</p>'
-
+    
     if description:
         intro_html += '<hr/>'
         intro_html += f'<h3>{t("dl_intro_title")}</h3>'
@@ -901,11 +858,11 @@ def create_epub(name, author_name, description, cover_url, chapters, save_path):
         for line in desc_lines:
             if line.strip():
                 intro_html += f'<p>{line.strip()}</p>'
-
+                
     intro_chapter = epub.EpubHtml(title=t('dl_book_detail_title'), file_name='intro.xhtml', lang='zh-CN')
     intro_chapter.content = intro_html
     book.add_item(intro_chapter)
-
+    
     # 将简介页添加到 spine 和 toc
     spine_items.append(intro_chapter)
     toc_items.append(intro_chapter)
@@ -914,32 +871,32 @@ def create_epub(name, author_name, description, cover_url, chapters, save_path):
         chapter_file = f'chapter_{idx + 1}.xhtml'
         title = ch_data.get('title', f'第{idx + 1}章')
         content = ch_data.get('content', '')
-
+        
         # 将换行符转换为HTML段落标签
         paragraphs = content.split('\n\n') if content else []
         html_paragraphs = ''.join(f'<p>{p.strip()}</p>' for p in paragraphs if p.strip())
-
+        
         chapter = epub.EpubHtml(
             title=title,
             file_name=chapter_file,
             lang='zh-CN'
         )
         chapter.content = f'<h1>{title}</h1><div>{html_paragraphs}</div>'
-
+        
         book.add_item(chapter)
         spine_items.append(chapter)
         toc_items.append(chapter)
-
+    
     book.toc = toc_items
     book.spine = spine_items
-
+    
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
-
+    
     filename = re.sub(r'[\\/:*?"<>|]', '_', name)
     epub_path = os.path.join(save_path, f'{filename}.epub')
     epub.write_epub(epub_path, book)
-
+    
     return epub_path
 
 
@@ -947,74 +904,67 @@ def create_txt(name, author_name, description, chapters, save_path):
     """创建TXT文件"""
     filename = re.sub(r'[\\/:*?"<>|]', '_', name)
     txt_path = os.path.join(save_path, f'{filename}.txt')
-
+    
     with open(txt_path, 'w', encoding='utf-8') as f:
         f.write(f"{name}\n")
         if author_name:
             f.write(f"{t('label_author')}{author_name}\n")
         if description:
             f.write(f"\n{t('dl_intro_title')}:\n{description}\n")
-        f.write("\n" + "=" * 50 + "\n\n")
-
+        f.write("\n" + "="*50 + "\n\n")
+        
         for ch_data in chapters:
             title = ch_data.get('title', '')
             content = ch_data.get('content', '')
             f.write(f"\n{title}\n\n")
             f.write(f"{content}\n\n")
-
+    
     return txt_path
 
 
-def Run(
-        book_id,
-        save_path,
-        file_format='txt',
-        start_chapter=None,
-        end_chapter=None,
-        selected_chapters=None,
-        gui_callback=None):
+def Run(book_id, save_path, file_format='txt', start_chapter=None, end_chapter=None, selected_chapters=None, gui_callback=None):
     """运行下载"""
-
+    
     api = get_api_manager()
     if api is None:
         return False
-
+    
     def log_message(message, progress=-1):
         if gui_callback and len(inspect.signature(gui_callback).parameters) > 1:
             gui_callback(progress, message)
         else:
             print(message)
-
+    
     try:
         log_message(t("dl_fetching_info"), 5)
         book_detail = api.get_book_detail(book_id)
         if not book_detail:
             log_message(t("dl_fetch_info_fail"))
             return False
-
+        
         name = book_detail.get("book_name", f"未知小说_{book_id}")
         author_name = book_detail.get("author", t("dl_unknown_author"))
         description = book_detail.get("abstract", "")
         cover_url = book_detail.get("thumb_url", "")
-
+        
         log_message(t("dl_book_info_log", name, author_name), 10)
-
+        
         chapter_results = {}
         use_full_download = False
-
+        
         # 先获取章节目录（优先使用 directory 接口，更快且标题与整本下载一致）
         log_message("正在获取章节列表...", 15)
         chapters = []
-
+        
         # 优先尝试 directory 接口
         directory_data = api.get_directory(book_id)
         if directory_data:
             for idx, ch in enumerate(directory_data):
                 item_id = ch.get("item_id")
-                title = ch.get("title", f"第{idx + 1}章")
+                title = ch.get("title", f"第{idx+1}章")
                 if item_id:
                     chapters.append({"id": str(item_id), "title": title, "index": idx})
-
+        
         # 降级到 book 接口
         if not chapters:
             chapters_data = api.get_chapter_list(book_id)
@@ -1022,7 +972,7 @@ def Run(
                 if isinstance(chapters_data, dict):
                     all_item_ids = chapters_data.get("allItemIds", [])
                     chapter_list = chapters_data.get("chapterListWithVolume", [])
-
+                    
                     if chapter_list:
                         idx = 0
                         for volume in chapter_list:
@@ -1030,34 +980,34 @@ def Run(
                                 for ch in volume:
                                     if isinstance(ch, dict):
                                         item_id = ch.get("itemId") or ch.get("item_id")
-                                        title = ch.get("title", f"第{idx + 1}章")
+                                        title = ch.get("title", f"第{idx+1}章")
                                         if item_id:
                                             chapters.append({"id": str(item_id), "title": title, "index": idx})
                                             idx += 1
                     else:
                         for idx, item_id in enumerate(all_item_ids):
-                            chapters.append({"id": str(item_id), "title": f"第{idx + 1}章", "index": idx})
+                            chapters.append({"id": str(item_id), "title": f"第{idx+1}章", "index": idx})
                 elif isinstance(chapters_data, list):
                     for idx, ch in enumerate(chapters_data):
                         item_id = ch.get("item_id") or ch.get("chapter_id")
-                        title = ch.get("title", f"第{idx + 1}章")
+                        title = ch.get("title", f"第{idx+1}章")
                         if item_id:
                             chapters.append({"id": str(item_id), "title": title, "index": idx})
-
+        
         if not chapters:
             log_message(t("dl_fetch_list_fail"))
             return False
-
+        
         total_chapters = len(chapters)
         log_message(t("dl_found_chapters", total_chapters), 20)
-
+        
         # 尝试极速下载模式 (仅当没有指定范围且没有选择特定章节时)
         if start_chapter is None and end_chapter is None and not selected_chapters:
             log_message(t("dl_try_speed_mode"), 25)
             full_content = api.get_full_content(book_id)
             if full_content:
                 log_message(t("dl_speed_mode_success"), 30)
-
+                
                 # 检查是否是批量模式返回的 {item_id: content}
                 if isinstance(full_content, dict):
                     log_message("使用批量模式解析章节...", 35)
@@ -1072,7 +1022,7 @@ def Run(
                                 'content': processed
                             }
                             matched_count += 1
-
+                    
                     if matched_count >= len(chapters) * 0.8:
                         log_message(t("dl_speed_mode_parsed", matched_count), 50)
                         use_full_download = True
@@ -1084,7 +1034,7 @@ def Run(
                     # 文本模式：使用目录标题来分割内容
                     log_message("使用文本模式解析章节...", 35)
                     chapters_parsed = parse_novel_text_with_catalog(full_content, chapters)
-
+                    
                     if chapters_parsed and len(chapters_parsed) >= len(chapters) * 0.8:
                         # 成功解析出至少80%的章节
                         log_message(t("dl_speed_mode_parsed", len(chapters_parsed)), 50)
@@ -1095,9 +1045,8 @@ def Run(
                                     'title': ch['title'],
                                     'content': processed
                                 }
-                                if pbar:
-                                    pbar.update(1)
-
+                                if pbar: pbar.update(1)
+                        
                         use_full_download = True
                         log_message(t("dl_process_complete"), 80)
                     else:
@@ -1108,20 +1057,20 @@ def Run(
 
         # 如果没有使用极速模式，则走普通模式
         if not use_full_download:
-
+            
             if not chapters:
                 log_message(t("dl_no_chapters_found"))
                 return False
-
+            
             total_chapters = len(chapters)
             log_message(t("dl_found_chapters", total_chapters), 20)
-
+            
             if start_chapter is not None or end_chapter is not None:
                 start_idx = (start_chapter - 1) if start_chapter else 0
                 end_idx = end_chapter if end_chapter else total_chapters
                 chapters = chapters[start_idx:end_idx]
-                log_message(t("dl_range_log", start_idx + 1, end_idx))
-
+                log_message(t("dl_range_log", start_idx+1, end_idx))
+            
             if selected_chapters:
                 try:
                     selected_indices = set(int(x) for x in selected_chapters)
@@ -1129,25 +1078,25 @@ def Run(
                     log_message(t("dl_selected_log", len(chapters)))
                 except Exception as e:
                     log_message(t("dl_filter_error", e))
-
+            
             downloaded_ids = load_status(book_id)
             chapters_to_download = [ch for ch in chapters if ch["id"] not in downloaded_ids]
-
+            
             if not chapters_to_download:
                 log_message(t("dl_all_downloaded"))
             else:
                 log_message(t("dl_start_download_log", len(chapters_to_download)), 25)
-
+            
             completed = 0
             total_tasks = len(chapters_to_download)
-
+            
             with tqdm(total=total_tasks, desc=t("dl_progress_desc"), disable=gui_callback is not None) as pbar:
                 with ThreadPoolExecutor(max_workers=CONFIG.get("max_workers", 5)) as executor:
                     future_to_chapter = {
                         executor.submit(api.get_chapter_content, ch["id"]): ch
                         for ch in chapters_to_download
                     }
-
+                    
                     for future in as_completed(future_to_chapter):
                         ch = future_to_chapter[future]
                         try:
@@ -1167,38 +1116,38 @@ def Run(
                                     gui_callback(progress, t("dl_progress_log", completed, total_tasks))
                         except Exception:
                             pass
-
+            
             save_status(book_id, downloaded_ids)
-
+        
         # ==================== 下载完整性分析 ====================
         if gui_callback:
             gui_callback(85, t("dl_analyzing_completeness"))
         else:
             log_message(t("dl_analyzing_completeness"), 85)
-
+        
         # 分析结果
         analysis_result = analyze_download_completeness(
-            chapter_results,
+            chapter_results, 
             chapters if not use_full_download else None,
             log_message
         )
-
+        
         # 如果有缺失章节，尝试补充下载
         if analysis_result['missing_indices'] and not use_full_download:
             missing_count = len(analysis_result['missing_indices'])
             log_message(t("dl_missing_retry", missing_count), 87)
-
+            
             # 获取缺失章节的信息
             missing_chapters = [ch for ch in chapters if ch['index'] in analysis_result['missing_indices']]
-
+            
             # 补充下载缺失章节（最多重试3次）
             for retry in range(3):
                 if not missing_chapters:
                     break
-
+                    
                 log_message(t("dl_retry_log", retry + 1, len(missing_chapters)), 88)
                 still_missing = []
-
+                
                 for ch in missing_chapters:
                     try:
                         data = api.get_chapter_content(ch["id"])
@@ -1214,63 +1163,64 @@ def Run(
                     except Exception:
                         still_missing.append(ch)
                     time.sleep(0.5)  # 避免请求过快
-
+                
                 missing_chapters = still_missing
                 if not missing_chapters:
                     log_message(t("dl_retry_success"), 90)
                     break
-
+            
             # 更新状态
             save_status(book_id, downloaded_ids)
-
+            
             # 最终检查
             if missing_chapters:
                 missing_indices = [ch['index'] + 1 for ch in missing_chapters]
                 log_message(t("dl_retry_fail", len(missing_chapters), missing_indices[:10]), 90)
-
+        
         # 验证章节顺序
         if gui_callback:
             gui_callback(92, t("dl_verifying_order"))
-
+        
         sorted_indices = sorted(chapter_results.keys())
         order_issues = []
         for i, idx in enumerate(sorted_indices):
-            if i > 0 and idx != sorted_indices[i - 1] + 1:
-                order_issues.append((sorted_indices[i - 1], idx))
-
+            if i > 0 and idx != sorted_indices[i-1] + 1:
+                order_issues.append((sorted_indices[i-1], idx))
+        
         if order_issues:
             log_message(f"⚠️ 检测到章节序号不连续: {order_issues[:5]}{'...' if len(order_issues) > 5 else ''}", 93)
         else:
             log_message("✅ 章节顺序验证通过", 93)
-
+        
         # 最终统计
         total_expected = len(chapters) if not use_full_download else len(chapter_results)
         total_downloaded = len(chapter_results)
         completeness = (total_downloaded / total_expected * 100) if total_expected > 0 else 100
-
+        
         log_message(f"📊 下载统计: {total_downloaded}/{total_expected} 章 ({completeness:.1f}%)", 95)
-
+        
         if gui_callback:
             gui_callback(95, "正在生成文件...")
-
+        
         sorted_chapters = [chapter_results[idx] for idx in sorted(chapter_results.keys()) if idx in chapter_results]
 
+        
         if file_format == 'epub':
             output_file = create_epub(name, author_name, description, cover_url, sorted_chapters, save_path)
         else:
             output_file = create_txt(name, author_name, description, sorted_chapters, save_path)
-
+        
         # 下载完成后清除临时状态文件
         clear_status(book_id)
-
+        
         # 最终结果
         if completeness >= 100:
             log_message(f"✅ 下载完成! 文件: {output_file}", 100)
         else:
             log_message(f"⚠️ 下载完成(部分章节缺失)! 文件: {output_file}", 100)
-
+        
         return True
-
+        
     except Exception as e:
         log_message(f"下载失败: {str(e)}")
         return False
@@ -1278,42 +1228,34 @@ def Run(
 
 class NovelDownloader:
     """小说下载器类"""
-
+    
     def __init__(self):
         self.is_cancelled = False
         self.current_progress_callback = None
         self.gui_verification_callback = None
-
+    
     def cancel_download(self):
         """取消下载"""
         self.is_cancelled = True
-
-    def run_download(
-            self,
-            book_id,
-            save_path,
-            file_format='txt',
-            start_chapter=None,
-            end_chapter=None,
-            selected_chapters=None,
-            gui_callback=None):
+    
+    def run_download(self, book_id, save_path, file_format='txt', start_chapter=None, end_chapter=None, selected_chapters=None, gui_callback=None):
         """运行下载"""
         try:
             if gui_callback:
                 self.gui_verification_callback = gui_callback
-
+            
             return Run(book_id, save_path, file_format, start_chapter, end_chapter, selected_chapters, gui_callback)
         except Exception as e:
             print(f"下载失败: {str(e)}")
             return False
-
+    
     def search_novels(self, keyword, offset=0):
         """搜索小说"""
         try:
             api = get_api_manager()
             if api is None:
                 return None
-
+            
             search_results = api.search_books(keyword, offset)
             if search_results and search_results.get("data"):
                 return search_results["data"]
@@ -1329,78 +1271,77 @@ downloader_instance = NovelDownloader()
 
 class BatchDownloader:
     """批量下载器"""
-
+    
     def __init__(self):
         self.is_cancelled = False
         self.results = []  # 下载结果列表
         self.current_index = 0
         self.total_count = 0
-
+    
     def cancel(self):
         """取消批量下载"""
         self.is_cancelled = True
-
+    
     def reset(self):
         """重置状态"""
         self.is_cancelled = False
         self.results = []
         self.current_index = 0
         self.total_count = 0
-
-    def run_batch(self, book_ids: list, save_path: str, file_format: str = 'txt',
+    
+    def run_batch(self, book_ids: list, save_path: str, file_format: str = 'txt', 
                   progress_callback=None, delay_between_books: float = 2.0):
         """
         批量下载多本书籍
-
+        
         Args:
             book_ids: 书籍ID列表
             save_path: 保存路径
             file_format: 文件格式 ('txt' 或 'epub')
             progress_callback: 进度回调函数 (current, total, book_name, status, message)
             delay_between_books: 每本书之间的延迟（秒）
-
+        
         Returns:
             dict: 批量下载结果
         """
         self.reset()
         self.total_count = len(book_ids)
-
+        
         if not book_ids:
             return {'success': False, 'message': t('dl_batch_no_books'), 'results': []}
-
+        
         api = get_api_manager()
         if api is None:
             return {'success': False, 'message': t('dl_batch_api_fail'), 'results': []}
-
+        
         def log(msg):
             print(msg)
-
+        
         log(t("dl_batch_start", self.total_count))
         log("=" * 50)
-
+        
         for idx, book_id in enumerate(book_ids):
             if self.is_cancelled:
                 log(t("dl_batch_cancelled"))
                 break
-
+            
             self.current_index = idx + 1
             book_id = str(book_id).strip()
-
+            
             # 获取书籍信息
             book_name = f"书籍_{book_id}"
             try:
                 book_detail = api.get_book_detail(book_id)
                 if book_detail:
                     book_name = book_detail.get('book_name', book_name)
-            except BaseException:
+            except:
                 pass
-
+            
             log("\n" + t("dl_batch_downloading", self.current_index, self.total_count, book_name))
-
+            
             if progress_callback:
-                progress_callback(self.current_index, self.total_count, book_name,
-                                  'downloading', t("dl_batch_progress", self.current_index))
-
+                progress_callback(self.current_index, self.total_count, book_name, 'downloading', t("dl_batch_progress", self.current_index))
+            
             # 执行下载
             result = {
                 'book_id': book_id,
@@ -1408,17 +1349,16 @@ class BatchDownloader:
                 'success': False,
                 'message': ''
             }
-
+            
             try:
                 # 创建单本书的进度回调
                 def single_book_callback(progress, message):
                     if progress_callback:
-                        # overall_progress = ((self.current_index - 1) / self.total_count * 100) + \
-                        #     (progress / self.total_count)
+                        overall_progress = ((self.current_index - 1) / self.total_count * 100) + (progress / self.total_count)
                         progress_callback(self.current_index, self.total_count, book_name, 'downloading', message)
-
+                
                 success = Run(book_id, save_path, file_format, gui_callback=single_book_callback)
-
+                
                 if success:
                     result['success'] = True
                     result['message'] = '下载成功'
@@ -1426,37 +1366,37 @@ class BatchDownloader:
                 else:
                     result['message'] = '下载失败'
                     log(t("dl_batch_fail", book_name))
-
+                    
             except Exception as e:
                 result['message'] = str(e)
                 log(t("dl_batch_exception", book_name, str(e)))
-
+            
             self.results.append(result)
-
+            
             if progress_callback:
                 status = 'success' if result['success'] else 'failed'
                 progress_callback(self.current_index, self.total_count, book_name, status, result['message'])
-
+            
             # 延迟，避免请求过快
             if idx < len(book_ids) - 1 and not self.is_cancelled:
                 time.sleep(delay_between_books)
-
+        
         # 统计结果
         success_count = sum(1 for r in self.results if r['success'])
         failed_count = len(self.results) - success_count
-
+        
         log("\n" + "=" * 50)
         log(t("dl_batch_summary"))
         log(t("dl_batch_stats_success", success_count))
         log(t("dl_batch_stats_fail", failed_count))
         log(t("dl_batch_stats_total", len(self.results)))
-
+        
         if failed_count > 0:
             log("\n" + t("dl_batch_fail_list"))
             for r in self.results:
                 if not r['success']:
                     log(f"   - 《{r['book_name']}》: {r['message']}")
-
+        
         return {
             'success': failed_count == 0,
             'message': t("dl_batch_complete", success_count, len(self.results)),
@@ -1483,17 +1423,17 @@ if __name__ == "__main__":
         signal.signal(signal.SIGINT, signal_handler)
     except ValueError:
         pass
-
+    
     print("番茄小说下载器")
-    print("=" * 50)
+    print("="*50)
     print("1. 单本下载")
     print("2. 批量下载")
     mode = input("选择模式 (1/2, 默认: 1): ").strip() or "1"
-
+    
     save_path = input("请输入保存路径(默认: ./novels): ").strip() or "./novels"
     file_format = input("选择格式 (txt/epub, 默认: txt): ").strip() or "txt"
     os.makedirs(save_path, exist_ok=True)
-
+    
     if mode == "2":
         # 批量下载模式
         print("\n请输入书籍ID列表（每行一个，输入空行结束）:")
@@ -1507,7 +1447,7 @@ if __name__ == "__main__":
                 bid = bid.strip()
                 if bid:
                     book_ids.append(bid)
-
+        
         if book_ids:
             print(f"\n共 {len(book_ids)} 本书籍待下载")
             result = batch_downloader.run_batch(book_ids, save_path, file_format)

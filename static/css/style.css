@@ -1531,44 +1531,6 @@ iconify-icon {
     font-size: 14px;
 }
 
-/* 文件选择器样式 */
-.file-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.file-item:hover {
-    background-color: var(--hover-bg);
-}
-
-.file-item.selected {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.file-item iconify-icon {
-    margin-right: 8px;
-    color: var(--text-muted);
-}
-
-.file-item.selected iconify-icon {
-    color: white;
-}
-
-.file-size {
-    margin-left: auto;
-    color: var(--text-muted);
-    font-size: 11px;
-}
-
-.file-item.selected .file-size {
-    color: rgba(255, 255, 255, 0.8);
-}
-
 /* 隐藏旧元素 */
 .pixel-icon, .pixel-tomato, .glitch, .scp-warning-banner, .scp-stamp {
     display: none !important;
