@@ -6,7 +6,7 @@
 
 import os
 import sys
-import subprocess
+# import subprocess
 import time
 import threading
 import requests
@@ -15,12 +15,16 @@ import socket
 from pathlib import Path
 from locales import t
 from platform_utils import (
-    detect_platform, 
-    get_window_config, 
+    detect_platform,
+    get_window_config,
     is_feature_available,
     get_feature_status_report,
     get_unavailable_feature_message
 )
+
+# 显式导入web_app模块，确保PyInstaller能够识别依赖关系
+import web_app
+
 
 def find_free_port():
     """查找一个可用的随机端口"""
@@ -30,19 +34,22 @@ def find_free_port():
         port = s.getsockname()[1]
     return port
 
+
 def run_flask_app(port, access_token):
     """在后台启动 Flask 应用"""
     try:
         # 获取脚本所在目录
         script_dir = Path(__file__).parent
         os.chdir(script_dir)
-        
+
         # 启动 Flask 应用
-        from web_app import app, set_access_token
-        
+        # web_app已在文件顶部导入
+        app = web_app.app
+        set_access_token = web_app.set_access_token
+
         # 设置访问令牌
         set_access_token(access_token)
-        
+
         # 使用线程运行 Flask，不使用调试模式
         app.run(
             host='127.0.0.1',
@@ -55,18 +62,19 @@ def run_flask_app(port, access_token):
         print(t("main_flask_fail", e))
         sys.exit(1)
 
+
 def open_web_interface(port, access_token):
     """用浏览器打开 Web 界面"""
     try:
         url = f'http://127.0.0.1:{port}?token={access_token}'
-        
+
         # 尝试使用 PyWebView
         try:
             import webview
-            
+
             # 窗口控制 API (延迟绑定)
             _window = None
-            
+
             class WindowApi:
                 def __init__(self):
                     self._is_maximized = False
@@ -74,12 +82,12 @@ def open_web_interface(port, access_token):
                 def minimize_window(self):
                     if _window:
                         _window.minimize()
-                
+
                 def toggle_maximize(self):
                     if _window:
                         # 优先处理全屏状态
                         is_fullscreen = getattr(_window, 'fullscreen', False)
-                        
+
                         if is_fullscreen:
                             if hasattr(_window, 'toggle_fullscreen'):
                                 _window.toggle_fullscreen()
@@ -92,19 +100,19 @@ def open_web_interface(port, access_token):
                         else:
                             _window.maximize()
                             self._is_maximized = True
-                
+
                 def close_window(self):
                     if _window:
                         _window.destroy()
-            
+
             api = WindowApi()
-            
+
             def on_closed():
                 print(t("main_app_closed"))
-            
+
             # 获取平台适配的窗口配置
             window_config = get_window_config()
-            
+
             # 创建窗口 (使用平台适配配置)
             _window = webview.create_window(
                 title=window_config['title'],
@@ -116,7 +124,7 @@ def open_web_interface(port, access_token):
                 frameless=window_config['frameless'],
                 js_api=api
             )
-            
+
             try:
                 webview.start()
             except AttributeError as e:
@@ -137,13 +145,13 @@ def open_web_interface(port, access_token):
                     raise ImportError("WebView failed to start")
                 else:
                     raise
-            
+
         except ImportError:
             print(t("main_webview_unavailable"))
             import webbrowser
             time.sleep(2)  # 等待 Flask 启动
             webbrowser.open(url)
-            
+
             # 保持运行
             try:
                 while True:
@@ -151,17 +159,18 @@ def open_web_interface(port, access_token):
             except KeyboardInterrupt:
                 print("\n" + t("main_app_closed"))
                 sys.exit(0)
-    
+
     except Exception as e:
         print(t("main_interface_fail", e))
         sys.exit(1)
+
 
 def main():
     """主函数"""
     print("=" * 50)
     print(t("main_title"))
     print("=" * 50)
-    
+
     # 检测平台信息
     platform_info = detect_platform()
     print(f"\n平台: {platform_info.os_name} ({platform_info.os_version})")
@@ -170,19 +179,19 @@ def main():
     if platform_info.is_termux:
         print("运行环境: Termux (Android)")
         print("\n提示: Termux 环境请使用 CLI 模式: python cli.py --help")
-    
+
     # 显示版本信息
-    from config import __version__, __github_repo__
+    from config import __version__  # , __github_repo__
     print(t("main_version", __version__))
-    
+
     # 显示配置文件路径
     import tempfile
     config_file = os.path.join(tempfile.gettempdir(), 'fanqie_novel_downloader_config.json')
     print(t("main_config_path", config_file))
-    
+
     # 生成随机访问令牌
     access_token = secrets.token_urlsafe(32)
-    
+
     # 检查是否存在内置的 WebView2 Runtime (用于 Standalone 版本)
     if getattr(sys, 'frozen', False):
         base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
@@ -190,10 +199,10 @@ def main():
         if os.path.exists(webview2_path):
             print(t("main_webview2_config", webview2_path))
             os.environ["WEBVIEW2_BROWSER_EXECUTABLE_FOLDER"] = webview2_path
-    
+
     # 查找可用端口
     port = find_free_port()
-    
+
     # 更新检查已禁用
     # def check_update_async():
     #     try:
@@ -203,17 +212,17 @@ def main():
     #         check_and_notify(__version__, __github_repo__, silent=False)
     #     except Exception:
     #         pass
-    
+
     # update_thread = threading.Thread(target=check_update_async, daemon=True)
     # update_thread.start()
-    
+
     # 检查依赖
     print("\n" + t("main_check_deps"))
     required_packages = {
         'flask': 'Flask',
         'flask_cors': 'Flask-CORS',
     }
-    
+
     missing_packages = []
     for module, name in required_packages.items():
         try:
@@ -222,18 +231,18 @@ def main():
         except ImportError:
             print(f"[X] {name}")
             missing_packages.append(name)
-    
+
     if missing_packages:
         print(f"\n{t('main_missing_deps', ', '.join(missing_packages))}")
         print(t("main_install_deps"))
         sys.exit(1)
-    
+
     print("\n" + t("main_starting"))
-    
+
     # 在后台线程中启动 Flask
     flask_thread = threading.Thread(target=run_flask_app, args=(port, access_token), daemon=True)
     flask_thread.start()
-    
+
     # 等待 Flask 启动
     print(t("main_wait_server"))
     max_retries = 30
@@ -244,13 +253,13 @@ def main():
             if response.status_code == 200:
                 print(t("main_server_started"))
                 break
-        except:
+        except BaseException:
             if i < max_retries - 1:
                 time.sleep(0.5)
             else:
                 print(t("main_server_timeout"))
                 sys.exit(1)
-    
+
     # 检查 GUI 可用性并选择合适的界面模式
     if platform_info.is_termux:
         # Termux 环境：提示使用 CLI
@@ -262,7 +271,7 @@ def main():
         print("=" * 50)
         print(f"\n服务器已启动: http://127.0.0.1:{port}")
         print("您也可以在浏览器中访问上述地址使用 Web 界面")
-        
+
         # 保持运行
         try:
             while True:
@@ -274,11 +283,11 @@ def main():
         # GUI 不可用：使用浏览器模式
         print("\n" + get_unavailable_feature_message('gui_webview'))
         print("将使用浏览器模式...")
-        
+
         import webbrowser
         time.sleep(1)
         webbrowser.open(url)
-        
+
         # 保持运行
         try:
             while True:
@@ -290,6 +299,7 @@ def main():
         # 正常 GUI 模式
         print("\n" + t("main_opening_interface"))
         open_web_interface(port, access_token)
+
 
 if __name__ == '__main__':
     main()

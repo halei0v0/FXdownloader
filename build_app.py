@@ -38,32 +38,32 @@ except ImportError:
 def parse_requirements(requirements_file='requirements.txt'):
     """
     解析 requirements.txt 文件，提取所有包名
-    
+
     Args:
         requirements_file: requirements.txt 文件路径
-        
+
     Returns:
         list: 包名列表
     """
     packages = []
     req_path = Path(__file__).parent / requirements_file
-    
+
     if not req_path.exists():
         return packages
-    
+
     with open(req_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             # 跳过注释和空行
             if not line or line.startswith('#'):
                 continue
-            
+
             # 提取包名（去除版本约束）
             # 支持格式：package, package==1.0, package>=1.0,<2.0
             match = re.match(r'^([a-zA-Z0-9_-]+)', line)
             if match:
                 packages.append(match.group(1))
-    
+
     return packages
 
 
@@ -181,17 +181,17 @@ IMPLICIT_DEPENDENCIES = [
 def get_hidden_imports():
     """
     获取所有需要的 hiddenimports
-    
+
     Returns:
         list: 完整的 hiddenimports 列表
     """
     packages = parse_requirements()
     hidden_imports = []
-    
+
     # 添加基础包
     for pkg in packages:
         pkg_lower = pkg.lower()
-        
+
         # 处理特殊包名映射
         if pkg_lower in PACKAGE_NAME_MAPPING:
             mapped_pkg = PACKAGE_NAME_MAPPING[pkg_lower]
@@ -201,17 +201,17 @@ def get_hidden_imports():
             # 将连字符转换为下划线
             pkg = pkg.replace('-', '_')
             hidden_imports.append(pkg)
-        
+
         # 添加已知的子模块
         if pkg in PACKAGE_SUBMODULES:
             hidden_imports.extend(PACKAGE_SUBMODULES[pkg])
-    
+
     # 添加标准库模块
     hidden_imports.extend(STDLIB_MODULES)
-    
+
     # 添加隐式依赖
     hidden_imports.extend(IMPLICIT_DEPENDENCIES)
-    
+
     # 加入本地模块（PyInstaller 有时不会解析到函数/方法内的导入）
     # 确保配置模块被正确打包
     hidden_imports.extend([
@@ -222,17 +222,17 @@ def get_hidden_imports():
 
     # 去重并排序
     hidden_imports = sorted(set(hidden_imports))
-    
+
     return hidden_imports
 
 
 def get_platform_config(target_platform: str = None) -> dict:
     """
     获取目标平台的构建配置
-    
+
     Args:
         target_platform: 'windows', 'linux', 'darwin'，默认为当前平台
-    
+
     Returns:
         包含 hidden_imports, data_files, options 的配置字典
     """
@@ -243,7 +243,7 @@ def get_platform_config(target_platform: str = None) -> dict:
             target_platform = 'darwin'
         else:
             target_platform = 'linux'
-    
+
     config = {
         'platform': target_platform,
         'hidden_imports': get_hidden_imports(),
@@ -253,7 +253,7 @@ def get_platform_config(target_platform: str = None) -> dict:
         ],
         'options': [],
     }
-    
+
     # 平台特定配置
     if target_platform == 'windows':
         config['hidden_imports'].extend([
@@ -277,56 +277,56 @@ def get_platform_config(target_platform: str = None) -> dict:
             'Foundation',
         ])
         config['path_separator'] = ':'
-    
+
     # 添加新的平台检测模块
     config['hidden_imports'].extend([
         'platform_utils',
         'cli',
     ])
-    
+
     # 去重
     config['hidden_imports'] = sorted(set(config['hidden_imports']))
-    
+
     return config
 
 
 def get_executable_name(base_name: str, platform: str, variant: str) -> str:
     """
     生成平台适配的可执行文件名
-    
+
     Args:
         base_name: 基础名称
         platform: 目标平台
         variant: 构建变体
-    
+
     Returns:
         完整的可执行文件名（不含扩展名）
     """
     name = base_name
-    
+
     # 添加变体后缀
     if variant == 'debug':
         name = f"{name}-debug"
-    
+
     # 添加平台后缀
     if platform == 'linux':
         name = f"{name}-linux"
     elif platform == 'darwin':
         name = f"{name}-macos"
     # Windows 不添加后缀，保持兼容性
-    
+
     return name
 
 
 def build_executable(variant="release", executable_name=None, target_platform=None, icon_path=None):
     """编译可执行文件
-    
+
     Args:
         variant: 构建变体 ('release' 或 'debug')
         executable_name: 自定义可执行文件名称（不包含扩展名）
         target_platform: 目标平台 ('windows', 'linux', 'darwin')，默认为当前平台
         icon_path: 图标文件路径（仅Windows有效）
-    
+
     Returns:
         tuple: (success, built_name, target_name)
             - success: 构建是否成功
@@ -336,57 +336,67 @@ def build_executable(variant="release", executable_name=None, target_platform=No
     # 获取平台配置
     platform_config = get_platform_config(target_platform)
     current_platform = platform_config['platform']
-    
+
     print(f"Starting build process for {variant} variant on {current_platform}...")
-    
+
     # 确定目标可执行文件名称
     if executable_name:
         target_name = executable_name
     else:
         target_name = get_executable_name("FXdownloader", current_platform, variant)
-    
+
     # Web版本使用 main.py 作为入口
     print("Building Web version with main.py as entry point")
-    
+
     # 构建基础命令
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onefile",
         f"--name={target_name}",
     ]
-    
+
     # 添加图标（仅Windows）
     if current_platform == 'windows' and icon_path and os.path.exists(icon_path):
         cmd.extend(["--icon", icon_path])
         print(f"Using icon: {icon_path}")
     elif current_platform == 'windows':
         print("No icon specified or icon file not found, using default")
-    
+
     # 根据变体选择窗口模式或控制台模式
     if variant == "debug":
         cmd.append("--console")
     else:
         cmd.append("--windowed")
-    
+
     # 添加隐藏导入（使用平台配置）
     for import_name in platform_config['hidden_imports']:
         cmd.extend(["--hidden-import", import_name])
-    
+
+    # 添加额外的隐藏导入，确保关键模块被正确打包
+    cmd.extend([
+        "--hidden-import", "web_app",
+        "--hidden-import", "novel_downloader",
+        "--hidden-import", "locales",
+        "--hidden-import", "platform_utils"
+    ])
+
     # 添加数据收集
     cmd.extend(["--collect-data", "fake_useragent"])
     cmd.extend(["--collect-submodules", "PIL"])
-    
+    cmd.extend(["--collect-submodules", "flask"])
+    cmd.extend(["--collect-submodules", "flask_cors"])
+
     # 添加静态文件和模板（使用平台适配的路径分隔符）
     sep = platform_config['path_separator']
     for src, dst in platform_config['data_files']:
         cmd.extend(["--add-data", f"{src}{sep}{dst}"])
-    
+
     # 添加入口文件（Web版）
     cmd.append("main.py")
-    
+
     # built_name和target_name相同
-    built_name = target_name
-    
+    # built_name = target_name
+
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8')
         print("Build successful")
@@ -397,9 +407,10 @@ def build_executable(variant="release", executable_name=None, target_platform=No
         print(f"Error output: {e.stderr}")
         return False, target_name, target_name
 
+
 def check_output(expected_name):
     """检查编译输出
-    
+
     Args:
         expected_name: 期望的可执行文件名称（不包含扩展名）
     """
@@ -407,11 +418,11 @@ def check_output(expected_name):
     if os.path.exists("dist"):
         files = os.listdir("dist")
         print(f"dist directory contents: {files}")
-        
+
         # 检查可执行文件
         exe_name = f"{expected_name}.exe" if os.name == "nt" else expected_name
         exe_path = os.path.join("dist", exe_name)
-        
+
         if os.path.exists(exe_path):
             size = os.path.getsize(exe_path)
             print(f"Executable created successfully: {exe_name} ({size} bytes)")
@@ -423,20 +434,21 @@ def check_output(expected_name):
         print("dist directory does not exist")
         return False
 
+
 def rename_executable(current_name, target_name):
     """重命名可执行文件
-    
+
     Args:
         current_name: 当前文件名（不包含扩展名）
         target_name: 目标文件名（不包含扩展名）
     """
     if current_name == target_name:
         return True
-        
+
     ext = ".exe" if os.name == "nt" else ""
     current_path = os.path.join("dist", f"{current_name}{ext}")
     target_path = os.path.join("dist", f"{target_name}{ext}")
-    
+
     if os.path.exists(current_path):
         try:
             os.rename(current_path, target_path)
@@ -449,19 +461,20 @@ def rename_executable(current_name, target_name):
         print(f"Source file not found: {current_path}")
         return False
 
+
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description="Build Tomato Novel Downloader")
     parser.add_argument("--variant", choices=["release", "debug"], default="release",
-                       help="Build variant (release or debug)")
+                        help="Build variant (release or debug)")
     parser.add_argument("--name", type=str, help="Custom executable name (without extension)")
     parser.add_argument("--icon", type=str, help="Icon file path (ICO format for Windows)")
-    
+
     args = parser.parse_args()
-    
+
     # 构建可执行文件
     success, built_name, target_name = build_executable(args.variant, args.name, icon_path=args.icon)
-    
+
     if success:
         # 先检查构建输出
         if check_output(built_name):
@@ -483,6 +496,7 @@ def main():
         print("Build failed")
         return False
 
+
 if __name__ == "__main__":
     success = main()
-    sys.exit(0 if success else 1) 
+    sys.exit(0 if success else 1)

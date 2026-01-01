@@ -290,7 +290,13 @@ jobs:
             --hidden-import=updater \
             --hidden-import=packaging \
             --hidden-import=packaging.version \
+            --hidden-import=web_app \
+            --hidden-import=novel_downloader \
+            --hidden-import=locales \
+            --hidden-import=platform_utils \
             --collect-data fake_useragent \
+            --collect-submodules flask \
+            --collect-submodules flask_cors \
             main.py
         shell: bash
 

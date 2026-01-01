@@ -8,6 +8,7 @@
 import sys
 import traceback
 
+
 def test_imports():
     """测试关键模块导入"""
     modules_to_test = [
@@ -25,12 +26,12 @@ def test_imports():
         'packaging',
         'pillow_heif'
     ]
-    
+
     print("Python version:", sys.version)
     print("\nTesting imports...")
-    
+
     failed_imports = []
-    
+
     for module in modules_to_test:
         try:
             if module == 'beautifulsoup4':
@@ -45,7 +46,7 @@ def test_imports():
         except ImportError as e:
             print(f"✗ {module}: {e}")
             failed_imports.append(module)
-    
+
     # 测试本地模块
     local_modules = [
         'config',
@@ -55,9 +56,9 @@ def test_imports():
         'platform_utils',
         'updater'
     ]
-    
+
     print("\nTesting local modules...")
-    
+
     for module in local_modules:
         try:
             __import__(module)
@@ -68,7 +69,7 @@ def test_imports():
         except Exception as e:
             print(f"✗ {module}: {e}")
             failed_imports.append(module)
-    
+
     if failed_imports:
         print(f"\nFailed imports: {failed_imports}")
         return False
@@ -76,10 +77,11 @@ def test_imports():
         print("\nAll imports successful!")
         return True
 
+
 if __name__ == "__main__":
     print("=== Import Test ===")
     imports_ok = test_imports()
-    
+
     if imports_ok:
         print("\n✓ All tests passed!")
     else:

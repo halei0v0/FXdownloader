@@ -39,9 +39,11 @@ from locales import t
 REMOTE_CONFIG_URL = "https://qbin.me/r/fpoash/"
 _LOCAL_CONFIG_FILE = os.path.join(tempfile.gettempdir(), 'fanqie_novel_downloader_config.json')
 
+
 def _normalize_base_url(url: str) -> str:
     url = (url or "").strip()
     return url.rstrip('/')
+
 
 def _load_local_pref() -> Dict:
     try:
@@ -53,6 +55,7 @@ def _load_local_pref() -> Dict:
         pass
     return {}
 
+
 def _dedupe_sources(sources: list) -> list:
     seen = set()
     deduped = []
@@ -63,9 +66,11 @@ def _dedupe_sources(sources: list) -> list:
         if not base_url or base_url in seen:
             continue
         seen.add(base_url)
-        name = (s.get("name") or s.get("id") or base_url).strip() if isinstance(s.get("name") or s.get("id") or base_url, str) else base_url
+        name = (s.get("name") or s.get("id") or base_url).strip() if isinstance(
+            s.get("name") or s.get("id") or base_url, str) else base_url
         deduped.append({"name": name, "base_url": base_url})
     return deduped
+
 
 # 本地固定的 API 端点配置（参考 http://49.232.137.12/docs）
 LOCAL_ENDPOINTS = {
@@ -89,7 +94,7 @@ LOCAL_ENDPOINTS = {
 def load_remote_config() -> Dict:
     """从远程 URL 加载配置 - 远程仅控制节点和下载参数，endpoints 使用本地配置"""
     print(t("config_fetching", REMOTE_CONFIG_URL))
-    
+
     # 默认配置结构
     config = {
         "api_base_url": "",
@@ -114,13 +119,13 @@ def load_remote_config() -> Dict:
         response = requests.get(REMOTE_CONFIG_URL, timeout=15)
         response.raise_for_status()
         data = response.json()
-        
+
         if "config" not in data:
             print(t("config_invalid_format"))
             return config
-            
+
         remote_conf = data["config"]
-        
+
         # 更新基础配置
         config.update({
             "api_base_url": remote_conf.get("api_base_url", ""),
@@ -148,7 +153,7 @@ def load_remote_config() -> Dict:
         # 兼容：api_base_url = "auto"
         if isinstance(config.get("api_base_url"), str) and config["api_base_url"].strip().lower() == "auto":
             config["api_base_url"] = ""
-        
+
         # endpoints 使用本地配置，不从远程覆盖
 
         # 解析多接口配置（从远程获取）
@@ -180,7 +185,7 @@ def load_remote_config() -> Dict:
         pref_url = _normalize_base_url(str(local_pref.get("api_base_url", "") or ""))
         if mode == "manual" and pref_url:
             config["api_base_url"] = pref_url
-            
+
         # 记录远程元信息（若存在）
         if isinstance(data.get("version"), str):
             config["remote_version"] = data["version"]
@@ -189,7 +194,7 @@ def load_remote_config() -> Dict:
 
         print(t("config_success", config['api_base_url'] or "auto"))
         return config
-            
+
     except requests.exceptions.RequestException as e:
         print(t("config_fail", str(e)))
         print(t("config_server_error"))
@@ -197,8 +202,9 @@ def load_remote_config() -> Dict:
         print(t("config_json_error", str(e)))
     except Exception as e:
         print(t("config_fail", str(e)))
-    
+
     return config
+
 
 CONFIG = load_remote_config()
 
@@ -206,6 +212,7 @@ print_lock = threading.Lock()
 
 _UA_SINGLETON = None
 _UA_LOCK = threading.Lock()
+
 
 def _get_ua() -> UserAgent:
     global _UA_SINGLETON
@@ -217,6 +224,7 @@ def _get_ua() -> UserAgent:
                 except Exception:
                     _UA_SINGLETON = None
     return _UA_SINGLETON
+
 
 def get_headers() -> Dict[str, str]:
     user_agent = None
@@ -238,6 +246,7 @@ def get_headers() -> Dict[str, str]:
         "X-Requested-With": "XMLHttpRequest",
         "Content-Type": "application/json"
     }
+
 
 __all__ = [
     "CONFIG",
