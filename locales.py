@@ -154,7 +154,7 @@ MESSAGES = {
         "web_queue_next": "本书完成（{}/{}），准备下一本...",
         "web_queue_next_fail": "本书失败（{}/{}），继续下一本...",
         "web_queue_complete": "队列下载完成，共 {} 本，已保存至 {}",
-        "web_queue_complete_fail": "队列结束（可能有失败），共 {} 本，保存至 {}",
+        "web_queue_complete_fail": "队列结束（下载可能失败，可能是下载太过频繁，或API不稳定，等一下再试吧~~(●ˇ∀ˇ●)），共 {} 本，保存至 {}",
 
         # novel_downloader.py (New)
         "dl_full_content_error": "获取整书内容异常: {}",
