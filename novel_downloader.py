@@ -418,13 +418,13 @@ class APIManager:
                             bulk_map = _extract_bulk_map(data)
                             if bulk_map:
                                 with print_lock:
-                                    print(f"[DEBUG] 急速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
+                                    print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                                 return bulk_map
 
                             text_from_json = _extract_text(data)
                             if text_from_json and len(text_from_json) > 1000:
                                 with print_lock:
-                                    print(f"[DEBUG] 急速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
+                                    print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                                 return text_from_json
 
                             break
@@ -433,7 +433,7 @@ class APIManager:
                         text = raw_content.decode(encoding, errors='replace')
                         if len(text) > 1000:
                             with print_lock:
-                                print(f"[DEBUG] 急速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
+                                print(f"[DEBUG] 极速下载成功，节点: {base_url}, 模式: tab={mode.get('tab')}")
                             return text
 
                         break
@@ -1152,7 +1152,7 @@ def Run(book_id, save_path, file_format='txt', start_chapter=None, end_chapter=N
                         use_full_download = True
                         log_message(t("dl_process_complete"), 80)
                     else:
-                        log_message(f"急速模式批量内容不完整 ({parsed_count}/{total_chapters})，将缺失章节切换到普通模式下载")
+                        log_message(f"极速模式批量内容不完整 ({parsed_count}/{total_chapters})，将缺失章节切换到普通模式下载")
                 else:
                     full_text = str(full_content)
                     # 使用目录标题来分割内容（兼容旧节点/下载模式）
@@ -1175,7 +1175,7 @@ def Run(book_id, save_path, file_format='txt', start_chapter=None, end_chapter=N
                         log_message(t("dl_process_complete"), 80)
                     else:
                         parsed_count = len(chapters_parsed) if chapters_parsed else 0
-                        log_message(f"急速模式解析不完整 ({parsed_count}/{total_chapters})，切换到普通模式")
+                        log_message(f"极速模式解析不完整 ({parsed_count}/{total_chapters})，切换到普通模式")
             else:
                 log_message(t("dl_speed_mode_fail"))
 
