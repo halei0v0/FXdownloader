@@ -12,7 +12,7 @@ import tempfile
 DEFAULT_LANG = "zh"
 
 # 配置文件路径（与 web_app.py 保持一致）
-_CONFIG_FILE = os.path.join(tempfile.gettempdir(), 'fanqie_novel_downloader_config.json')
+_CONFIG_FILE = os.path.join(tempfile.gettempdir(), 'fxdownloader_config.json')
 
 def get_current_lang():
     """从配置文件读取当前语言设置"""
@@ -43,7 +43,7 @@ def set_current_lang(lang):
 MESSAGES = {
     "zh": {
         # config.py
-        "config_fetching": "正在获取最新的 API 配置: {}",
+        "config_loading_local": "正在加载本地配置...",
         "config_success": "成功加载配置，API 地址: {}",
         "config_fail": "获取远程配置失败: {}",
         "config_server_error": "警告: 无法连接配置服务器，程序可能无法正常工作",
@@ -57,7 +57,7 @@ MESSAGES = {
         "main_webview_fail": "PyWebView 启动失败: {}",
         "main_webview_unavailable": "PyWebView 未安装或不可用，使用系统浏览器打开...",
         "main_interface_fail": "打开界面失败: {}",
-        "main_title": "番茄小说下载器 - Web 版",
+        "main_title": "FXdownloader - Web 版",
         "main_version": "当前版本: {}",
         "main_config_path": "配置文件: {}",
         "main_webview2_config": "正在配置内置 WebView2: {}",
@@ -135,9 +135,8 @@ MESSAGES = {
         "up_desc_linux_release": "发布版",
         
         # watermark.py
-        "wm_watermark_full": "当前小说由【FXdownloader】提供下载，项目地址：https://github.com/halei0v0/FXdownloader 。如有付费购买，请立即举报并退款！",
-        "wm_watermark_simple": "当前小说由【FXdownloader】提供下载，项目地址：https://github.com/halei0v0/FXdownloader ",
-
+        "wm_watermark_full": "当前小说使用https://github.com/halei0v0/FXdownloader免费下载器下载，购买的请立即差评并申请退款和举报！",
+            "wm_watermark_simple": "当前小说使用https://github.com/halei0v0/FXdownloader下载",
         # web_app.py (New)
         "web_init": "初始化...",
         "web_connecting_book": "正在连接服务器获取书籍信息...",
@@ -205,7 +204,7 @@ MESSAGES = {
     },
     "en": {
          # config.py
-        "config_fetching": "Fetching latest API config: {}",
+        "config_loading_local": "Loading local config...",
         "config_success": "Config loaded, API base URL: {}",
         "config_fail": "Failed to fetch remote config: {}",
         "config_server_error": "Warning: Cannot connect to config server, app may not work properly",
@@ -298,8 +297,7 @@ MESSAGES = {
         
         # watermark.py
         "wm_watermark_full": "This novel is downloaded using https://github.com/halei0v0/FXdownloader. If you paid for this, please report and refund immediately!",
-        "wm_watermark_simple": "Downloaded using https://github.com/halei0v0/FXdownloader",
-
+            "wm_watermark_simple": "Downloaded using https://github.com/halei0v0/FXdownloader",
         # web_app.py (New)
         "web_init": "Initializing...",
         "web_connecting_book": "Connecting to server to get book info...",

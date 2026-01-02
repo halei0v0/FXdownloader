@@ -19,7 +19,8 @@ from platform_utils import (
     get_window_config, 
     is_feature_available,
     get_feature_status_report,
-    get_unavailable_feature_message
+    get_unavailable_feature_message,
+    WindowPositionManager
 )
 
 def find_free_port():
@@ -64,12 +65,17 @@ def open_web_interface(port, access_token):
         try:
             import webview
             
+            # 窗口位置管理器
+            position_manager = WindowPositionManager()
+            
             # 窗口控制 API (延迟绑定)
             _window = None
             
             class WindowApi:
                 def __init__(self):
                     self._is_maximized = False
+                    self._drag_start_x = 0
+                    self._drag_start_y = 0
 
                 def minimize_window(self):
                     if _window:
@@ -95,27 +101,71 @@ def open_web_interface(port, access_token):
                 
                 def close_window(self):
                     if _window:
+                        # 保存窗口位置
+                        try:
+                            position_manager.save_position(
+                                _window.x, _window.y,
+                                _window.width, _window.height,
+                                self._is_maximized
+                            )
+                        except Exception:
+                            pass
                         _window.destroy()
+                
+                def start_drag(self, offset_x, offset_y):
+                    """开始拖动窗口，记录鼠标在窗口内的偏移"""
+                    if _window and not self._is_maximized:
+                        self._drag_start_x = offset_x
+                        self._drag_start_y = offset_y
+                
+                def drag_window(self, screen_x, screen_y):
+                    """拖动窗口到新位置"""
+                    if _window and not self._is_maximized:
+                        new_x = screen_x - self._drag_start_x
+                        new_y = screen_y - self._drag_start_y
+                        _window.move(new_x, new_y)
             
             api = WindowApi()
             
             def on_closed():
+                # 保存窗口位置
+                if _window:
+                    try:
+                        position_manager.save_position(
+                            _window.x, _window.y,
+                            _window.width, _window.height,
+                            api._is_maximized
+                        )
+                    except Exception:
+                        pass
                 print(t("main_app_closed"))
             
             # 获取平台适配的窗口配置
             window_config = get_window_config()
             
-            # 创建窗口 (使用平台适配配置)
+            # 获取恢复的窗口位置
+            restored_position = position_manager.get_restored_position(
+                window_config['width'],
+                window_config['height']
+            )
+            
+            # 创建窗口 (使用恢复的位置)
             _window = webview.create_window(
                 title=window_config['title'],
                 url=url,
-                width=window_config['width'],
-                height=window_config['height'],
+                x=restored_position['x'],
+                y=restored_position['y'],
+                width=restored_position['width'],
+                height=restored_position['height'],
                 min_size=window_config['min_size'],
                 background_color=window_config['background_color'],
                 frameless=window_config['frameless'],
                 js_api=api
             )
+            
+            # 设置最大化状态
+            if restored_position.get('maximized', False):
+                api._is_maximized = True
             
             try:
                 webview.start()
@@ -177,7 +227,7 @@ def main():
     
     # 显示配置文件路径
     import tempfile
-    config_file = os.path.join(tempfile.gettempdir(), 'fanqie_novel_downloader_config.json')
+    config_file = os.path.join(tempfile.gettempdir(), 'fxdownloader_config.json')
     print(t("main_config_path", config_file))
     
     # 生成随机访问令牌
@@ -194,18 +244,18 @@ def main():
     # 查找可用端口
     port = find_free_port()
     
-    # 更新检查已禁用
-    # def check_update_async():
-    #     try:
-    #         from updater import check_and_notify
-    #         import time
-    #         time.sleep(2)
-    #         check_and_notify(__version__, __github_repo__, silent=False)
-    #     except Exception:
-    #         pass
+    # 检查更新(异步，不阻塞启动)
+    def check_update_async():
+        try:
+            from updater import check_and_notify
+            import time
+            time.sleep(2)
+            check_and_notify(__version__, __github_repo__, silent=False)
+        except Exception:
+            pass
     
-    # update_thread = threading.Thread(target=check_update_async, daemon=True)
-    # update_thread.start()
+    update_thread = threading.Thread(target=check_update_async, daemon=True)
+    update_thread.start()
     
     # 检查依赖
     print("\n" + t("main_check_deps"))

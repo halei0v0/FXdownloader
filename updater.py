@@ -334,7 +334,7 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ====================================
-echo Fanqie Novel Downloader - Auto Update
+echo FXdownloader - Auto Update
 echo ====================================
 echo.
 echo Waiting for application to exit (PID: {pid})...
@@ -466,7 +466,7 @@ exit /b 0
     
     # 写入批处理文件
     try:
-        bat_path = os.path.join(tempfile.gettempdir(), 'fanqie_update.bat')
+        bat_path = os.path.join(tempfile.gettempdir(), 'fxdownloader_update.bat')
         print(f'[DEBUG] Writing update script to: {bat_path}')
         
         # 使用 utf-8 编码写入，配合 chcp 65001
@@ -542,7 +542,7 @@ def apply_unix_update(new_binary_path: str, current_binary_path: str = None) -> 
     # 创建更新 shell 脚本
     shell_content = f'''#!/bin/bash
 echo "===================================="
-echo "番茄小说下载器 - 自动更新"
+echo "FXdownloader - 自动更新"
 echo "===================================="
 echo ""
 echo "正在等待程序退出..."
@@ -600,7 +600,7 @@ exit 0
     
     # 写入 shell 脚本
     try:
-        script_path = os.path.join(tempfile.gettempdir(), 'fanqie_update.sh')
+        script_path = os.path.join(tempfile.gettempdir(), 'fxdownloader_update.sh')
         with open(script_path, 'w', encoding='utf-8') as f:
             f.write(shell_content)
         

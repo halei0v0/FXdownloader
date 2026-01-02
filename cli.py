@@ -239,10 +239,10 @@ def cmd_download(args):
     )
     
     if success:
-        print("\n✓ 下载完成!")
+        print("\n下载完成!")
         return 0
     else:
-        print("\n✗ 下载失败")
+        print("\n下载失败")
         return 1
 
 
@@ -256,8 +256,8 @@ def cmd_status(args):
 def create_parser() -> argparse.ArgumentParser:
     """创建命令行参数解析器"""
     parser = argparse.ArgumentParser(
-        prog='fanqie-cli',
-        description='番茄小说下载器 - 命令行版本',
+        prog='fxdownloader-cli',
+        description='FXdownloader - 命令行版本',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
