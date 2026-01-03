@@ -1839,6 +1839,9 @@ function initApiSourceControls() {
 /* ===================== UI 事件处理 ===================== */
 
 function initializeUI(skipApiSources = false) {
+    // 初始化主题管理器
+    ThemeManager.init();
+    
     // 初始化标签页系统
     initTabSystem();
 
@@ -3957,14 +3960,22 @@ class ThemeManager {
     static THEME_DARK = 'dark';
     
     static init() {
+        console.log('ThemeManager: 初始化主题管理器');
         // 从本地存储加载主题偏好，默认为亮色
         const savedTheme = localStorage.getItem(this.STORAGE_KEY) || this.THEME_LIGHT;
+        console.log('ThemeManager: 加载主题设置', savedTheme);
         this.setTheme(savedTheme);
         
         // 绑定主题切换按钮
         const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) {
-            themeToggle.addEventListener('click', () => this.toggleTheme());
+            console.log('ThemeManager: 找到主题切换按钮，绑定事件');
+            themeToggle.addEventListener('click', () => {
+                console.log('ThemeManager: 主题切换按钮被点击');
+                this.toggleTheme();
+            });
+        } else {
+            console.error('ThemeManager: 未找到主题切换按钮');
         }
     }
     
@@ -3991,6 +4002,7 @@ class ThemeManager {
     static toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme') || this.THEME_LIGHT;
         const newTheme = currentTheme === this.THEME_DARK ? this.THEME_LIGHT : this.THEME_DARK;
+        console.log('ThemeManager: 切换主题', currentTheme, '->', newTheme);
         this.setTheme(newTheme);
     }
     
@@ -3999,5 +4011,4 @@ class ThemeManager {
     }
 }
 
-// 初始化主题管理器
-document.addEventListener('DOMContentLoaded', ThemeManager.init);
+// 主题管理器将在主初始化函数中被调用
