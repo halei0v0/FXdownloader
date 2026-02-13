@@ -3,13 +3,15 @@ import requests
 import time
 import re
 import json
+import uuid
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
 from config import (
-    FANQIE_BASE_URL, 
+    FANQIE_BASE_URL,
     REQUEST_TIMEOUT,
     MAX_RETRIES,
-    REQUEST_DELAY
+    REQUEST_DELAY,
+    COOKIES
 )
 from font_decrypt import FontDecryptor
 
@@ -29,6 +31,8 @@ class FanqieSpider:
         })
         self.decryptor = FontDecryptor()
         self.current_mapping = {}  # 按小说ID缓存字体映射
+        self.login_aid = '1768'  # 默认aid
+        self.login_device_id = ''  # 默认device_id
 
     def _request(self, url, method='GET', params=None, data=None, headers=None):
         """发送HTTP请求，带重试机制"""
@@ -36,17 +40,19 @@ class FanqieSpider:
             try:
                 if headers:
                     self.session.headers.update(headers)
-                
+
                 if method == 'GET':
                     response = self.session.get(
-                        url, 
-                        params=params, 
+                        url,
+                        params=params,
+                        cookies=COOKIES,  # 使用配置的 Cookie
                         timeout=REQUEST_TIMEOUT
                     )
                 else:
                     response = self.session.post(
-                        url, 
-                        json=data, 
+                        url,
+                        json=data,
+                        cookies=COOKIES,  # 使用配置的 Cookie
                         timeout=REQUEST_TIMEOUT
                     )
                 
@@ -249,6 +255,116 @@ class FanqieSpider:
         except Exception as e:
             print(f"获取章节内容时出错: {e}")
             return None
+
+    def send_verification_code(self, phone):
+        """发送验证码"""
+        try:
+            # 番茄小说验证码发送API - 尝试多种aid值
+            aid_list = ['1768', '6383', '1128', '2904']
+            
+            import uuid
+            device_id = str(uuid.uuid4())
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'Referer': 'https://fanqienovel.com/',
+                'Origin': 'https://fanqienovel.com',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }
+            
+            for aid in aid_list:
+                url = f"https://novel.snssdk.com/passport/account/send_sms_code/?aid={aid}"
+                
+                data = {
+                    'mobile': phone,
+                    'device_id': device_id,
+                    'os': 'web',
+                    'type': 'login',
+                }
+                
+                print(f"尝试 aid={aid}, 发送验证码请求: {data}")
+                response = self.session.post(url, json=data, headers=headers, timeout=REQUEST_TIMEOUT)
+                print(f"响应状态码: {response.status_code}")
+                print(f"响应内容: {response.text}")
+                
+                if response.status_code == 200:
+                    try:
+                        result = response.json()
+                        print(f"解析结果: {result}")
+                        
+                        # 检查是否成功
+                        error_code = result.get('data', {}).get('error_code', -1)
+                        description = result.get('data', {}).get('description', '')
+                        
+                        if error_code == 0:
+                            # 成功，保存aid用于后续登录
+                            self.login_aid = aid
+                            self.login_device_id = device_id
+                            return {'success': True, 'message': '验证码已发送'}
+                        elif '非法应用' not in description:
+                            # 不是非法应用错误，可能是其他错误，直接返回
+                            return {'success': False, 'message': description}
+                    except:
+                        pass
+                
+                # 继续尝试下一个aid
+            
+            return {'success': False, 'message': '所有aid都返回错误，请使用Cookie登录方式'}
+                
+        except Exception as e:
+            print(f"发送验证码时出错: {e}")
+            return {'success': False, 'message': f'网络错误: {str(e)}'}
+
+    def login_with_verification_code(self, phone, code):
+        """使用验证码登录"""
+        try:
+            # 获取之前保存的aid和device_id
+            aid = getattr(self, 'login_aid', '1768')
+            device_id = getattr(self, 'login_device_id', str(uuid.uuid4()))
+            
+            url = f"https://novel.snssdk.com/passport/account/login/?aid={aid}"
+            headers = {
+                'Content-Type': 'application/json',
+                'Referer': 'https://fanqienovel.com/',
+                'Origin': 'https://fanqienovel.com',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }
+            data = {
+                'mobile': phone,
+                'code': code,
+                'device_id': device_id,
+                'os': 'web',
+            }
+            
+            print(f"登录请求: {data}, aid={aid}")
+            response = self.session.post(url, json=data, headers=headers, timeout=REQUEST_TIMEOUT)
+            print(f"登录响应状态码: {response.status_code}")
+            print(f"登录响应内容: {response.text}")
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            print(f"登录解析结果: {result}")
+            
+            if result.get('errno', -1) == 0 or result.get('code', -1) == 0 or result.get('data', {}).get('error_code') == 0:
+                # 提取Cookie
+                cookies_dict = {}
+                for cookie in self.session.cookies:
+                    cookies_dict[cookie.name] = cookie.value
+                
+                return {
+                    'success': True,
+                    'message': '登录成功',
+                    'cookies': cookies_dict,
+                    'user_info': result.get('data', {})
+                }
+            else:
+                error_msg = result.get('data', {}).get('description', result.get('errmsg', result.get('message', '登录失败')))
+                return {'success': False, 'message': error_msg}
+                
+        except Exception as e:
+            print(f"验证码登录时出错: {e}")
+            return {'success': False, 'message': f'网络错误: {str(e)}'}
 
     def search_novel(self, keyword):
         """搜索小说"""

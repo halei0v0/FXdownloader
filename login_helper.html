@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄小说登录助手</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .status {
+            color: #666;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .btn-success {
+            background: #00B894;
+        }
+        .btn-success:hover {
+            background: #00A383;
+        }
+        #cookieDisplay {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 番茄小说登录助手</h1>
+        <div id="status" class="status">
+            <span class="loading"></span>正在准备登录页面...
+        </div>
+        <div id="buttons" style="display: none;">
+            <button class="btn btn-success" onclick="openLoginWindow()">打开登录窗口</button>
+        </div>
+        <div id="cookieDisplay"></div>
+    </div>
+
+    <script>
+        const LOGIN_URL = 'https://fanqienovel.com/main/writer/login';
+        let loginWindow = null;
+        let checkInterval = null;
+
+        // 页面加载完成后
+        window.onload = function() {
+            document.getElementById('status').innerHTML = '点击下方按钮打开番茄小说登录页面';
+            document.getElementById('buttons').style.display = 'block';
+        };
+
+        function openLoginWindow() {
+            document.getElementById('status').innerHTML = '<span class="loading"></span>正在打开登录窗口，请在弹出的窗口中完成登录...';
+            
+            // 打开番茄小说登录页面
+            loginWindow = window.open(LOGIN_URL, 'fanqie_login', 'width=800,height=600');
+            
+            if (loginWindow) {
+                // 开始轮询检查登录状态
+                checkInterval = setInterval(checkLoginStatus, 1000);
+            } else {
+                document.getElementById('status').innerHTML = '❌ 无法打开新窗口，请检查浏览器弹窗设置';
+            }
+        }
+
+        function checkLoginStatus() {
+            if (!loginWindow || loginWindow.closed) {
+                clearInterval(checkInterval);
+                document.getElementById('status').innerHTML = '❌ 登录窗口已关闭，请重试';
+                return;
+            }
+
+            try {
+                // 尝试访问登录窗口的cookie
+                const cookies = loginWindow.document.cookie;
+                
+                if (cookies && (cookies.includes('sessionid') || cookies.includes('passport_csrf_token'))) {
+                    // 检测到登录成功的cookie
+                    clearInterval(checkInterval);
+                    handleLoginSuccess(cookies);
+                }
+            } catch (e) {
+                // 跨域限制，无法直接访问cookie
+                // 使用postMessage通信
+            }
+        }
+
+        // 监听来自登录窗口的消息
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'cookie') {
+                clearInterval(checkInterval);
+                handleLoginSuccess(event.data.cookie);
+            }
+        });
+
+        function handleLoginSuccess(cookies) {
+            document.getElementById('status').innerHTML = '✅ 检测到登录成功！正在获取Cookie...';
+            
+            // 提取并显示cookie
+            const cookieObj = {};
+            cookies.split(';').forEach(cookie => {
+                const [name, value] = cookie.trim().split('=');
+                if (name && value) {
+                    cookieObj[name] = value;
+                }
+            });
+
+            // 显示cookie
+            const displayDiv = document.getElementById('cookieDisplay');
+            displayDiv.style.display = 'block';
+            displayDiv.textContent = '已获取到以下Cookie:\n' + JSON.stringify(cookieObj, null, 2);
+
+            // 将cookie发送回主应用
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'fanqie_cookies',
+                    cookies: cookieObj
+                }, '*');
+            }
+
+            // 同时也尝试通过HTTP发送（如果有服务器）
+            fetch('/save_cookies', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ cookies: cookieObj })
+            }).then(() => {
+                document.getElementById('status').innerHTML = '✅ Cookie已保存！<br><br>您可以关闭此页面了。';
+                setTimeout(() => {
+                    if (loginWindow) {
+                        loginWindow.close();
+                    }
+                }, 2000);
+            }).catch(err => {
+                console.log('HTTP保存失败，但Cookie已获取:', err);
+                document.getElementById('status').innerHTML = '✅ Cookie已获取！<br>请复制上方Cookie到软件中使用。<br><br>您可以关闭此页面了。';
+            });
+        }
+
+        // 如果页面是通过iframe嵌入的
+        if (window.self !== window.top) {
+            // 在iframe中
+            document.body.innerHTML = '';
+        }
+    </script>
+</body>
+</html>
