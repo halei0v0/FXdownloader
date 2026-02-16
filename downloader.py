@@ -134,6 +134,10 @@ class NovelDownloader:
         if not output_path:
             filename = f"{novel['title']}.txt"
             output_path = os.path.join(DOWNLOAD_DIR, filename)
+        elif os.path.isdir(output_path):
+            # 如果是文件夹路径，则在文件夹中生成文件名
+            filename = f"{novel['title']}.txt"
+            output_path = os.path.join(output_path, filename)
 
         print(f"正在导出到: {output_path}")
 
@@ -159,6 +163,12 @@ class NovelDownloader:
             print(f"✓ 导出成功！文件保存到: {output_path}")
             return True
 
+        except PermissionError:
+            print(f"✗ 导出失败: 权限不足，无法保存历史记录，请将软件放在C盘以外【不受保护的】磁盘中 {output_path}")
+            return False
+        except OSError as e:
+            print(f"✗ 导出失败: 系统错误 - {e}")
+            return False
         except Exception as e:
             print(f"✗ 导出失败: {e}")
             return False

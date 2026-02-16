@@ -28,6 +28,48 @@ OUTPUT_FORMAT = 'txt'  # txt 或 epub
 # Cookie 配置（用于访问需要登录权限的内容）
 COOKIE_FILE = os.path.join(BASE_DIR, 'cookies.txt')
 
+# 并发下载配置
+CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
+DEFAULT_CONCURRENT_DOWNLOADS = 3
+MAX_CONCURRENT_DOWNLOADS = 10
+
+def load_config():
+    """从配置文件加载配置"""
+    config = {
+        'concurrent_downloads': DEFAULT_CONCURRENT_DOWNLOADS
+    }
+    if os.path.exists(CONFIG_FILE):
+        try:
+            import json
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config.update(json.load(f))
+        except Exception as e:
+            print(f"加载配置失败: {e}")
+    return config
+
+def save_config(config):
+    """保存配置到文件"""
+    try:
+        import json
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"保存配置失败: {e}")
+        return False
+
+def get_concurrent_downloads():
+    """获取并发下载数"""
+    config = load_config()
+    concurrent = config.get('concurrent_downloads', DEFAULT_CONCURRENT_DOWNLOADS)
+    return max(1, min(concurrent, MAX_CONCURRENT_DOWNLOADS))
+
+def set_concurrent_downloads(count):
+    """设置并发下载数"""
+    config = load_config()
+    config['concurrent_downloads'] = max(1, min(count, MAX_CONCURRENT_DOWNLOADS))
+    return save_config(config)
+
 def load_cookies():
     """从 cookies.txt 文件加载 Cookie"""
     cookies = {}
