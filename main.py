@@ -10,7 +10,7 @@ def print_banner():
     banner = """
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║              番茄小说下载器 v1.0                          ║
+║              番茄小说下载器 v2.0                          ║
 ║                                                           ║
 ║     一个简单易用的番茄小说平台下载工具                    ║
 ║                                                           ║
@@ -21,7 +21,11 @@ def print_banner():
 
 def cmd_download(args):
     """下载小说命令"""
-    spider = FanqieSpider()
+    print("\n使用 API 模式下载（无需登录，无需字体解密）...")
+    
+    # 使用 API 模式（默认）
+    spider = FanqieSpider(use_api=True)
+    
     downloader = NovelDownloader()
 
     # 解析小说ID
@@ -51,23 +55,8 @@ def cmd_download(args):
 
 def cmd_search(args):
     """搜索小说命令"""
-    spider = FanqieSpider()
-    
-    results = spider.search_novel(args.keyword)
-    
-    if not results:
-        print("未找到相关小说")
-        return
-    
-    print(f"\n搜索结果 (关键词: {args.keyword})")
-    print("=" * 60)
-    
-    for idx, novel in enumerate(results, 1):
-        print(f"\n{idx}. {novel['title']}")
-        print(f"   作者: {novel['author']}")
-        print(f"   小说ID: {novel['novel_id']}")
-        print(f"   字数: {novel['word_count']:,}")
-        print(f"   简介: {novel['description'][:100]}...")
+    print("注意：API 模式不支持搜索功能")
+    print("请直接使用小说ID进行下载")
 
 
 def cmd_list(args):
@@ -109,9 +98,6 @@ def main():
   # 下载并自动导出
   python main.py download 711914860 --export
   
-  # 搜索小说
-  python main.py search 诡秘之主
-  
   # 列出已下载的小说
   python main.py list
   
@@ -120,6 +106,10 @@ def main():
   
   # 删除小说
   python main.py delete 711914860
+
+下载方式说明:
+  - 使用 API 模式下载，无需登录，无需字体解密，支持批量下载，速度快
+  - 自动选择最优节点，支持节点故障自动切换
         """
     )
 
@@ -135,7 +125,7 @@ def main():
     download_parser.set_defaults(func=cmd_download)
 
     # search 命令
-    search_parser = subparsers.add_parser('search', help='搜索小说')
+    search_parser = subparsers.add_parser('search', help='搜索小说（暂不支持）')
     search_parser.add_argument('keyword', help='搜索关键词')
     search_parser.set_defaults(func=cmd_search)
 

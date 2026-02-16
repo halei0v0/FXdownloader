@@ -8,7 +8,9 @@ block_cipher = None
 a = Analysis(
     ['gui.py'],
     pathex=[],
-    binaries=[],
+    binaries=[
+        ('msedgedriver.exe', '.'),
+    ],
     datas=[
         ('config.py', '.'),
         ('database.py', '.'),
@@ -16,6 +18,11 @@ a = Analysis(
         ('spider.py', '.'),
         ('font_decrypt.py', '.'),
         ('login_helper.html', '.'),
+        ('config.json', '.'),
+        ('webdrivers', 'webdrivers'),
+        ('Driver_Notes', 'Driver_Notes'),
+        ('font_cache', 'font_cache'),
+        ('database', 'database'),
     ],
     hiddenimports=[
         'requests',

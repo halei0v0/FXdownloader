@@ -78,7 +78,7 @@ class LoginDialog:
         # 创建对话框窗口
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("账户登录")
-        self.dialog.geometry("700x500")
+        self.dialog.geometry("700x600")
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
@@ -95,9 +95,6 @@ class LoginDialog:
         
         # 绑定关闭事件
         self.dialog.protocol("WM_DELETE_WINDOW", self.on_close)
-        
-        # 启动本地服务器
-        self.start_server()
     
     def create_widgets(self):
         """创建登录界面组件"""
@@ -112,7 +109,7 @@ class LoginDialog:
         
         title_label = tk.Label(
             title_frame,
-            text="自动获取Cookie登录",
+            text="账户登录",
             font=('Microsoft YaHei UI', 12, 'bold'),
             bg='#FF6B6B',
             fg='white'
@@ -123,67 +120,281 @@ class LoginDialog:
         content_frame = tk.Frame(main_frame, bg='#FFFFFF', padx=30, pady=20)
         content_frame.pack(fill='both', expand=True)
         
-        # 说明文本
-        info_text = """点击下方按钮将打开一个本地网页，该页面会：
-1. 自动打开番茄小说登录窗口
-2. 您在登录窗口中完成登录（电脑仅支持手机号）
-3. 登录成功后，网页会自动获取Cookie（用于SVIP账户身份验证以下载全本小说）
-4. Cookie会自动保存到本地软件中
-
-整个过程完全自动化！"""
+        # 登录方式选择
+        method_frame = tk.Frame(content_frame, bg='#FFFFFF')
+        method_frame.pack(fill='x', pady=(0, 20))
         
-        info_label = tk.Label(
-            content_frame,
-            text=info_text,
-            font=('Microsoft YaHei UI', 10),
+        method_label = tk.Label(
+            method_frame,
+            text="选择登录方式:",
+            font=('Microsoft YaHei UI', 10, 'bold'),
+            bg='#FFFFFF',
+            fg='#2D3436'
+        )
+        method_label.pack(anchor='w', pady=(0, 10))
+        
+        # 创建选项卡
+        self.notebook = ttk.Notebook(content_frame)
+        self.notebook.pack(fill='both', expand=True)
+        
+        # Tab 1: Selenium自动登录
+        selenium_tab = tk.Frame(self.notebook, bg='#FFFFFF', padx=20, pady=20)
+        self.notebook.add(selenium_tab, text=' Selenium自动登录 ')
+        
+        selenium_info = """推荐使用此方式！
+
+特点：
+✓ 完全自动化，只需在浏览器中完成登录
+✓ 自动获取并保存Cookie
+✓ 支持所有登录方式（手机号、微信、QQ等）
+✓ 无需手动复制Cookie
+
+使用步骤：
+1. 点击下方"启动浏览器"按钮
+2. 在打开的浏览器中完成登录
+3. 登录成功后自动保存Cookie"""
+        
+        selenium_info_label = tk.Label(
+            selenium_tab,
+            text=selenium_info,
+            font=('Microsoft YaHei UI', 9),
             bg='#F8F9FA',
             fg='#2D3436',
-            justify='left',
-            padx=20,
-            pady=20
+            padx=15,
+            pady=15
         )
-        info_label.pack(fill='x', pady=(0, 20))
+        selenium_info_label.pack(fill='x', pady=(0, 15), anchor='w')
         
-        # 状态显示
-        self.status_label = tk.Label(
-            content_frame,
+        # Selenium状态显示
+        self.selenium_status_label = tk.Label(
+            selenium_tab,
             text="准备就绪",
             font=('Microsoft YaHei UI', 10),
             bg='#FFFFFF',
             fg='#636E72'
         )
-        self.status_label.pack(pady=(0, 15))
+        self.selenium_status_label.pack(pady=(0, 15))
         
-        # 按钮
-        self.start_btn = tk.Button(
-            content_frame,
-            text="开始自动获取Cookie",
-            command=self.start_auto_login,
+        # Selenium按钮
+        self.selenium_btn = tk.Button(
+            selenium_tab,
+            text="🚀 启动浏览器登录",
+            command=self.start_selenium_login,
             bg='#00B894',
             fg='white',
             borderwidth=0,
             padx=30,
             pady=15,
             font=('Microsoft YaHei UI', 11, 'bold'),
-            cursor='hand2',
-            activebackground='#00A383',
-            activeforeground='white'
-        )
-        self.start_btn.pack()
-        
-        # 手动方式按钮
-        tk.Button(
-            content_frame,
-            text="手动输入Cookie",
-            command=self.show_manual_cookie_dialog,
-            bg='#DFE6E9',
-            fg='#636E72',
-            borderwidth=0,
-            padx=20,
-            pady=10,
-            font=('Microsoft YaHei UI', 9),
             cursor='hand2'
-        ).pack(pady=(10, 0))
+        )
+        self.selenium_btn.pack(fill='x')
+        
+        # Tab 2: 网页助手登录
+        web_tab = tk.Frame(self.notebook, bg='#FFFFFF', padx=20, pady=20)
+        self.notebook.add(web_tab, text=' 网页助手登录 ')
+        
+        web_info = """手动输入Cookie方式
+
+特点：
+• 适合已有Cookie的用户
+• 需要手动复制粘贴
+• 步骤较多，容易出错
+
+使用步骤：
+1. 点击下方"打开登录助手"按钮
+2. 在浏览器中完成登录
+3. 按照提示复制Cookie
+4. 粘贴到输入框中"""
+        
+        web_info_label = tk.Label(
+            web_tab,
+            text=web_info,
+            font=('Microsoft YaHei UI', 9),
+            bg='#F8F9FA',
+            fg='#2D3436',
+            padx=15,
+            pady=15
+        )
+        web_info_label.pack(fill='x', pady=(0, 15), anchor='w')
+        
+        # 网页状态显示
+        self.web_status_label = tk.Label(
+            web_tab,
+            text="准备就绪",
+            font=('Microsoft YaHei UI', 10),
+            bg='#FFFFFF',
+            fg='#636E72'
+        )
+        self.web_status_label.pack(pady=(0, 15))
+        
+        # 网页按钮
+        self.web_btn = tk.Button(
+            web_tab,
+            text="打开登录助手",
+            command=self.start_auto_login,
+            bg='#0984E3',
+            fg='white',
+            borderwidth=0,
+            padx=30,
+            pady=15,
+            font=('Microsoft YaHei UI', 11, 'bold'),
+            cursor='hand2'
+        )
+        self.web_btn.pack(fill='x')
+        
+        # Tab 3: 手动输入Cookie
+        manual_tab = tk.Frame(self.notebook, bg='#FFFFFF', padx=20, pady=20)
+        self.notebook.add(manual_tab, text=' 手动输入Cookie ')
+        
+        manual_info = """直接粘贴Cookie字符串
+
+格式示例：
+sessionid=xxx; passport_csrf_token=xxx; passport_assist_user=xxx
+
+获取方法：
+在浏览器开发者工具中：
+1. 按F12打开开发者工具
+2. 点击"应用程序"(Application)标签
+3. 点击"Cookies"
+4. 右键选择"Copy all as HTTP header format"
+5. 粘贴到下方输入框"""
+        
+        manual_info_label = tk.Label(
+            manual_tab,
+            text=manual_info,
+            font=('Microsoft YaHei UI', 9),
+            bg='#F8F9FA',
+            fg='#2D3436',
+            padx=15,
+            pady=15
+        )
+        manual_info_label.pack(fill='x', pady=(0, 15), anchor='w')
+        
+        # Cookie输入框
+        cookie_label = tk.Label(
+            manual_tab,
+            text="Cookie字符串:",
+            font=('Microsoft YaHei UI', 10),
+            bg='#FFFFFF',
+            fg='#2D3436'
+        )
+        cookie_label.pack(anchor='w', pady=(0, 5))
+        
+        self.cookie_text = scrolledtext.ScrolledText(
+            manual_tab,
+            height=8,
+            font=('Consolas', 9),
+            bg='#F8F9FA',
+            fg='#2D3436',
+            padx=10,
+            pady=10
+        )
+        self.cookie_text.pack(fill='x', pady=(0, 15))
+        
+        # 手动保存按钮
+        self.manual_save_btn = tk.Button(
+            manual_tab,
+            text="保存Cookie",
+            command=self.save_manual_cookie,
+            bg='#636E72',
+            fg='white',
+            borderwidth=0,
+            padx=30,
+            pady=12,
+            font=('Microsoft YaHei UI', 10, 'bold'),
+            cursor='hand2'
+        )
+        self.manual_save_btn.pack(fill='x')
+    
+    def start_selenium_login(self):
+        """启动Selenium自动登录"""
+        self.selenium_btn.config(state='disabled', bg='#DFE6E9', fg='#636E72')
+        self.selenium_status_label.config(text="正在启动浏览器，请稍候...", fg='#00B894')
+        self.dialog.update()
+        
+        # 在新线程中执行登录
+        import threading
+        thread = threading.Thread(target=self._selenium_login_thread, daemon=True)
+        thread.start()
+    
+    def _selenium_login_thread(self):
+        """Selenium登录线程"""
+        try:
+            from selenium_login import SeleniumLogin
+            
+            selenium_login = SeleniumLogin()
+            success, cookies = selenium_login.login_with_selenium(headless=False)
+            
+            if success:
+                self.dialog.after(0, lambda: self.selenium_status_label.config(
+                    text="✓ 登录成功！Cookie已保存", fg='#00B894'
+                ))
+                self.dialog.after(2000, self.on_login_success)
+            else:
+                self.dialog.after(0, lambda: self.selenium_status_label.config(
+                    text="✗ 登录失败，请重试", fg='#FF7675'
+                ))
+                self.dialog.after(0, lambda: self.selenium_btn.config(
+                    state='normal', bg='#00B894', fg='white'
+                ))
+                
+        except Exception as e:
+            error_msg = f"Selenium登录出错: {str(e)}"
+            self.dialog.after(0, lambda: self.selenium_status_label.config(text=error_msg, fg='#FF7675'))
+            self.dialog.after(0, lambda: self.selenium_btn.config(
+                state='normal', bg='#00B894', fg='white'
+            ))
+    
+    def start_auto_login(self):
+        """启动网页助手登录"""
+        self.web_btn.config(state='disabled', bg='#DFE6E9', fg='#636E72')
+        self.web_status_label.config(text="正在打开登录助手...", fg='#0984E3')
+        self.dialog.update()
+        
+        # 启动本地服务器
+        self.start_server()
+        
+        # 打开浏览器访问本地服务器
+        import time
+        time.sleep(0.5)  # 等待服务器启动
+        
+        login_url = f'http://127.0.0.1:{self.server_port}/login'
+        webbrowser.open(login_url)
+        
+        self.web_status_label.config(text="请在打开的网页中完成登录\nCookie将自动获取", fg='#00B894')
+    
+    def save_manual_cookie(self):
+        """保存手动输入的Cookie"""
+        cookie_str = self.cookie_text.get('1.0', 'end-1c').strip()
+        
+        if not cookie_str:
+            messagebox.showerror('错误', '请输入Cookie字符串')
+            return
+        
+        # 解析Cookie
+        cookies = {}
+        try:
+            for item in cookie_str.split(';'):
+                item = item.strip()
+                if '=' in item:
+                    key, value = item.split('=', 1)
+                    cookies[key.strip()] = value.strip()
+            
+            # 验证Cookie
+            if not cookies or not any(key in cookies for key in ['sessionid', 'passport_csrf_token', 'passport_assist_user']):
+                messagebox.showerror('错误', 'Cookie格式无效或缺少登录凭证')
+                return
+            
+            # 保存Cookie
+            if save_cookies(cookies):
+                messagebox.showinfo('成功', 'Cookie已保存！')
+                self.on_login_success()
+            else:
+                messagebox.showerror('错误', 'Cookie保存失败！')
+                
+        except Exception as e:
+            messagebox.showerror('错误', f'解析Cookie失败: {e}')
     
     def start_server(self):
         """启动本地HTTP服务器"""
@@ -201,18 +412,6 @@ class LoginDialog:
         # 在新线程中运行服务器
         self.server_thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
         self.server_thread.start()
-    
-    def start_auto_login(self):
-        """启动自动登录流程"""
-        self.start_btn.config(state='disabled', bg='#DFE6E9', fg='#636E72')
-        self.status_label.config(text="正在打开登录助手网页...", fg='#667eea')
-        self.dialog.update()
-        
-        # 打开浏览器访问本地服务器
-        login_url = f'http://127.0.0.1:{self.server_port}/login'
-        webbrowser.open(login_url)
-        
-        self.status_label.config(text="请在打开的网页中完成登录\nCookie将自动获取", fg='#00B894')
     
     def complete_login(self):
         """完成登录，获取Cookie"""
@@ -254,7 +453,7 @@ class LoginDialog:
             font=('Microsoft YaHei UI', 9),
             bg='#F8F9FA',
             fg='#636E72',
-            justify='left',
+            anchor='w',
             padx=15,
             pady=15
         )
@@ -451,7 +650,7 @@ class LoginDialog:
         """登录成功回调"""
         self.dialog.destroy()
         if self.callback:
-            self.callback(result['success'])
+            self.callback(True)
     
     def on_close(self):
         """关闭对话框"""
@@ -491,7 +690,7 @@ class SettingsDialog:
         # 创建对话框窗口
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("设置")
-        self.dialog.geometry("450x550")
+        self.dialog.geometry("450x750")
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
@@ -585,13 +784,119 @@ class SettingsDialog:
             font=ModernStyle.FONTS['small'],
             bg='#F8F9FA',
             fg='#636E72',
-            justify='left',
+            anchor='w',
             padx=15,
             pady=15,
             wraplength=380
         )
-        info_label.pack(fill='x', pady=(0, 15))
+        info_label.pack(fill='x', pady=(0, 20))
+
+        # 源选择设置
+        source_frame = tk.Frame(content_frame, bg='#F8F9FA', padx=15, pady=12)
+        source_frame.pack(fill='x', pady=(0, 15))
         
+        source_title = tk.Label(
+            source_frame,
+            text="下载源选择",
+            font=ModernStyle.FONTS['header'],
+            bg='#F8F9FA',
+            fg=ModernStyle.COLORS['text']
+        )
+        source_title.pack(anchor='w', pady=(0, 10))
+        
+        from config import get_source_preference, is_remember_source_choice, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
+        
+        current_source = get_source_preference()
+        self.source_var = tk.StringVar(value=current_source)
+        
+        # 每次询问
+        ask_radio = tk.Radiobutton(
+            source_frame,
+            text="每次询问",
+            variable=self.source_var,
+            value=SOURCE_ASK,
+            font=ModernStyle.FONTS['normal'],
+            bg='#F8F9FA',
+            fg=ModernStyle.COLORS['text'],
+            selectcolor='#F8F9FA',
+            activebackground='#F8F9FA',
+            activeforeground=ModernStyle.COLORS['primary'],
+            command=lambda: self._update_remember_state()
+        )
+        ask_radio.pack(anchor='w', pady=(0, 5))
+        
+        # 官网
+        official_radio = tk.Radiobutton(
+            source_frame,
+            text="官网（需登录，需字体解密）",
+            variable=self.source_var,
+            value=SOURCE_OFFICIAL,
+            font=ModernStyle.FONTS['normal'],
+            bg='#F8F9FA',
+            fg=ModernStyle.COLORS['text'],
+            selectcolor='#F8F9FA',
+            activebackground='#F8F9FA',
+            activeforeground=ModernStyle.COLORS['primary'],
+            command=lambda: self._update_remember_state()
+        )
+        official_radio.pack(anchor='w', pady=(0, 5))
+        
+        # 第三方源
+        third_party_radio = tk.Radiobutton(
+            source_frame,
+            text="第三方源（无需登录，速度快）",
+            variable=self.source_var,
+            value=SOURCE_THIRD_PARTY,
+            font=ModernStyle.FONTS['normal'],
+            bg='#F8F9FA',
+            fg=ModernStyle.COLORS['text'],
+            selectcolor='#F8F9FA',
+            activebackground='#F8F9FA',
+            activeforeground=ModernStyle.COLORS['primary'],
+            command=lambda: self._update_remember_state()
+        )
+        third_party_radio.pack(anchor='w', pady=(0, 10))
+        
+        # 记住源选择复选框
+        current_remember = is_remember_source_choice()
+        self.remember_var = tk.BooleanVar(value=current_remember)
+        
+        self.remember_checkbox = tk.Checkbutton(
+            source_frame,
+            text="记住源选择（下次不再询问）",
+            variable=self.remember_var,
+            font=ModernStyle.FONTS['normal'],
+            bg='#F8F9FA',
+            fg=ModernStyle.COLORS['text'],
+            selectcolor='#F8F9FA',
+            activebackground='#F8F9FA',
+            activeforeground=ModernStyle.COLORS['primary']
+        )
+        self.remember_checkbox.pack(anchor='w', pady=(0, 10))
+
+        # API 说明
+        api_frame = tk.Frame(content_frame, bg='#F8F9FA', padx=15, pady=12)
+        api_frame.pack(fill='x', pady=(0, 15))
+        
+        api_title = tk.Label(
+            api_frame,
+            text="下载方式",
+            font=ModernStyle.FONTS['header'],
+            bg='#F8F9FA',
+            fg=ModernStyle.COLORS['text']
+        )
+        api_title.pack(anchor='w', pady=(0, 10))
+        
+        api_info = tk.Label(
+            api_frame,
+            text="• 使用 API 模式下载\n• 无需登录，无需字体解密\n• 支持节点自动切换\n• 支持批量下载，速度快",
+            font=ModernStyle.FONTS['normal'],
+            bg='#F8F9FA',
+            fg='#636E72',
+            justify='left'
+        )
+        api_info.pack(anchor='w')
+
         # 作者信息区域
         author_frame = tk.Frame(content_frame, bg='#F8F9FA', padx=15, pady=12)
         author_frame.pack(fill='x', pady=(0, 15))
@@ -607,7 +912,7 @@ class SettingsDialog:
         
         author_info = tk.Label(
             author_frame,
-            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.2\n\n感谢使用本软件！",
+            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.3\n\n感谢使用本软件！",
             font=ModernStyle.FONTS['normal'],
             bg='#F8F9FA',
             fg='#636E72',
@@ -639,16 +944,39 @@ class SettingsDialog:
     
     def save_settings(self):
         """保存设置"""
-        from config import set_concurrent_downloads
-        
+        from config import set_concurrent_downloads, set_source_preference, set_remember_source_choice
+
+        # 保存并发设置
         concurrent = self.concurrent_var.get()
+        if not set_concurrent_downloads(concurrent):
+            messagebox.showerror('错误', '保存并发设置失败！')
+            return
+
+        # 保存源选择设置
+        source = self.source_var.get()
+        if not set_source_preference(source):
+            messagebox.showerror('错误', '保存源选择设置失败！')
+            return
+
+        # 保存记住源选择设置
+        remember = self.remember_var.get()
+        if not set_remember_source_choice(remember):
+            messagebox.showerror('错误', '保存记住源选择设置失败！')
+            return
+
+        messagebox.showinfo('成功', '设置已保存！')
+        self.dialog.destroy()
+
+    def _update_remember_state(self):
+        """更新记住源选择复选框的状态"""
+        from config import SOURCE_ASK
         
-        if set_concurrent_downloads(concurrent):
-            messagebox.showinfo('成功', '设置已保存！')
-            self.dialog.destroy()
+        # 如果选择的是"每次询问"，禁用"记住源选择"复选框
+        if self.source_var.get() == SOURCE_ASK:
+            self.remember_checkbox.config(state='disabled')
         else:
-            messagebox.showerror('错误', '保存设置失败！')
-    
+            self.remember_checkbox.config(state='normal')
+
     def on_close(self):
         """关闭对话框"""
         self.dialog.destroy()
@@ -716,9 +1044,7 @@ class DownloadHistoryDialog:
             padx=15,
             pady=5,
             font=('Microsoft YaHei UI', 9, 'bold'),
-            cursor='hand2',
-            activebackground=ModernStyle.COLORS['primary_light'],
-            activeforeground=ModernStyle.COLORS['primary']
+            cursor='hand2'
         )
         refresh_btn.pack(side='right', padx=20, pady=12)
         
@@ -776,8 +1102,6 @@ class DownloadHistoryDialog:
             bg=ModernStyle.COLORS['bg'],
             fg=ModernStyle.COLORS['text'],
             font=ModernStyle.FONTS['normal'],
-            activebackground=ModernStyle.COLORS['bg'],
-            activeforeground=ModernStyle.COLORS['text'],
             selectcolor=ModernStyle.COLORS['bg']
         )
         select_all_btn.pack(side='left', padx=(0, 20))
@@ -1035,33 +1359,57 @@ class DownloadHistoryDialog:
         # 在新线程中执行批量下载
         def do_batch_download():
             from spider import FanqieSpider
-            from config import get_concurrent_downloads
+            from config import get_concurrent_downloads, get_source_preference, is_remember_source_choice, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
             from concurrent.futures import ThreadPoolExecutor, as_completed
             import threading
-            
-            spider = FanqieSpider()
+
+            # 确定下载源
+            source_preference = get_source_preference()
+            remember_source = is_remember_source_choice()
+
+            use_api = None
+            if source_preference == SOURCE_OFFICIAL:
+                use_api = False
+            elif source_preference == SOURCE_THIRD_PARTY:
+                use_api = True
+            elif source_preference == SOURCE_ASK:
+                # 每次询问
+                use_api = messagebox.askyesno(
+                    "选择下载源",
+                    "请选择下载方式：\n\n【是】使用第三方源（API模式，无需登录，速度快）\n【否】使用官网（需登录，需字体解密）"
+                )
+
+            if use_api is None:
+                # 用户取消了
+                return
+
+            spider = FanqieSpider(use_api=use_api)
             concurrent_downloads = get_concurrent_downloads()
-            
+
             # 线程安全的结果统计
             result_lock = threading.Lock()
             success_count = 0
             failed_novels = []
             completed_count = 0
             total_count = len(novel_list)
-            
+
             # 添加总体进度信息
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"{'='*50}\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"开始批量下载，共 {total_count} 个小说\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"并发数: {concurrent_downloads}\n"))
+            if use_api:
+                progress_dialog.after(0, lambda: self._add_log(progress_text, f"使用第三方源下载（API模式，无需字体解密）\n"))
+            else:
+                progress_dialog.after(0, lambda: self._add_log(progress_text, f"使用官网下载（需登录，需字体解密）\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"{'='*50}\n\n"))
-            
+
             # 下载单个小说的函数
             def download_novel(novel_info):
                 novel_id = novel_info['novel_id']
                 title = novel_info['title']
-                
+
                 # 每个线程创建自己的spider实例
-                thread_spider = FanqieSpider()
+                thread_spider = FanqieSpider(use_api=use_api)
                 
                 # 添加开始日志
                 progress_dialog.after(0, lambda: self._add_log(progress_text, f"正在下载: {title}\n"))
@@ -1382,8 +1730,20 @@ class NovelDownloaderGUI:
         # 设置样式
         self.setup_styles()
         
-        # 初始化爬虫和下载器
-        self.spider = FanqieSpider()
+        # 初始化爬虫和下载器（根据源选择配置决定是否使用API）
+        from config import get_source_preference, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
+
+        source_preference = get_source_preference()
+        use_api = True  # 默认使用API
+
+        if source_preference == SOURCE_OFFICIAL:
+            use_api = False
+        elif source_preference == SOURCE_THIRD_PARTY:
+            use_api = True
+        elif source_preference == SOURCE_ASK:
+            use_api = True  # 每次询问时默认使用API
+
+        self.spider = FanqieSpider(use_api=use_api)
         self.downloader = NovelDownloader()
         self.current_novel_id = None
         self.is_logged_in = False
@@ -1517,11 +1877,11 @@ class NovelDownloaderGUI:
         # 检查是否已登录（检查是否有有效的session_id或passport_csrf_token等关键cookie）
         cookies = load_cookies()
         self.is_logged_in = len(cookies) > 0 and any(key in cookies for key in ['sessionid', 'passport_csrf_token', 'passport_assist_user'])
-        
+
         # 登录状态标签
         self.login_status_label = tk.Label(
             login_frame,
-            text="已登录" if self.is_logged_in else "未登录",
+            text=self._get_login_status_text(),
             font=('Microsoft YaHei UI', 9),
             bg=ModernStyle.COLORS['primary'],
             fg='white' if self.is_logged_in else '#FFEAA7'
@@ -1539,9 +1899,7 @@ class NovelDownloaderGUI:
             padx=18,
             pady=6,
             font=('Microsoft YaHei UI', 9, 'bold'),
-            cursor='hand2',
-            activebackground=ModernStyle.COLORS['primary_light'],
-            activeforeground=ModernStyle.COLORS['primary']
+            cursor='hand2'
         )
         self.login_btn.pack(side='left', padx=(10, 0))
         
@@ -1556,9 +1914,7 @@ class NovelDownloaderGUI:
             padx=15,
             pady=6,
             font=('Microsoft YaHei UI', 9, 'bold'),
-            cursor='hand2',
-            activebackground='#7F8C8D',
-            activeforeground='white'
+            cursor='hand2'
         )
         settings_btn.pack(side='left', padx=(10, 0))
     
@@ -1570,6 +1926,12 @@ class NovelDownloaderGUI:
             if messagebox.askyesno('确认', '确定要退出登录吗？'):
                 clear_cookies()
                 self.is_logged_in = False
+                # 清除用户信息缓存
+                try:
+                    from config import USER_INFO
+                    USER_INFO.clear()
+                except:
+                    pass
                 self.update_login_status()
                 self.log("已退出登录", 'info')
         else:
@@ -1580,6 +1942,12 @@ class NovelDownloaderGUI:
         """登录结果回调"""
         if success:
             self.is_logged_in = True
+            # 刷新用户信息
+            try:
+                from config import refresh_user_info
+                refresh_user_info()
+            except:
+                pass
             self.update_login_status()
             self.log("登录成功！", 'success')
         else:
@@ -1588,13 +1956,28 @@ class NovelDownloaderGUI:
     def update_login_status(self):
         """更新登录状态显示"""
         self.login_status_label.config(
-            text="已登录" if self.is_logged_in else "未登录",
+            text=self._get_login_status_text(),
             fg='white' if self.is_logged_in else '#FFEAA7'
         )
         self.login_btn.config(
             text="退出登录" if self.is_logged_in else "登录"
         )
     
+    def _get_login_status_text(self):
+        """获取登录状态文本"""
+        if self.is_logged_in:
+            try:
+                from config import USER_INFO
+                if USER_INFO and 'username' in USER_INFO:
+                    username = USER_INFO['username']
+                    return f"已登录: {username}"
+                else:
+                    return "已登录"
+            except:
+                return "已登录"
+        else:
+            return "未登录"
+
     def show_settings(self):
         """显示设置对话框"""
         SettingsDialog(self.root)
@@ -1681,22 +2064,31 @@ class NovelDownloaderGUI:
         
         self.export_path_entry = ttk.Entry(export_path_frame, style='Modern.TEntry')
         self.export_path_entry.pack(side='left', fill='x', expand=True, padx=(0, 10))
-        
-        # 设置默认导出路径到用户的文档目录
+
+        # 优先使用上次保存的导出路径
         try:
-            import os
-            # 优先使用用户文档目录，如果失败则使用桌面目录
-            if os.name == 'nt':  # Windows
-                user_docs = os.path.join(os.path.expanduser('~'), 'Documents')
-                if not os.path.exists(user_docs):
-                    user_docs = os.path.join(os.path.expanduser('~'), 'Desktop')
-            else:  # Linux/Mac
-                user_docs = os.path.join(os.path.expanduser('~'), 'Documents')
-                if not os.path.exists(user_docs):
-                    user_docs = os.path.expanduser('~')
-            
-            if os.path.exists(user_docs):
-                self.export_path_entry.insert(0, user_docs)
+            from config import get_last_export_path
+            last_export_path = get_last_export_path()
+
+            if last_export_path and os.path.exists(os.path.dirname(last_export_path)):
+                # 使用上次导出路径的目录
+                export_dir = os.path.dirname(last_export_path)
+                self.export_path_entry.insert(0, export_dir)
+            else:
+                # 使用默认的用户文档目录
+                if os.name == 'nt':  # Windows
+                    user_docs = os.path.join(os.path.expanduser('~'), 'Documents')
+                    if not os.path.exists(user_docs):
+                        user_docs = os.path.join(os.path.expanduser('~'), 'Desktop')
+                else:  # Linux/Mac
+                    user_docs = os.path.join(os.path.expanduser('~'), 'Documents')
+                    if not os.path.exists(user_docs):
+                        user_docs = os.path.expanduser('~')
+
+                if os.path.exists(user_docs):
+                    self.export_path_entry.insert(0, user_docs)
+        except Exception as e:
+            print(f"加载上次导出路径失败: {e}")
         except Exception:
             pass  # 如果设置失败就留空
         
@@ -1890,6 +2282,11 @@ class NovelDownloaderGUI:
 
     def start_download(self):
         """开始下载"""
+        # 检查是否已经在下载中
+        if self.download_button['state'] == 'disabled':
+            messagebox.showwarning('提示', '正在下载中，请等待当前下载完成')
+            return
+
         if not self.current_novel_id:
             messagebox.showwarning('提示', '请先获取小说信息')
             return
@@ -1919,13 +2316,21 @@ class NovelDownloaderGUI:
             self.log(f"开始下载: {self.current_novel_id}", 'info')
             self.log("=" * 60)
 
+            # 根据实际使用的模式显示信息
+            from config import get_source_preference, SOURCE_OFFICIAL
+            if get_source_preference() == SOURCE_OFFICIAL:
+                self.log("使用官网下载（需登录，需字体解密）", 'info')
+            else:
+                self.log("使用第三方源下载（API模式，无需字体解密）", 'info')
+            current_spider = self.spider
+
             # 清除所有旧数据
             self.log("正在清除旧数据...")
             self.downloader.db.delete_novel(self.current_novel_id)
             self.log("旧数据已清除", 'success')
 
             # 获取小说信息
-            novel_info = self.spider.get_novel_info(self.current_novel_id)
+            novel_info = current_spider.get_novel_info(self.current_novel_id)
             if not novel_info:
                 self.log("获取小说信息失败！", 'error')
                 return
@@ -1947,7 +2352,7 @@ class NovelDownloaderGUI:
             )
 
             # 获取章节列表
-            chapters = self.spider.get_chapter_list(self.current_novel_id)
+            chapters = current_spider.get_chapter_list(self.current_novel_id)
             if not chapters:
                 self.log("获取章节列表失败！", 'error')
                 return
@@ -1968,13 +2373,13 @@ class NovelDownloaderGUI:
                 chapter = chapters[idx]
                 self.log(f"[{idx + 1}/{total_chapters}] 正在下载: {chapter['chapter_title']}")
 
-                chapter_data = self.spider.get_chapter_content(self.current_novel_id, chapter['chapter_id'])
+                chapter_data = current_spider.get_chapter_content(self.current_novel_id, chapter['chapter_id'])
 
                 if chapter_data:
                     real_title = chapter_data.get('title', chapter['chapter_title'])
                     content = chapter_data.get('content', '')
                     word_count = len(content)
-                    
+
                     self.downloader.db.save_chapter(
                         novel_id=self.current_novel_id,
                         chapter_id=chapter['chapter_id'],
@@ -2001,23 +2406,31 @@ class NovelDownloaderGUI:
             # 自动导出
             export_path = self.root.after(0, lambda: self.export_path_entry.get().strip())
             export_path = self.export_path_entry.get().strip()
-            
+
             if export_path:
                 self.log("正在自动导出...", 'info')
                 self.root.update()
-                
+
                 try:
                     if self.downloader.export_to_txt(self.current_novel_id, export_path):
+                        # 保存导出路径
+                        from config import set_last_export_path
+                        set_last_export_path(export_path)
+
                         self.log(f"导出成功: {export_path}", 'success')
-                        
-                        # 复制到downloads文件夹
-                        import shutil
-                        downloads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
-                        os.makedirs(downloads_dir, exist_ok=True)
-                        
-                        backup_path = os.path.join(downloads_dir, os.path.basename(export_path))
-                        shutil.copy2(export_path, backup_path)
-                        self.log(f"已备份到: {backup_path}", 'success')
+
+                        # 复制到downloads文件夹（备份）- 静默执行，失败不影响用户体验
+                        try:
+                            import shutil
+                            downloads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
+                            os.makedirs(downloads_dir, exist_ok=True)
+
+                            backup_path = os.path.join(downloads_dir, os.path.basename(export_path))
+                            shutil.copy2(export_path, backup_path)
+                            # 备份成功时不显示消息，避免混淆
+                        except:
+                            # 备份失败时静默处理，不显示任何消息
+                            pass
                     else:
                         self.log("导出失败", 'error')
                 except PermissionError:
@@ -2051,14 +2464,25 @@ class NovelDownloaderGUI:
             return
 
         title = self.novel_title.cget('text')
+
+        # 获取上次导出路径作为初始目录
+        from config import get_last_export_path
+        last_export_path = get_last_export_path()
+        initial_dir = os.path.dirname(last_export_path) if last_export_path else None
+
         file_path = filedialog.asksaveasfilename(
             defaultextension='.txt',
             filetypes=[('文本文件', '*.txt'), ('所有文件', '*.*')],
-            initialfile=f"{title}.txt"
+            initialfile=f"{title}.txt",
+            initialdir=initial_dir
         )
 
         if file_path:
             if self.downloader.export_to_txt(self.current_novel_id, file_path):
+                # 保存导出路径
+                from config import set_last_export_path
+                set_last_export_path(file_path)
+
                 messagebox.showinfo('成功', '导出成功！')
                 self.log(f"导出成功: {file_path}", 'success')
             else:

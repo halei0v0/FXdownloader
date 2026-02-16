@@ -1,0 +1,21 @@
+{
+  "concurrent_downloads": 3,
+  "source_preference": "official",
+  "remember_source_choice": true,
+  "node_stats": {
+    "https://qkfqapi.vv9v.cn": {
+      "total_success": 1,
+      "endpoints": {
+        "/api/detail": 1
+      }
+    },
+    "https://bk.yydjtc.cn": {
+      "total_success": 4,
+      "endpoints": {
+        "/api/detail": 2,
+        "/api/book": 2
+      }
+    }
+  },
+  "last_export_path": "C:/Users/02halei/Desktop"
+}

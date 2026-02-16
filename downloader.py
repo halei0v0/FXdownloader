@@ -8,11 +8,24 @@ class NovelDownloader:
     def __init__(self):
         self.db = NovelDatabase()
         self.download_ranges = {}  # 记录每个小说的下载范围
+        self.current_source = None  # 当前使用的源：'official' 或 'third_party'
 
-    def download_novel(self, spider, novel_id, start_chapter=1, end_chapter=None):
-        """下载小说"""
+    def download_novel(self, spider, novel_id, start_chapter=1, end_chapter=None, source='official'):
+        """
+        下载小说
+
+        Args:
+            spider: 爬虫实例（FanqieSpider 或 ThirdPartyAdapter）
+            novel_id: 小说ID
+            start_chapter: 起始章节
+            end_chapter: 结束章节
+            source: 源类型：'official'（官网）或 'third_party'（第三方源）
+        """
+        self.current_source = source
+
         print(f"\n{'='*50}")
         print(f"开始下载小说: {novel_id}")
+        print(f"下载源: {'官网' if source == 'official' else '第三方源'}")
         print(f"{'='*50}\n")
 
         # 清除该小说的所有旧数据（包括小说信息和章节）
@@ -73,8 +86,9 @@ class NovelDownloader:
             print(f"[{chapter_index}/{total_chapters}] 正在下载: {chapter_title}")
 
             # 获取章节内容（包含标题和内容）
+            # 注意：第三方源返回的内容已经是纯文本，不需要字体解密
             chapter_data = spider.get_chapter_content(novel_id, chapter_id)
-            
+
             if chapter_data:
                 # 使用返回的真实标题
                 real_title = chapter_data.get('title', chapter_title)

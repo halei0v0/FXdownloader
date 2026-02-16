@@ -99,6 +99,7 @@
         </div>
         <div id="buttons" style="display: none;">
             <button class="btn btn-success" onclick="openLoginWindow()">打开登录窗口</button>
+            <button class="btn" onclick="manualInputCookie()" style="background: #667eea;">手动输入Cookie</button>
         </div>
         <div id="cookieDisplay"></div>
     </div>
@@ -110,17 +111,37 @@
 
         // 页面加载完成后
         window.onload = function() {
-            document.getElementById('status').innerHTML = '点击下方按钮打开番茄小说登录页面';
+            document.getElementById('status').innerHTML = `
+                <div style="text-align: left; line-height: 1.8;">
+                    <strong>登录方式：</strong><br>
+                    1. 点击下方"打开登录窗口"按钮<br>
+                    2. 在弹出的窗口中完成登录<br>
+                    3. <strong>登录成功后，请点击"手动输入Cookie"按钮</strong><br>
+                    4. 按照提示复制Cookie并粘贴<br><br>
+                    <em style="color: #666; font-size: 14px;">注意：由于浏览器安全限制，无法自动获取Cookie，需要手动复制。</em>
+                </div>
+            `;
             document.getElementById('buttons').style.display = 'block';
         };
 
         function openLoginWindow() {
-            document.getElementById('status').innerHTML = '<span class="loading"></span>正在打开登录窗口，请在弹出的窗口中完成登录...';
+            document.getElementById('status').innerHTML = `
+                <div style="text-align: left; line-height: 1.8;">
+                    <strong>登录步骤：</strong><br>
+                    1. 在弹出的窗口中完成登录<br>
+                    2. <strong>登录成功后，返回此页面</strong><br>
+                    3. 点击"手动输入Cookie"按钮<br>
+                    4. 按照提示复制Cookie并粘贴<br><br>
+                    <em style="color: #666; font-size: 14px;">💡 提示：登录成功后窗口可能会跳转或关闭，这是正常的。</em>
+                </div>
+            `;
             
             // 打开番茄小说登录页面
             loginWindow = window.open(LOGIN_URL, 'fanqie_login', 'width=800,height=600');
             
             if (loginWindow) {
+                // 记录开始时间
+                checkInterval.startTime = Date.now();
                 // 开始轮询检查登录状态
                 checkInterval = setInterval(checkLoginStatus, 1000);
             } else {
@@ -136,17 +157,25 @@
             }
 
             try {
-                // 尝试访问登录窗口的cookie
-                const cookies = loginWindow.document.cookie;
+                // 尝试访问登录窗口的URL来判断是否跳转了
+                const currentUrl = loginWindow.location.href;
                 
-                if (cookies && (cookies.includes('sessionid') || cookies.includes('passport_csrf_token'))) {
-                    // 检测到登录成功的cookie
-                    clearInterval(checkInterval);
-                    handleLoginSuccess(cookies);
+                // 如果URL包含特定关键字，可能表示登录成功
+                // 或者我们可以通过检查窗口标题来判断
+                if (currentUrl.includes('fanqienovel.com')) {
+                    // 用户还在登录页面，继续等待
+                    console.log('等待登录...');
                 }
             } catch (e) {
-                // 跨域限制，无法直接访问cookie
-                // 使用postMessage通信
+                // 跨域限制是正常的，继续轮询
+                console.log('等待用户完成登录...');
+            }
+
+            // 检查是否已经等待超过5分钟
+            if (checkInterval.startTime && (Date.now() - checkInterval.startTime > 300000)) {
+                clearInterval(checkInterval);
+                document.getElementById('status').innerHTML = '❌ 登录超时，请重试';
+                return;
             }
         }
 
@@ -201,6 +230,42 @@
                 console.log('HTTP保存失败，但Cookie已获取:', err);
                 document.getElementById('status').innerHTML = '✅ Cookie已获取！<br>请复制上方Cookie到软件中使用。<br><br>您可以关闭此页面了。';
             });
+        }
+
+        function manualInputCookie() {
+            // 显示详细说明
+            const helpText = `【Cookie格式说明】
+
+正确的Cookie字符串格式为：
+名称1=内容1; 名称2=内容2; 名称3=内容3
+
+例如：
+csrf_session_id=d3ea791dad8618165888963d832540fc; novan_web_id=7580560582450775606
+
+【如何获取Cookie】
+
+方法1（推荐）：
+1. 在浏览器开发者工具中，右键点击任意Cookie
+2. 选择"复制" -> "Copy all cookies as http header format"
+3. 粘贴到下方输入框
+
+方法2：
+1. 在开发者工具中手动复制所有Cookie
+2. 按照上述格式组合成字符串
+3. 粘贴到下方输入框
+
+【重要提示】
+- 请复制所有Cookie，特别是：sessionid、passport_csrf_token、passport_assist_user
+- Cookie之间用分号";"分隔
+- 每个Cookie的格式为：名称=内容
+
+请粘贴Cookie字符串：`;
+            
+            const cookies = prompt(helpText);
+            
+            if (cookies && cookies.trim()) {
+                handleLoginSuccess(cookies);
+            }
         }
 
         // 如果页面是通过iframe嵌入的
