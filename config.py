@@ -1,8 +1,16 @@
 # 配置文件
 import os
+import sys
 
 # 基础配置
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 检测是否在 PyInstaller 打包环境中运行
+if getattr(sys, 'frozen', False):
+    # 打包模式：使用用户目录保存配置和数据
+    BASE_DIR = os.path.join(os.path.expanduser('~'), 'FXdownloader')
+else:
+    # 开发模式：使用脚本所在目录
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 DOWNLOAD_DIR = os.path.join(BASE_DIR, 'downloads')
 DATABASE_DIR = os.path.join(BASE_DIR, 'database')
 
@@ -20,7 +28,19 @@ FANQIE_API_BASE = "https://api.fanqienovel.com"
 # 请求配置
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
-REQUEST_DELAY = 1  # 请求间隔，避免被封
+
+# 基础请求延迟配置（模拟正常用户阅读速度）
+REQUEST_DELAY_MIN = 3.0  # 最小延迟（秒）
+REQUEST_DELAY_MAX = 5.0  # 最大延迟（秒）
+
+# 基于章节字数的动态延迟配置
+# 阅读速度：约 600-900 字/分钟（10-15 字/秒）
+READ_SPEED_MIN = 10  # 最快阅读速度（字/秒）
+READ_SPEED_MAX = 15  # 最慢阅读速度（字/秒）
+BASE_DELAY = 1.5  # 基础延迟时间（秒），除了阅读时间外的额外延迟
+
+# 并发请求限制
+MAX_CONCURRENT_REQUESTS = 2  # 最大并发请求数，避免在同一IP下进行大量并发请求
 
 # 输出格式配置
 OUTPUT_FORMAT = 'txt'  # txt 或 epub
@@ -245,6 +265,41 @@ def get_best_node_for_endpoint(endpoint, candidate_nodes):
 def reset_node_stats():
     """重置节点统计"""
     return save_node_stats({})
+
+# ===================== 动态延迟计算 =====================
+
+def calculate_smart_delay(word_count):
+    """
+    计算智能延迟时间，基于章节字数模拟用户阅读速度
+    
+    Args:
+        word_count: 章节字数
+        
+    Returns:
+        延迟时间（秒）
+    """
+    import random
+    
+    # 如果没有字数，使用基础延迟
+    if not word_count or word_count <= 0:
+        return random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
+    
+    # 根据阅读速度计算阅读时间
+    # 随机选择一个阅读速度（5-8 字/秒）
+    read_speed = random.uniform(READ_SPEED_MIN, READ_SPEED_MAX)
+    read_time = word_count / read_speed
+    
+    # 添加基础延迟
+    total_delay = read_time + BASE_DELAY
+    
+    # 添加随机波动（±20%）
+    random_factor = random.uniform(0.8, 1.2)
+    total_delay *= random_factor
+    
+    # 确保延迟在合理范围内（最小 3 秒，最大 30 秒）
+    total_delay = max(REQUEST_DELAY_MIN, min(total_delay, 30.0))
+    
+    return total_delay
 
 # ===================== 用户信息 =====================
 

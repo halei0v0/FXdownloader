@@ -9,14 +9,17 @@ import time
 import re
 import json
 import uuid
+import random
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
 from config import (
     FANQIE_BASE_URL,
     REQUEST_TIMEOUT,
     MAX_RETRIES,
-    REQUEST_DELAY,
-    COOKIES
+    REQUEST_DELAY_MIN,
+    REQUEST_DELAY_MAX,
+    COOKIES,
+    BASE_DIR
 )
 from font_decrypt import FontDecryptor
 import urllib3
@@ -54,12 +57,22 @@ API_CONFIG = {
 
 
 def get_api_headers():
-    """获取 API 请求头"""
+    """获取 API 请求头（模拟真实客户端）"""
     return {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
+        'Referer': 'https://fanqienovel.com/',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-site',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
     }
 
 
@@ -300,14 +313,16 @@ class FanqieSpider:
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
                 'Connection': 'keep-alive',
             })
-            self.decryptor = FontDecryptor()
+            import os
+            font_cache_dir = os.path.join(BASE_DIR, 'font_cache')
+            self.decryptor = FontDecryptor(font_cache_dir)
             self.current_mapping = {}  # 按小说ID缓存字体映射
             self.login_aid = '1768'  # 默认aid
             self.login_device_id = ''  # 默认device_id
             print("✓ 使用官网爬取模式")
 
     def _request(self, url, method='GET', params=None, data=None, headers=None):
-        """发送HTTP请求，带重试机制"""
+        """发送HTTP请求，带重试机制和随机延迟"""
         for attempt in range(MAX_RETRIES):
             try:
                 if headers:
@@ -329,13 +344,20 @@ class FanqieSpider:
                     )
                 
                 response.raise_for_status()
-                time.sleep(REQUEST_DELAY)
+                
+                # 使用随机延迟，避免固定间隔被检测为爬虫
+                import random
+                delay = random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
+                time.sleep(delay)
                 return response
                 
             except requests.exceptions.RequestException as e:
                 print(f"请求失败 (尝试 {attempt + 1}/{MAX_RETRIES}): {e}")
                 if attempt < MAX_RETRIES - 1:
-                    time.sleep(2 ** attempt)
+                    # 重试时使用指数退避策略
+                    backoff_delay = (2 ** attempt) + random.uniform(0.5, 1.5)
+                    print(f"等待 {backoff_delay:.1f} 秒后重试...")
+                    time.sleep(backoff_delay)
                     if self.ua:
                         try:
                             self.session.headers['User-Agent'] = self.ua.random
@@ -626,9 +648,59 @@ class FanqieSpider:
             
             # 解析章节标题
             title = selector.css('.muye-reader-title::text').get()
+            
+            # 如果没有找到标题，检查是什么情况
             if not title:
-                print(f"章节 {chapter_id} 未找到标题，跳过...")
-                return None
+                # 检查页面是否包含人机验证的特征
+                page_text = html.lower()
+                page_title = selector.css('title::text').get() or ''
+                
+                # 保存HTML用于调试
+                debug_file = f'debug_chapter_{chapter_id}.html'
+                try:
+                    with open(debug_file, 'w', encoding='utf-8') as f:
+                        f.write(html)
+                    print(f"章节 {chapter_id} 调试信息已保存到: {debug_file}")
+                except:
+                    pass
+                
+                # 检查是否可能是人机验证或拦截页面
+                captcha_keywords = ['验证', '安全', '人机', 'captcha', 'verify', 'security', 'robot', '拦截', '禁止访问']
+                is_intercepted = any(keyword in page_text for keyword in captcha_keywords) or \
+                                any(keyword in page_title.lower() for keyword in captcha_keywords) or \
+                                '验证' in html or '安全验证' in html or '人机验证' in html or \
+                                '访问被拒绝' in html or 'Access Denied' in html
+                
+                # 检查页面长度是否过短（可能是错误页面）
+                page_too_short = len(html) < 1000
+                
+                if is_intercepted:
+                    print(f"章节 {chapter_id} 检测到拦截页面（可能需要人机验证或Cookie失效）")
+                    print(f"  页面标题: {page_title}")
+                    return {
+                        'captcha_required': True,
+                        'captcha_url': url,
+                        'message': '请求被拦截，可能需要人机验证或Cookie已失效',
+                        'debug_file': debug_file
+                    }
+                elif page_too_short:
+                    print(f"章节 {chapter_id} 返回页面内容过短（可能请求失败）")
+                    print(f"  页面长度: {len(html)} 字符")
+                    print(f"  页面内容: {html[:200]}")
+                    return {
+                        'error': '页面内容过短',
+                        'page_length': len(html),
+                        'debug_file': debug_file
+                    }
+                else:
+                    print(f"章节 {chapter_id} 未找到标题（页面结构可能已改变）")
+                    print(f"  页面标题: {page_title}")
+                    print(f"  页面长度: {len(html)} 字符")
+                    return {
+                        'error': '未找到章节标题',
+                        'page_title': page_title,
+                        'debug_file': debug_file
+                    }
             
             # 生成或获取字体映射（按小说ID缓存）
             if novel_id not in self.current_mapping:
@@ -639,6 +711,14 @@ class FanqieSpider:
             # 确保所有元素都是字符串
             content_list = [str(c) if c is not None else '' for c in content_list]
             content = '\n\n'.join(content_list)
+            
+            # 检查内容是否为空
+            if not content or len(content.strip()) < 50:
+                print(f"章节 {chapter_id} 内容为空或过短")
+                return {
+                    'error': '章节内容为空或过短',
+                    'content_length': len(content)
+                }
             
             # 解密内容
             new_content = self.decryptor.change(content, self.current_mapping[novel_id])
@@ -653,6 +733,8 @@ class FanqieSpider:
                 
         except Exception as e:
             print(f"获取章节内容时出错: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def send_verification_code(self, phone):

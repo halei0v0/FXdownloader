@@ -22,7 +22,13 @@ login_dialog_instance = None
 class CookieHandler(http.server.SimpleHTTPRequestHandler):
     """Cookie请求处理器"""
     def __init__(self, *args, **kwargs):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # 获取资源文件所在的目录
+        if getattr(sys, 'frozen', False):
+            # 打包模式：使用临时解压目录
+            base_dir = sys._MEIPASS
+        else:
+            # 开发模式：使用脚本所在目录
+            base_dir = os.path.dirname(os.path.abspath(__file__))
         super().__init__(*args, directory=base_dir, **kwargs)
     
     def do_GET(self):
@@ -1721,35 +1727,40 @@ class DownloadHistoryDialog:
 
 class NovelDownloaderGUI:
     def __init__(self, root):
-        self.root = root
-        self.root.title("FXdownloader - 番茄小说下载器")
-        self.root.geometry("850x700")
-        self.root.resizable(True, True)
-        self.root.minsize(700, 500)
-        
-        # 设置样式
-        self.setup_styles()
-        
-        # 初始化爬虫和下载器（根据源选择配置决定是否使用API）
-        from config import get_source_preference, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
-
-        source_preference = get_source_preference()
-        use_api = True  # 默认使用API
-
-        if source_preference == SOURCE_OFFICIAL:
-            use_api = False
-        elif source_preference == SOURCE_THIRD_PARTY:
-            use_api = True
-        elif source_preference == SOURCE_ASK:
-            use_api = True  # 每次询问时默认使用API
-
-        self.spider = FanqieSpider(use_api=use_api)
-        self.downloader = NovelDownloader()
-        self.current_novel_id = None
-        self.is_logged_in = False
-
-        # 创建界面
-        self.create_widgets()
+            self.root = root
+            self.root.title("FXdownloader - 番茄小说下载器")
+            self.root.geometry("850x700")
+            self.root.resizable(True, True)
+            self.root.minsize(700, 500)
+            
+            # 设置样式
+            self.setup_styles()
+            
+            # 初始化爬虫和下载器（根据源选择配置决定是否使用API）
+            from config import get_source_preference, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
+    
+            source_preference = get_source_preference()
+            use_api = True  # 默认使用API
+    
+            if source_preference == SOURCE_OFFICIAL:
+                use_api = False
+            elif source_preference == SOURCE_THIRD_PARTY:
+                use_api = True
+    
+            elif source_preference == SOURCE_ASK:
+                use_api = True  # 每次询问时默认使用API
+    
+            self.spider = FanqieSpider(use_api=use_api)
+            self.downloader = NovelDownloader()
+            self.current_novel_id = None
+            self.is_logged_in = False
+            
+            # 跟踪失败的章节信息
+            self.failed_chapters = []  # 存储失败的章节信息 [(chapter_id, chapter_title, chapter_url), ...]
+            self.current_chapter_url = None  # 当前正在下载的章节URL
+    
+            # 创建界面
+            self.create_widgets()
 
     def setup_styles(self):
         """设置现代化样式"""
@@ -2180,6 +2191,15 @@ class NovelDownloaderGUI:
         )
         self.download_button.pack(side='left', padx=(0, 10))
         
+        # 人机验证按钮已隐藏
+        # self.captcha_button = ttk.Button(
+        #     button_frame,
+        #     text="人机验证",
+        #     command=self.open_captcha_page,
+        #     style='Primary.TButton'
+        # )
+        # self.captcha_button.pack(side='left', padx=(0, 10))
+        
         self.export_button = ttk.Button(
             button_frame,
             text="下载历史",
@@ -2316,9 +2336,14 @@ class NovelDownloaderGUI:
             self.log(f"开始下载: {self.current_novel_id}", 'info')
             self.log("=" * 60)
 
+            # 清空失败章节列表
+            self.failed_chapters = []
+
             # 根据实际使用的模式显示信息
             from config import get_source_preference, SOURCE_OFFICIAL
-            if get_source_preference() == SOURCE_OFFICIAL:
+            use_official_mode = get_source_preference() == SOURCE_OFFICIAL
+            
+            if use_official_mode:
                 self.log("使用官网下载（需登录，需字体解密）", 'info')
             else:
                 self.log("使用第三方源下载（API模式，无需字体解密）", 'info')
@@ -2369,32 +2394,117 @@ class NovelDownloaderGUI:
 
             # 下载章节
             success_count = 0
+            consecutive_failures = 0  # 连续失败计数器
+            max_consecutive_failures = 3  # 最大连续失败次数
+            captcha_detected = False  # 是否检测到人机验证
+
             for idx in range(start_index, end_index):
                 chapter = chapters[idx]
-                self.log(f"[{idx + 1}/{total_chapters}] 正在下载: {chapter['chapter_title']}")
+                chapter_id = chapter['chapter_id']
+                chapter_title = chapter['chapter_title']
+                
+                # 构建章节URL（仅官网模式使用）
+                chapter_url = f"https://fanqienovel.com/reader/{chapter_id}"
+                self.current_chapter_url = chapter_url
+                
+                self.log(f"[{idx + 1}/{total_chapters}] 正在下载: {chapter_title}")
 
-                chapter_data = current_spider.get_chapter_content(self.current_novel_id, chapter['chapter_id'])
+                chapter_data = current_spider.get_chapter_content(self.current_novel_id, chapter_id)
 
-                if chapter_data:
-                    real_title = chapter_data.get('title', chapter['chapter_title'])
+                # 检查是否需要人机验证
+                if chapter_data and chapter_data.get('captcha_required'):
+                    self.log(f"  ⚠ 检测到人机验证页面", 'warning')
+                    self.log(f"  验证页面: {chapter_url}", 'warning')
+                    
+                    # 记录需要验证的章节
+                    self.failed_chapters.append((chapter_id, chapter_title, chapter_url))
+                    
+                    # 弹出提示而非打开浏览器
+                    self.root.after(0, lambda: messagebox.showwarning(
+                        '访问过多',
+                        '访问过于频繁，触发了官网人机验证！\n\n'
+                        '建议解决方案：\n'
+                        '1. 等待一段时间（10-30分钟）后重试\n'
+                        '2. 切换到第三方源模式（无需登录，无需字体解密）\n'
+                        '3. 在设置中调整并发数或延迟时间\n\n'
+                        '点击"确定"后，下载将自动停止。'
+                    ))
+                    
+                    # 暂停下载，等待用户操作
+                    self.log("=" * 60, 'warning')
+                    self.log("下载已暂停：访问过多引起官网人机验证", 'warning')
+                    self.log("=" * 60, 'warning')
+                    self.log("请等待一段时间后重新下载", 'warning')
+                    captcha_detected = True
+                    
+                    # 退出下载线程
+                    break
+                
+                if chapter_data and not chapter_data.get('captcha_required'):
+                    real_title = chapter_data.get('title', chapter_title)
                     content = chapter_data.get('content', '')
                     word_count = len(content)
 
                     self.downloader.db.save_chapter(
                         novel_id=self.current_novel_id,
-                        chapter_id=chapter['chapter_id'],
+                        chapter_id=chapter_id,
                         chapter_title=real_title,
                         chapter_index=chapter['chapter_index'],
                         content=content,
                         word_count=word_count
                     )
                     success_count += 1
+                    consecutive_failures = 0  # 重置连续失败计数器
                     self.log(f"  ✓ 成功 - {real_title} ({word_count} 字)", 'success')
                 else:
+                    consecutive_failures += 1
+                    # 记录失败的章节信息
+                    self.failed_chapters.append((chapter_id, chapter_title, chapter_url))
                     self.log(f"  ✗ 失败", 'error')
+                    
+                    # 只有在官网模式下才触发人机验证
+                    if use_official_mode and consecutive_failures >= max_consecutive_failures:
+                        self.log(f"检测到连续{max_consecutive_failures}次下载失败，可能需要人机验证", 'warning')
+                        
+                        # 弹出提示而非打开浏览器
+                        self.root.after(0, lambda: messagebox.showwarning(
+                            '访问过多',
+                            '访问过于频繁，可能触发了官网人机验证！\n\n'
+                            '建议解决方案：\n'
+                            '1. 等待一段时间（10-30分钟）后重试\n'
+                            '2. 切换到第三方源模式（无需登录，无需字体解密）\n'
+                            '3. 在设置中调整并发数或延迟时间\n\n'
+                            '点击"确定"后，下载将自动停止。'
+                        ))
+                        
+                        # 暂停下载，等待用户操作
+                        self.log("下载已暂停：访问过于频繁，可能触发人机验证", 'warning')
+                        self.log("请等待一段时间后重新下载", 'warning')
+                        
+                        # 退出下载线程
+                        break
+                    elif not use_official_mode and consecutive_failures >= max_consecutive_failures:
+                        # API模式下的处理
+                        self.log(f"检测到连续{max_consecutive_failures}次下载失败（API模式）", 'warning')
+                        self.log("第三方API节点可能暂时不可用，程序会自动尝试切换节点", 'warning')
+                        self.log("如果问题持续，请稍后重试或切换到官网模式", 'warning')
+                        
+                        # 等待一段时间再继续，避免触发频率限制
+                        import time
+                        import random
+                        wait_time = 5 + random.uniform(2, 5)
+                        self.log(f"等待 {wait_time:.1f} 秒后继续...", 'warning')
+                        time.sleep(wait_time)
+                        
+                        # 继续尝试下载下一个章节
+                        continue
 
             self.log("=" * 60)
-            self.log(f"下载完成！成功下载 {success_count}/{end_index - start_index} 个章节", 'success')
+            if captcha_detected:
+                self.log(f"下载暂停：等待用户完成人机验证", 'warning')
+                self.log(f"已下载 {success_count} 个章节", 'info')
+            else:
+                self.log(f"下载完成！成功下载 {success_count}/{end_index - start_index} 个章节", 'success')
             self.log("=" * 60)
 
             # 更新状态
@@ -2403,52 +2513,54 @@ class NovelDownloaderGUI:
             else:
                 self.downloader.db.update_novel_status(self.current_novel_id, '部分下载')
 
-            # 自动导出
-            export_path = self.root.after(0, lambda: self.export_path_entry.get().strip())
-            export_path = self.export_path_entry.get().strip()
+            # 如果不是因为人机验证暂停，才自动导出
+            if not captcha_detected:
+                # 自动导出
+                export_path = self.root.after(0, lambda: self.export_path_entry.get().strip())
+                export_path = self.export_path_entry.get().strip()
 
-            if export_path:
-                self.log("正在自动导出...", 'info')
-                self.root.update()
+                if export_path:
+                    self.log("正在自动导出...", 'info')
+                    self.root.update()
 
-                try:
-                    if self.downloader.export_to_txt(self.current_novel_id, export_path):
-                        # 保存导出路径
-                        from config import set_last_export_path
-                        set_last_export_path(export_path)
+                    try:
+                        if self.downloader.export_to_txt(self.current_novel_id, export_path):
+                            # 保存导出路径
+                            from config import set_last_export_path
+                            set_last_export_path(export_path)
 
-                        self.log(f"导出成功: {export_path}", 'success')
+                            self.log(f"导出成功: {export_path}", 'success')
 
-                        # 复制到downloads文件夹（备份）- 静默执行，失败不影响用户体验
-                        try:
-                            import shutil
-                            downloads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
-                            os.makedirs(downloads_dir, exist_ok=True)
+                            # 复制到downloads文件夹（备份）- 静默执行，失败不影响用户体验
+                            try:
+                                import shutil
+                                from config import DOWNLOAD_DIR
+                                os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-                            backup_path = os.path.join(downloads_dir, os.path.basename(export_path))
-                            shutil.copy2(export_path, backup_path)
-                            # 备份成功时不显示消息，避免混淆
-                        except:
-                            # 备份失败时静默处理，不显示任何消息
-                            pass
-                    else:
-                        self.log("导出失败", 'error')
-                except PermissionError:
-                    error_msg = f"权限不足，无法写入文件: {export_path}\n\n建议：\n1. 选择其他有写入权限的文件夹\n2. 以管理员身份运行程序\n3. 检查文件是否被其他程序占用"
-                    self.log(error_msg, 'error')
-                    self.root.after(0, lambda: messagebox.showerror('权限错误', error_msg))
-                except OSError as e:
-                    error_msg = f"写入文件失败: {e}\n\n建议：\n1. 检查路径是否有效\n2. 检查磁盘空间是否充足\n3. 选择其他保存位置"
-                    self.log(error_msg, 'error')
-                    self.root.after(0, lambda: messagebox.showerror('写入错误', error_msg))
-                except Exception as e:
-                    error_msg = f"导出过程发生未知错误: {e}"
-                    self.log(error_msg, 'error')
-                    self.root.after(0, lambda: messagebox.showerror('导出错误', error_msg))
-            else:
-                self.log("未设置导出路径，跳过自动导出", 'warning')
+                                backup_path = os.path.join(DOWNLOAD_DIR, os.path.basename(export_path))
+                                shutil.copy2(export_path, backup_path)
+                                # 备份成功时不显示消息，避免混淆
+                            except:
+                                # 备份失败时静默处理，不显示任何消息
+                                pass
+                        else:
+                            self.log("导出失败", 'error')
+                    except PermissionError:
+                        error_msg = f"权限不足，无法写入文件: {export_path}\n\n建议：\n1. 选择其他有写入权限的文件夹\n2. 以管理员身份运行程序\n3. 检查文件是否被其他程序占用"
+                        self.log(error_msg, 'error')
+                        self.root.after(0, lambda: messagebox.showerror('权限错误', error_msg))
+                    except OSError as e:
+                        error_msg = f"写入文件失败: {e}\n\n建议：\n1. 检查路径是否有效\n2. 检查磁盘空间是否充足\n3. 选择其他保存位置"
+                        self.log(error_msg, 'error')
+                        self.root.after(0, lambda: messagebox.showerror('写入错误', error_msg))
+                    except Exception as e:
+                        error_msg = f"导出过程发生未知错误: {e}"
+                        self.log(error_msg, 'error')
+                        self.root.after(0, lambda: messagebox.showerror('导出错误', error_msg))
+                else:
+                    self.log("未设置导出路径，跳过自动导出", 'warning')
 
-            messagebox.showinfo('完成', f'下载完成！\n成功下载 {success_count} 个章节')
+                messagebox.showinfo('完成', f'下载完成！\n成功下载 {success_count} 个章节')
 
         except Exception as e:
             self.log(f"下载出错: {e}", 'error')
@@ -2492,6 +2604,52 @@ class NovelDownloaderGUI:
     def show_download_history(self):
         """显示下载历史"""
         DownloadHistoryDialog(self.root)
+
+    def open_captcha_page(self, chapter_url=None):
+        """打开人机验证页面（仅适用于官网模式）
+        
+        Args:
+            chapter_url: 可选的章节URL，如果未提供则使用最后一个失败的章节URL
+        """
+        # 检查当前模式
+        from config import get_source_preference, SOURCE_OFFICIAL
+        if get_source_preference() != SOURCE_OFFICIAL:
+            messagebox.showwarning(
+                '提示', 
+                '人机验证功能仅适用于官网模式。\n\n'
+                '当前使用的是API模式（第三方源），无需人机验证。\n\n'
+                '如果API下载失败，请：\n'
+                '1. 等待片刻后重试（程序会自动切换API节点）\n'
+                '2. 或在设置中切换到官网模式\n\n'
+                '官网模式特点：\n'
+                '- 需要登录\n'
+                '- 需要字体解密\n'
+                '- 可能需要人机验证'
+            )
+            return
+        
+        # 如果没有提供URL，使用最后一个失败的章节URL
+        if not chapter_url:
+            if self.failed_chapters:
+                chapter_url = self.failed_chapters[-1][2]  # 获取最后一个失败章节的URL
+            elif self.current_chapter_url:
+                chapter_url = self.current_chapter_url
+            else:
+                messagebox.showwarning('提示', '没有可验证的章节URL')
+                return
+
+        if not chapter_url:
+            messagebox.showwarning('提示', '没有可验证的章节URL')
+            return
+
+        try:
+            self.log(f"正在打开人机验证页面: {chapter_url}", 'info')
+            webbrowser.open(chapter_url)
+            messagebox.showinfo('人机验证', f'已打开浏览器窗口，请在页面中完成人机验证。\n\n完成后点击"确定"，然后重新点击"开始下载"继续下载。')
+            self.log("用户完成人机验证后，请重新点击'开始下载'继续下载", 'info')
+        except Exception as e:
+            messagebox.showerror('错误', f'打开浏览器失败: {e}')
+            self.log(f'打开浏览器失败: {e}', 'error')
 
 
 def main():

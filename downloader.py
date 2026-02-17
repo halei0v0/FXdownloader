@@ -1,6 +1,15 @@
 # 小说下载和导出模块
 import os
-from config import DOWNLOAD_DIR, OUTPUT_FORMAT
+import time
+import random
+from config import (
+    DOWNLOAD_DIR, 
+    OUTPUT_FORMAT, 
+    REQUEST_DELAY_MIN, 
+    REQUEST_DELAY_MAX,
+    MAX_CONCURRENT_REQUESTS,
+    calculate_smart_delay
+)
 from database import NovelDatabase
 
 
@@ -106,8 +115,18 @@ class NovelDownloader:
                 )
                 success_count += 1
                 print(f"  ✓ 成功下载 - {real_title} ({word_count} 字)")
+                
+                # 使用智能延迟策略，模拟正常用户阅读速度
+                # 根据章节字数计算延迟时间
+                delay = calculate_smart_delay(word_count)
+                print(f"等待 {delay:.1f} 秒后继续...")
+                time.sleep(delay)
             else:
                 print(f"  ✗ 下载失败")
+                # 即使下载失败，也添加一个基础延迟，避免频繁重试触发限流
+                delay = random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
+                print(f"等待 {delay:.1f} 秒后继续...")
+                time.sleep(delay)
 
         print(f"\n{'='*50}")
         print(f"下载完成！成功下载 {success_count}/{end_index - start_index} 个章节")

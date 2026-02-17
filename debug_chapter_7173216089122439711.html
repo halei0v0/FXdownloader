@@ -1,0 +1,207 @@
+<html>
+<head>
+<meta charset="utf-8">
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<title>éªè¯ç ä¸­é´é¡µ</title>
+<script charset="utf-8" nonce="85535b8d3a91c05109ed8dd39c00e2bb-argus" src="https://lf-cdn-tos.bytescm.com/obj/static/sec_sdk_build/3.5.2/captcha/index.js"></script>
+<style>
+  .middle_page_loading{
+      width: 150px;
+      height: 15px;
+      margin: 0 auto;
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+  }
+  .middle_page_loading span{
+      display: inline-block;
+      width: 15px;
+      height: 100%;
+      margin-right: 5px;
+      background: #323332;
+      -webkit-transform-origin: right bottom;
+      -moz-transform-origin: right bottom;
+      -ms-transform-origin: right bottom;
+      -o-transform-origin: right bottom;
+      transform-origin: right bottom;
+      -webkit-animation: load 1s ease infinite;
+      -moz-animation: load 1s ease infinite;
+      -ms-animation: load 1s ease infinite;
+      -o-animation: load 1s ease infinite;
+      animation: load 1s ease infinite;
+  }
+  .middle_page_loading span:last-child{
+      margin-right: 0px; 
+  }
+  @keyframes load {
+    0%{
+          opacity: 1;
+      }
+      100%{
+          opacity: 0;
+          -webkit-transform: rotate(90deg);
+          -moz-transform: rotate(90deg);
+          -ms-transform: rotate(90deg);
+          -o-transform: rotate(90deg);
+          transform: rotate(90deg);
+      }
+  }
+  @-webkit-keyframes load {
+    0%{
+          opacity: 1;
+      }
+      100%{
+          opacity: 0;
+          -webkit-transform: rotate(90deg);
+          -moz-transform: rotate(90deg);
+          -ms-transform: rotate(90deg);
+          -o-transform: rotate(90deg);
+          transform: rotate(90deg);
+      }
+  }
+  @-moz-keyframes load {
+      0%{
+          opacity: 1;
+      }
+      100%{
+          opacity: 0;
+          -webkit-transform: rotate(90deg);
+          -moz-transform: rotate(90deg);
+          -ms-transform: rotate(90deg);
+          -o-transform: rotate(90deg);
+          transform: rotate(90deg);
+      }
+  }
+  @-o-keyframes load {
+      0%{
+          opacity: 1;
+      }
+      100%{
+          opacity: 0;
+          -webkit-transform: rotate(90deg);
+          -moz-transform: rotate(90deg);
+          -ms-transform: rotate(90deg);
+          -o-transform: rotate(90deg);
+          transform: rotate(90deg);
+      }
+  }
+  @-ms-keyframes load {
+      0%{
+          opacity: 1;
+      }
+      100%{
+          opacity: 0;
+          -webkit-transform: rotate(90deg);
+          -moz-transform: rotate(90deg);
+          -ms-transform: rotate(90deg);
+          -o-transform: rotate(90deg);
+          transform: rotate(90deg);
+      }
+  }
+  .middle_page_loading span:nth-child(1){
+      -webkit-animation-delay: 0.13s;
+      -moz-animation-delay: 0.13s;
+      -ms-animation-delay: 0.13s;
+      -o-animation-delay: 0.13s;
+      animation-delay: 0.13s;
+  }
+  .middle_page_loading span:nth-child(2){
+      -webkit-animation-delay: 0.26s;
+      -moz-animation-delay: 0.26s;
+      -ms-animation-delay: 0.26s;
+      -o-animation-delay: 0.26s;
+      animation-delay: 0.26s;
+  }
+  .middle_page_loading span:nth-child(3){
+      -webkit-animation-delay: 0.39s;
+      -moz-animation-delay: 0.39s;
+      -ms-animation-delay: 0.39s;
+      -o-animation-delay: 0.39s;
+      animation-delay: 0.39s;
+  }
+  .middle_page_loading span:nth-child(4){
+      -webkit-animation-delay: 0.52s;
+      -moz-animation-delay: 0.52s;
+      -ms-animation-delay: 0.52s;
+      -o-animation-delay: 0.52s;
+      animation-delay: 0.52s;
+  }
+  .middle_page_loading span:nth-child(5){
+      -webkit-animation-delay: 0.65s;
+      -moz-animation-delay: 0.65s;
+      -ms-animation-delay: 0.65s;
+      -o-animation-delay: 0.65s;
+      animation-delay: 0.65s;
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <div class="middle_page_loading">
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+</body>
+<script nonce="85535b8d3a91c05109ed8dd39c00e2bb-argus">
+    function parseCookie() {
+      var obj = document.cookie.split(';')
+        .filter(function(item) {
+          return !!item.trim();
+        })
+        .reduce(function(obj, item) {
+          var pairs = item.split('=');
+          var key = pairs[0] && pairs[0].trim();
+          var val = pairs[1] && pairs[1].trim();
+          obj[key] = val;
+          return obj;
+        }, {});
+      return obj;
+    }
+    function setCookie(name, value) {
+      try {
+        if (window.sessionStorage) {
+          if (!window.sessionStorage.getItem(name)) {
+            window.sessionStorage.setItem(name, value)
+          }
+        }
+        if (window.localStorage) {
+          if (!window.localStorage.getItem(name)) {
+            window.localStorage.setItem(name, value)
+          }
+        }
+        if (!!!parseCookie()[name]) {
+          document.cookie = name + "=" + value + ";";
+        }
+      } catch (e) { }
+    }
+    setCookie("__ac_referer", document.referrer || "__ac_blank");
+    const options = {
+      commonOptions: {
+        aid: 2503,
+        iid: '0',
+        did: '0',
+      },
+      captchaOptions: {
+        ele: 'root',
+        hideCloseBtn: true,
+        showMode: 'mask',
+        successCb: function(){
+          setTimeout(() => {
+            location.reload();
+          }, 2000)
+        },
+      },
+    }
+    const verify_data = {"code":"10000","from":"","type":"verify","version":"","region":"cn","subtype":"slide","ui_type":"","detail":"oH39vPur9ZvTBpxxHlE*wlcFHnU55RsXdg-QU0rWdguWPBINpB3G6XW4gO3TDnik4AtP0Xo0jTMpJi3VHR19RgE9kRx6bXgfQPr*O8NuE25Vjrh48pX7ruOPcRcbYdo9RogXUs7MT6KTMAb-vfvfI6EDAsFLBq1waZBrPiwEZQEvNkHJbP45W93Db5fyxDlIPdH5lsGLeWKv7Ie*NE6tQFQh*dCKJUUMDyJLb*aFzd*UPwk0dVEcYE1a7C*7KUANeVpFkSja48AEtOc5v28*WNiTeVJ4NeCJxTIsYUJl3oQz0tW789Y08tXVgsHW1DTWr5Qrl6nuN4*tsDqZd2-fdYGjlTn53eFFV8qN5gukprGKRFJyJ9AhhXwxlwg4BgA5qDr6kuqfYw..","verify_event":"","fp":"verify_mlpfkbqt_6a8d3166_f854_1da3_4df4_f0b2fa05de1f","server_sdk_env":"{\"idc\":\"sinfonline\",\"region\":\"CN\",\"server_type\":\"whale\"}","log_id":"20260217011036D5864E9885F929FD47EE","is_assist_mobile":false,"is_complex_sms":false,"identity_action":"","identity_scene":"","login_status":0,"aid":0}
+    window.TTGCaptcha.init(options)
+    window.TTGCaptcha.render({
+        verify_data
+    })
+</script>
+</html>

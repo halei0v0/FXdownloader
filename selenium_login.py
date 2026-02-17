@@ -3,6 +3,7 @@
 Selenium自动化登录模块
 """
 import os
+import sys
 import json
 import time
 import re
@@ -25,13 +26,22 @@ class SeleniumLogin:
     def __init__(self):
         self.driver = None
         self.login_url = "https://fanqienovel.com/main/writer/login"
-        self.driver_dir = os.path.join(os.path.dirname(__file__), "webdrivers")
+        
+        # 获取脚本/程序所在目录
+        if getattr(sys, 'frozen', False):
+            # 打包模式：使用临时解压目录
+            self.base_dir = sys._MEIPASS
+        else:
+            # 开发模式：使用脚本所在目录
+            self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        self.driver_dir = os.path.join(self.base_dir, "webdrivers")
         self.driver_path = os.path.join(self.driver_dir, "msedgedriver.exe")
         
         # 检查多个可能的驱动位置
         possible_paths = [
             self.driver_path,  # webdrivers 目录
-            os.path.join(os.path.dirname(__file__), "msedgedriver.exe"),  # 项目根目录
+            os.path.join(self.base_dir, "msedgedriver.exe"),  # 项目根目录或打包根目录
         ]
         
         for path in possible_paths:
@@ -107,7 +117,7 @@ class SeleniumLogin:
             zip_path = os.path.join(temp_dir, "edgedriver.zip")
             
             # 优先使用 PowerShell 脚本下载（更可靠）
-            ps_script = os.path.join(os.path.dirname(__file__), "手动下载驱动.ps1")
+            ps_script = os.path.join(base_dir, "手动下载驱动.ps1")
             if os.path.exists(ps_script):
                 print("\n尝试使用 PowerShell 下载驱动...")
                 try:
@@ -127,7 +137,7 @@ class SeleniumLogin:
                     print(f"使用 PowerShell 下载失败: {e}")
             
             # 尝试使用 curl 脚本
-            curl_script = os.path.join(os.path.dirname(__file__), "下载驱动.bat")
+            curl_script = os.path.join(base_dir, "下载驱动.bat")
             if os.path.exists(curl_script):
                 print("\n尝试使用 curl 下载驱动...")
                 try:
@@ -323,8 +333,8 @@ https://msedgedriver.azureedge.net/{major_version}.{minor_version}.{patch_versio
                     
                     # 重新检查驱动路径
                     possible_paths = [
-                        os.path.join(os.path.dirname(__file__), "webdrivers", "msedgedriver.exe"),
-                        os.path.join(os.path.dirname(__file__), "msedgedriver.exe"),
+                        os.path.join(self.base_dir, "webdrivers", "msedgedriver.exe"),
+                        os.path.join(self.base_dir, "msedgedriver.exe"),
                     ]
                     
                     self.driver_path = None
@@ -378,8 +388,8 @@ https://msedgedriver.azureedge.net/{major_version}.{minor_version}.{patch_versio
                     
                     # 重新检测驱动路径
                     possible_paths = [
-                        os.path.join(os.path.dirname(__file__), "webdrivers", "msedgedriver.exe"),
-                        os.path.join(os.path.dirname(__file__), "msedgedriver.exe"),
+                        os.path.join(self.base_dir, "webdrivers", "msedgedriver.exe"),
+                        os.path.join(self.base_dir, "msedgedriver.exe"),
                     ]
                     
                     self.driver_path = None
