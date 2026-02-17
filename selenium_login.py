@@ -458,8 +458,9 @@ https://msedgedriver.azureedge.net/{major_version}.{minor_version}.{patch_versio
                     has_valid_cookie = True
                     break
         
-        # 如果有有效 Cookie，还需要检查 Cookie 数量（登录后通常会有更多 Cookie）
-        if has_valid_cookie and len(cookies) >= 5:
+        # 只有在加载24个Cookie时才代表登录成功
+        REQUIRED_COOKIE_COUNT = 24
+        if has_valid_cookie and len(cookies) >= REQUIRED_COOKIE_COUNT:
             return True, cookies
         
         return False, cookies
@@ -478,7 +479,7 @@ https://msedgedriver.azureedge.net/{major_version}.{minor_version}.{patch_versio
             is_logged_in, cookies = self.check_login_status()
             
             if is_logged_in:
-                print("检测到登录成功！")
+                print(f"检测到登录成功！已加载 {len(cookies)} 个 Cookie")
                 return True, cookies
             
             time.sleep(2)

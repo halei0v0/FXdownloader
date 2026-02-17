@@ -33,6 +33,22 @@ MAX_RETRIES = 3
 REQUEST_DELAY_MIN = 3.0  # 最小延迟（秒）
 REQUEST_DELAY_MAX = 5.0  # 最大延迟（秒）
 
+# 下载速度配置（用户可调整）
+DEFAULT_DOWNLOAD_SPEED = 1.0  # 默认下载速度（倍数，1.0表示正常速度）
+MIN_DOWNLOAD_SPEED = 0.5  # 最小下载速度（0.5表示慢速）
+MAX_DOWNLOAD_SPEED = 2.0  # 最大下载速度（2.0表示快速）
+
+def get_download_speed():
+    """获取下载速度配置"""
+    config = load_config()
+    return config.get('download_speed', DEFAULT_DOWNLOAD_SPEED)
+
+def set_download_speed(speed):
+    """设置下载速度配置"""
+    config = load_config()
+    config['download_speed'] = max(MIN_DOWNLOAD_SPEED, min(speed, MAX_DOWNLOAD_SPEED))
+    return save_config(config)
+
 # 基于章节字数的动态延迟配置
 # 阅读速度：约 600-900 字/分钟（10-15 字/秒）
 READ_SPEED_MIN = 10  # 最快阅读速度（字/秒）
@@ -280,9 +296,13 @@ def calculate_smart_delay(word_count):
     """
     import random
     
+    # 获取用户配置的下载速度
+    download_speed = get_download_speed()
+    
     # 如果没有字数，使用基础延迟
     if not word_count or word_count <= 0:
-        return random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
+        base_delay = random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
+        return base_delay / download_speed
     
     # 根据阅读速度计算阅读时间
     # 随机选择一个阅读速度（5-8 字/秒）
@@ -296,8 +316,11 @@ def calculate_smart_delay(word_count):
     random_factor = random.uniform(0.8, 1.2)
     total_delay *= random_factor
     
-    # 确保延迟在合理范围内（最小 3 秒，最大 30 秒）
-    total_delay = max(REQUEST_DELAY_MIN, min(total_delay, 30.0))
+    # 应用下载速度调整（速度越快，延迟越短）
+    total_delay /= download_speed
+    
+    # 确保延迟在合理范围内（最小 1.5 秒，最大 30 秒）
+    total_delay = max(1.5, min(total_delay, 30.0))
     
     return total_delay
 

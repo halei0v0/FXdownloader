@@ -696,8 +696,9 @@ class SettingsDialog:
         # 创建对话框窗口
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("设置")
-        self.dialog.geometry("450x750")
-        self.dialog.resizable(False, False)
+        self.dialog.geometry("550x920")
+        self.dialog.resizable(True, True)
+        self.dialog.minsize(550, 800)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         
@@ -734,9 +735,47 @@ class SettingsDialog:
         )
         title_label.pack(side='left', padx=20, pady=12)
         
-        # 内容区域
-        content_frame = tk.Frame(main_frame, bg=ModernStyle.COLORS['bg'], padx=30, pady=20)
-        content_frame.pack(fill='both', expand=True)
+        # 内容区域（带滚动条）
+        canvas = tk.Canvas(main_frame, bg=ModernStyle.COLORS['bg'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient='vertical', command=canvas.yview)
+        content_frame = tk.Frame(canvas, bg=ModernStyle.COLORS['bg'], padx=30, pady=20)
+        
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # 布局滚动条和内容区域
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        # 创建窗口内容
+        canvas_window = canvas.create_window((0, 0), window=content_frame, anchor='nw')
+        
+        # 绑定鼠标滚轮事件
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # 更新滚动区域和窗口宽度
+        def _update_canvas(event=None):
+            # 更新滚动区域
+            canvas.config(scrollregion=canvas.bbox("all"))
+            # 更新窗口宽度以适应对话框
+            canvas.itemconfig(canvas_window, width=canvas.winfo_width() - 15)  # 减去滚动条宽度
+        
+        content_frame.bind("<Configure>", _update_canvas)
+        canvas.bind("<Configure>", _update_canvas)
+        
+        # 绑定鼠标滚轮事件
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # 更新滚动区域
+        def _update_canvas(event=None):
+            canvas.config(scrollregion=canvas.bbox("all"))
+        
+        content_frame.bind("<Configure>", _update_canvas)
         
         # 并发下载设置
         concurrent_frame = tk.Frame(content_frame, bg=ModernStyle.COLORS['bg'])
@@ -796,6 +835,82 @@ class SettingsDialog:
             wraplength=380
         )
         info_label.pack(fill='x', pady=(0, 20))
+
+        # 下载速度设置
+        speed_frame = tk.Frame(content_frame, bg=ModernStyle.COLORS['bg'])
+        speed_frame.pack(fill='x', pady=(0, 20))
+        
+        speed_label = tk.Label(
+            speed_frame,
+            text="下载速度调整:",
+            font=ModernStyle.FONTS['header'],
+            bg=ModernStyle.COLORS['bg'],
+            fg=ModernStyle.COLORS['text']
+        )
+        speed_label.pack(anchor='w', pady=(0, 10))
+        
+        from config import get_download_speed, DEFAULT_DOWNLOAD_SPEED, MIN_DOWNLOAD_SPEED, MAX_DOWNLOAD_SPEED
+        current_speed = get_download_speed()
+        
+        # 速度滑块
+        speed_control_frame = tk.Frame(speed_frame, bg=ModernStyle.COLORS['bg'])
+        speed_control_frame.pack(fill='x', pady=(0, 10))
+        
+        self.speed_var = tk.DoubleVar(value=current_speed)
+        
+        speed_scale = tk.Scale(
+            speed_control_frame,
+            from_=MIN_DOWNLOAD_SPEED,
+            to=MAX_DOWNLOAD_SPEED,
+            resolution=0.1,
+            orient='horizontal',
+            variable=self.speed_var,
+            font=ModernStyle.FONTS['normal'],
+            bg=ModernStyle.COLORS['bg'],
+            fg=ModernStyle.COLORS['text'],
+            highlightthickness=0,
+            length=350,
+            showvalue=True
+        )
+        speed_scale.pack(side='left', fill='x', expand=True)
+        
+        # 速度值显示
+        self.speed_value_label = tk.Label(
+            speed_control_frame,
+            text=f"{current_speed:.1f}x",
+            font=ModernStyle.FONTS['normal'],
+            bg=ModernStyle.COLORS['bg'],
+            fg=ModernStyle.COLORS['primary'],
+            width=8
+        )
+        self.speed_value_label.pack(side='right', padx=(10, 0))
+        
+        # 绑定滑块变化事件
+        speed_scale.config(command=lambda v: self.speed_value_label.config(text=f"{float(v):.1f}x"))
+        
+        # 速度说明
+        speed_info_text = """下载速度倍数控制下载延迟时间（默认：1.0x）
+• 0.5x = 慢速（延迟时间加倍，适合网络不稳定）
+• 1.0x = 正常速度（推荐，稳定性最好）
+• 1.5x-2.0x = 快速（延迟时间减半，可能触发人机验证）
+
+⚠️ 警告：过快的下载速度（>1.5x）可能会触发官网的人机验证！
+如测试出更稳定的速度，欢迎通过Issues反馈给作者"""
+        
+        speed_info_label = tk.Label(
+            content_frame,
+            text=speed_info_text,
+            font=ModernStyle.FONTS['small'],
+            bg='#FFF3CD',
+            fg='#856404',
+            anchor='w',
+            padx=15,
+            pady=15,
+            wraplength=380,
+            relief='solid',
+            borderwidth=1
+        )
+        speed_info_label.pack(fill='x', pady=(0, 20))
 
         # 源选择设置
         source_frame = tk.Frame(content_frame, bg='#F8F9FA', padx=15, pady=12)
@@ -918,7 +1033,7 @@ class SettingsDialog:
         
         author_info = tk.Label(
             author_frame,
-            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.3\n\n感谢使用本软件！",
+            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.4\n\n感谢使用本软件！",
             font=ModernStyle.FONTS['normal'],
             bg='#F8F9FA',
             fg='#636E72',
@@ -939,6 +1054,15 @@ class SettingsDialog:
         )
         save_btn.pack(side='left')
         
+        # 恢复默认设置按钮
+        reset_btn = ttk.Button(
+            button_frame,
+            text="恢复默认设置",
+            command=self.reset_to_default,
+            style='Primary.TButton'
+        )
+        reset_btn.pack(side='left', padx=(5, 0))
+        
         # 取消按钮
         cancel_btn = ttk.Button(
             button_frame,
@@ -950,7 +1074,7 @@ class SettingsDialog:
     
     def save_settings(self):
         """保存设置"""
-        from config import set_concurrent_downloads, set_source_preference, set_remember_source_choice
+        from config import set_concurrent_downloads, set_source_preference, set_remember_source_choice, set_download_speed
 
         # 保存并发设置
         concurrent = self.concurrent_var.get()
@@ -970,6 +1094,12 @@ class SettingsDialog:
             messagebox.showerror('错误', '保存记住源选择设置失败！')
             return
 
+        # 保存下载速度设置
+        speed = self.speed_var.get()
+        if not set_download_speed(speed):
+            messagebox.showerror('错误', '保存下载速度设置失败！')
+            return
+
         messagebox.showinfo('成功', '设置已保存！')
         self.dialog.destroy()
 
@@ -982,6 +1112,25 @@ class SettingsDialog:
             self.remember_checkbox.config(state='disabled')
         else:
             self.remember_checkbox.config(state='normal')
+
+    def reset_to_default(self):
+        """恢复默认设置"""
+        from config import DEFAULT_CONCURRENT_DOWNLOADS, DEFAULT_DOWNLOAD_SPEED, SOURCE_ASK
+        
+        if messagebox.askyesno('确认', '确定要恢复默认设置吗？'):
+            # 恢复并发下载数
+            self.concurrent_var.set(DEFAULT_CONCURRENT_DOWNLOADS)
+            
+            # 恢复下载速度
+            self.speed_var.set(DEFAULT_DOWNLOAD_SPEED)
+            self.speed_value_label.config(text=f"{DEFAULT_DOWNLOAD_SPEED:.1f}x")
+            
+            # 恢复源选择
+            self.source_var.set(SOURCE_ASK)
+            self.remember_var.set(False)
+            self._update_remember_state()
+            
+            messagebox.showinfo('成功', '已恢复默认设置！')
 
     def on_close(self):
         """关闭对话框"""
@@ -1729,9 +1878,9 @@ class NovelDownloaderGUI:
     def __init__(self, root):
             self.root = root
             self.root.title("FXdownloader - 番茄小说下载器")
-            self.root.geometry("850x700")
+            self.root.geometry("950x800")
             self.root.resizable(True, True)
-            self.root.minsize(700, 500)
+            self.root.minsize(800, 600)
             
             # 设置样式
             self.setup_styles()
@@ -1831,6 +1980,16 @@ class NovelDownloaderGUI:
         style.configure('Modern.TText',
                        font=fonts['normal'],
                        padding=5)
+        
+        # Progressbar样式
+        style.configure('Modern.Horizontal.TProgressbar',
+                       background=colors['primary'],
+                       troughcolor=colors['surface'],
+                       bordercolor=colors['border'],
+                       lightcolor=colors['primary'],
+                       darkcolor=colors['primary'],
+                       borderwidth=0,
+                       thickness=8)
 
     def create_widgets(self):
         """创建界面组件"""
@@ -2213,6 +2372,40 @@ class NovelDownloaderGUI:
         log_frame = ttk.LabelFrame(parent, text="下载日志", style='Modern.TLabelframe', padding=15)
         log_frame.pack(fill='both', expand=True)
         
+        # 进度信息容器
+        progress_info_frame = tk.Frame(log_frame, bg=ModernStyle.COLORS['bg'])
+        progress_info_frame.pack(fill='x', pady=(0, 10))
+        
+        # 进度百分比标签
+        self.progress_label = tk.Label(
+            progress_info_frame,
+            text="准备就绪",
+            font=('Microsoft YaHei UI', 10),
+            bg=ModernStyle.COLORS['bg'],
+            fg=ModernStyle.COLORS['text']
+        )
+        self.progress_label.pack(anchor='w', pady=(0, 5))
+        
+        # 进度条
+        self.progress_bar = ttk.Progressbar(
+            progress_info_frame,
+            style='Modern.Horizontal.TProgressbar',
+            mode='determinate',
+            maximum=100
+        )
+        self.progress_bar.pack(fill='x', pady=(0, 5))
+        
+        # 预估时间标签
+        self.eta_label = tk.Label(
+            progress_info_frame,
+            text="",
+            font=('Microsoft YaHei UI', 9),
+            bg=ModernStyle.COLORS['bg'],
+            fg=ModernStyle.COLORS['text_secondary']
+        )
+        self.eta_label.pack(anchor='w')
+        
+        # 日志文本框
         self.log_text = scrolledtext.ScrolledText(
             log_frame,
             height=12,
@@ -2397,6 +2590,16 @@ class NovelDownloaderGUI:
             consecutive_failures = 0  # 连续失败计数器
             max_consecutive_failures = 3  # 最大连续失败次数
             captcha_detected = False  # 是否检测到人机验证
+            
+            # 进度跟踪
+            import time
+            download_start_time = time.time()
+            total_to_download = end_index - start_index
+            
+            # 初始化进度条
+            self.root.after(0, lambda: self.progress_bar.config(value=0))
+            self.root.after(0, lambda: self.progress_label.config(text=f"准备下载: 0/{total_to_download} 章 (0%)"))
+            self.root.after(0, lambda: self.eta_label.config(text=""))
 
             for idx in range(start_index, end_index):
                 chapter = chapters[idx]
@@ -2456,6 +2659,31 @@ class NovelDownloaderGUI:
                     success_count += 1
                     consecutive_failures = 0  # 重置连续失败计数器
                     self.log(f"  ✓ 成功 - {real_title} ({word_count} 字)", 'success')
+                    
+                    # 更新进度条
+                    progress_percent = (success_count / total_to_download) * 100
+                    elapsed_time = time.time() - download_start_time
+                    
+                    # 计算预估剩余时间
+                    if success_count > 0 and elapsed_time > 0:
+                        avg_time_per_chapter = elapsed_time / success_count
+                        remaining_chapters = total_to_download - success_count
+                        eta_seconds = avg_time_per_chapter * remaining_chapters
+                        
+                        # 格式化预估时间
+                        if eta_seconds < 60:
+                            eta_str = f"预估剩余时间: {int(eta_seconds)} 秒"
+                        elif eta_seconds < 3600:
+                            eta_str = f"预估剩余时间: {int(eta_seconds // 60)} 分 {int(eta_seconds % 60)} 秒"
+                        else:
+                            eta_str = f"预估剩余时间: {int(eta_seconds // 3600)} 小时 {int((eta_seconds % 3600) // 60)} 分"
+                    else:
+                        eta_str = ""
+                    
+                    # 更新进度显示
+                    self.root.after(0, lambda: self.progress_bar.config(value=progress_percent))
+                    self.root.after(0, lambda: self.progress_label.config(text=f"下载进度: {success_count}/{total_to_download} 章 ({progress_percent:.1f}%)"))
+                    self.root.after(0, lambda: self.eta_label.config(text=eta_str))
                 else:
                     consecutive_failures += 1
                     # 记录失败的章节信息
@@ -2503,8 +2731,17 @@ class NovelDownloaderGUI:
             if captcha_detected:
                 self.log(f"下载暂停：等待用户完成人机验证", 'warning')
                 self.log(f"已下载 {success_count} 个章节", 'info')
+                # 更新进度显示
+                progress_percent = (success_count / total_to_download) * 100
+                self.root.after(0, lambda: self.progress_bar.config(value=progress_percent))
+                self.root.after(0, lambda: self.progress_label.config(text=f"下载暂停: {success_count}/{total_to_download} 章 ({progress_percent:.1f}%)"))
+                self.root.after(0, lambda: self.eta_label.config(text=""))
             else:
                 self.log(f"下载完成！成功下载 {success_count}/{end_index - start_index} 个章节", 'success')
+                # 更新进度条到100%
+                self.root.after(0, lambda: self.progress_bar.config(value=100))
+                self.root.after(0, lambda: self.progress_label.config(text=f"下载完成: {success_count}/{total_to_download} 章 (100%)"))
+                self.root.after(0, lambda: self.eta_label.config(text=""))
             self.log("=" * 60)
 
             # 更新状态
