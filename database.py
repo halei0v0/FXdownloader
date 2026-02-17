@@ -19,7 +19,7 @@ class NovelDatabase:
         """初始化数据库表"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
+
             # 小说表
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS novels (
@@ -32,10 +32,18 @@ class NovelDatabase:
                     word_count INTEGER DEFAULT 0,
                     chapter_count INTEGER DEFAULT 0,
                     status TEXT DEFAULT '未下载',
+                    source TEXT DEFAULT 'official',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            # 为旧数据库添加 source 字段（如果不存在）
+            cursor.execute('PRAGMA table_info(novels)')
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'source' not in columns:
+                cursor.execute('ALTER TABLE novels ADD COLUMN source TEXT DEFAULT "official"')
+                conn.commit()
             
             # 章节表
             cursor.execute('''
@@ -44,6 +52,7 @@ class NovelDatabase:
                     novel_id TEXT NOT NULL,
                     chapter_id TEXT UNIQUE NOT NULL,
                     chapter_title TEXT NOT NULL,
+                    original_title TEXT,
                     chapter_index INTEGER NOT NULL,
                     content TEXT,
                     word_count INTEGER DEFAULT 0,
@@ -52,6 +61,13 @@ class NovelDatabase:
                     FOREIGN KEY (novel_id) REFERENCES novels(novel_id)
                 )
             ''')
+
+            # 为旧数据库添加 original_title 字段（如果不存在）
+            cursor.execute('PRAGMA table_info(chapters)')
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'original_title' not in columns:
+                cursor.execute('ALTER TABLE chapters ADD COLUMN original_title TEXT')
+                conn.commit()
             
             # 创建索引
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_novel_id ON chapters(novel_id)')
@@ -59,26 +75,26 @@ class NovelDatabase:
             
             conn.commit()
 
-    def save_novel(self, novel_id, title, author, description, cover_url, word_count=0, chapter_count=0):
+    def save_novel(self, novel_id, title, author, description, cover_url, word_count=0, chapter_count=0, source='official'):
         """保存小说信息"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT OR REPLACE INTO novels 
-                (novel_id, title, author, description, cover_url, word_count, chapter_count, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ''', (novel_id, title, author, description, cover_url, word_count, chapter_count))
+                (novel_id, title, author, description, cover_url, word_count, chapter_count, source, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (novel_id, title, author, description, cover_url, word_count, chapter_count, source))
             conn.commit()
 
-    def save_chapter(self, novel_id, chapter_id, chapter_title, chapter_index, content, word_count=0):
+    def save_chapter(self, novel_id, chapter_id, chapter_title, chapter_index, content, word_count=0, original_title=None):
         """保存章节内容"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT OR REPLACE INTO chapters 
-                (novel_id, chapter_id, chapter_title, chapter_index, content, word_count, status)
-                VALUES (?, ?, ?, ?, ?, ?, '已下载')
-            ''', (novel_id, chapter_id, chapter_title, chapter_index, content, word_count))
+                (novel_id, chapter_id, chapter_title, original_title, chapter_index, content, word_count, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, '已下载')
+            ''', (novel_id, chapter_id, chapter_title, original_title, chapter_index, content, word_count))
             conn.commit()
             
             # 更新小说状态

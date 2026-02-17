@@ -2,6 +2,7 @@
   "concurrent_downloads": 3,
   "source_preference": "official",
   "remember_source_choice": true,
+  "download_speed": 1.0,
   "node_stats": {
     "https://qkfqapi.vv9v.cn": {
       "total_success": 1,
@@ -17,5 +18,5 @@
       }
     }
   },
-  "last_export_path": "C:/Users/02halei/Documents"
+  "last_export_path": "C:/Users/02halei/Desktop"
 }

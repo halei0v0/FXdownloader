@@ -53,8 +53,9 @@ class NovelDownloader:
 
         print(f"小说名称: {novel_info['title']}")
         print(f"作者: {novel_info['author']}")
-        print(f"字数: {novel_info['word_count']}")
-        print(f"章节数: {novel_info['chapter_count']}")
+        if source == 'official':
+            print(f"字数: {novel_info['word_count']}")
+            print(f"章节数: {novel_info['chapter_count']}")
         print()
 
         # 保存小说信息到数据库
@@ -65,7 +66,8 @@ class NovelDownloader:
             description=novel_info['description'],
             cover_url=novel_info['cover_url'],
             word_count=novel_info['word_count'],
-            chapter_count=novel_info['chapter_count']
+            chapter_count=novel_info['chapter_count'],
+            source=source
         )
 
         # 获取章节列表
@@ -80,9 +82,13 @@ class NovelDownloader:
         # 确定下载范围
         start_index = max(1, start_chapter) - 1
         end_index = min(total_chapters, end_chapter) if end_chapter else total_chapters
-        
+
         print(f"下载范围: 第 {start_index + 1} 章到第 {end_index} 章")
         print(f"{'='*50}\n")
+
+        # 根据源类型决定是否应用延迟
+        apply_delay = (source == 'official')
+        print(f"下载模式: {'智能延迟（官网模式）' if apply_delay else '极速下载（第三方模式）'}")
 
         # 下载章节
         success_count = 0
@@ -103,30 +109,43 @@ class NovelDownloader:
                 real_title = chapter_data.get('title', chapter_title)
                 content = chapter_data.get('content', '')
                 word_count = len(content)
-                
-                # 保存到数据库
+
+                # 保存到数据库，同时保存原始标题（来自章节列表）
                 self.db.save_chapter(
                     novel_id=novel_id,
                     chapter_id=chapter_id,
                     chapter_title=real_title,
                     chapter_index=chapter_index,
                     content=content,
-                    word_count=word_count
+                    word_count=word_count,
+                    original_title=chapter_title  # 保存章节列表中的原始标题
                 )
                 success_count += 1
-                print(f"  ✓ 成功下载 - {real_title} ({word_count} 字)")
-                
-                # 使用智能延迟策略，模拟正常用户阅读速度
-                # 根据章节字数计算延迟时间
-                delay = calculate_smart_delay(word_count)
-                print(f"等待 {delay:.1f} 秒后继续...")
-                time.sleep(delay)
+                if source == 'official':
+                    print(f"  ✓ 成功下载 - {real_title} ({word_count} 字)")
+                else:
+                    print(f"  ✓ 成功下载 - {real_title}")
+
+                # 根据源类型应用不同的延迟策略
+                if apply_delay:
+                    # 官网模式：使用智能延迟策略，模拟正常用户阅读速度
+                    delay = calculate_smart_delay(word_count, apply_delay=True)
+                    print(f"等待 {delay:.1f} 秒后继续...")
+                    time.sleep(delay)
+                else:
+                    # 第三方模式：极速下载，无延迟
+                    delay = calculate_smart_delay(word_count, apply_delay=False)
+                    if delay > 0:  # 只在需要延迟时才执行
+                        print(f"等待 {delay:.1f} 秒后继续...")
+                        time.sleep(delay)
             else:
                 print(f"  ✗ 下载失败")
-                # 即使下载失败，也添加一个基础延迟，避免频繁重试触发限流
-                delay = random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
-                print(f"等待 {delay:.1f} 秒后继续...")
-                time.sleep(delay)
+                # 官网模式：下载失败时添加延迟，避免频繁重试触发限流
+                # 第三方模式：极速下载，无延迟
+                if apply_delay:
+                    delay = calculate_smart_delay(word_count, apply_delay=True)
+                    print(f"等待 {delay:.1f} 秒后继续...")
+                    time.sleep(delay)
 
         print(f"\n{'='*50}")
         print(f"下载完成！成功下载 {success_count}/{end_index - start_index} 个章节")
@@ -174,23 +193,47 @@ class NovelDownloader:
 
         print(f"正在导出到: {output_path}")
 
+        # 将 sqlite3.Row 对象转换为字典以支持 .get() 方法
+        novel_dict = dict(novel)
+
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
                 # 写入小说信息
                 f.write("=" * 50 + "\n")
-                f.write(f"书名: {novel['title']}\n")
-                f.write(f"作者: {novel['author']}\n")
-                f.write(f"简介: {novel['description']}\n")
-                f.write(f"字数: {novel['word_count']:,} 字\n")
-                f.write(f"章节数: {novel['chapter_count']} 章\n")
+                f.write(f"书名: {novel_dict['title']}\n")
+                f.write(f"作者: {novel_dict['author']}\n")
+                f.write(f"简介: {novel_dict['description']}\n")
+                # 只有官网模式才显示字数和章节数
+                if novel_dict.get('source', 'official') == 'official':
+                    f.write(f"字数: {novel_dict['word_count']:,} 字\n")
+                    f.write(f"章节数: {novel_dict['chapter_count']} 章\n")
                 f.write("=" * 50 + "\n\n")
 
                 # 写入章节内容
                 for chapter in chapters:
+                    # 将 sqlite3.Row 对象转换为字典以支持 .get() 方法
+                    chapter_dict = dict(chapter)
+
+                    # 获取章节标题，如果为空或只有 "-"，则尝试使用原始标题
+                    chapter_title = chapter_dict.get('chapter_title', '')
+                    if not chapter_title or chapter_title.strip() == '-' or len(chapter_title.strip()) == 0:
+                        # 尝试使用原始标题（来自章节列表）
+                        original_title = chapter_dict.get('original_title', '')
+                        if original_title and original_title.strip() and original_title.strip() != '-':
+                            chapter_title = original_title.strip()
+                            print(f"  ✓ 使用原始标题: {chapter_title}")
+                        else:
+                            # 如果原始标题也为空，则使用章节索引生成默认标题
+                            chapter_index = chapter_dict.get('chapter_index', 0)
+                            chapter_title = f"第{chapter_index}章"
+                            print(f"  ⚠ 警告：章节标题为空，使用默认标题: {chapter_title}")
+                    else:
+                        chapter_title = chapter_title.strip()
+
                     f.write(f"\n{'='*30}\n")
-                    f.write(f"{chapter['chapter_title']}\n")
+                    f.write(f"{chapter_title}\n")
                     f.write(f"{'='*30}\n\n")
-                    f.write(chapter['content'])
+                    f.write(chapter_dict['content'])
                     f.write("\n")
 
             print(f"✓ 导出成功！文件保存到: {output_path}")
@@ -218,12 +261,17 @@ class NovelDownloader:
         print(f"{'='*60}\n")
 
         for idx, novel in enumerate(novels, 1):
-            print(f"{idx}. {novel['title']}")
-            print(f"   作者: {novel['author']}")
-            print(f"   状态: {novel['status']}")
-            print(f"   章节数: {novel['chapter_count']}")
-            print(f"   字数: {novel['word_count']:,}")
-            print(f"   小说ID: {novel['novel_id']}")
+            # 将 sqlite3.Row 对象转换为字典以支持 .get() 方法
+            novel_dict = dict(novel)
+
+            print(f"{idx}. {novel_dict['title']}")
+            print(f"   作者: {novel_dict['author']}")
+            print(f"   状态: {novel_dict['status']}")
+            # 只有官网模式才显示字数和章节数
+            if novel_dict.get('source', 'official') == 'official':
+                print(f"   章节数: {novel_dict['chapter_count']}")
+                print(f"   字数: {novel_dict['word_count']:,}")
+            print(f"   小说ID: {novel_dict['novel_id']}")
             print()
 
     def delete_novel(self, novel_id):
@@ -233,10 +281,13 @@ class NovelDownloader:
             print("小说不存在！")
             return False
 
-        confirm = input(f"确定要删除《{novel['title']}》吗？: ")
+        # 将 sqlite3.Row 对象转换为字典
+        novel_dict = dict(novel)
+
+        confirm = input(f"确定要删除《{novel_dict['title']}》吗？: ")
         if confirm.lower() == 'y':
             self.db.delete_novel(novel_id)
-            print(f"✓ 已删除《{novel['title']}》")
+            print(f"✓ 已删除《{novel_dict['title']}》")
             return True
         else:
             print("已取消删除")

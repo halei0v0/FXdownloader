@@ -690,9 +690,10 @@ class ModernStyle:
 
 class SettingsDialog:
     """设置对话框"""
-    def __init__(self, parent):
+    def __init__(self, parent, on_save=None):
         self.parent = parent
-        
+        self.on_save = on_save  # 保存成功后的回调函数
+
         # 创建对话框窗口
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("设置")
@@ -701,7 +702,7 @@ class SettingsDialog:
         self.dialog.minsize(550, 800)
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        
+
         # 居中显示
         self.dialog.update_idletasks()
         width = self.dialog.winfo_width()
@@ -709,9 +710,9 @@ class SettingsDialog:
         x = (self.dialog.winfo_screenwidth() // 2) - (width // 2)
         y = (self.dialog.winfo_screenheight() // 2) - (height // 2)
         self.dialog.geometry(f'{width}x{height}+{x}+{y}')
-        
+
         self.create_widgets()
-        
+
         # 绑定关闭事件
         self.dialog.protocol("WM_DELETE_WINDOW", self.on_close)
     
@@ -751,9 +752,13 @@ class SettingsDialog:
         
         # 绑定鼠标滚轮事件
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except tk.TclError:
+                pass  # canvas 已被销毁，忽略错误
         
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        self._mousewheel_handler = _on_mousewheel  # 保存引用以便在关闭时解绑
         
         # 更新滚动区域和窗口宽度
         def _update_canvas(event=None):
@@ -764,12 +769,6 @@ class SettingsDialog:
         
         content_frame.bind("<Configure>", _update_canvas)
         canvas.bind("<Configure>", _update_canvas)
-        
-        # 绑定鼠标滚轮事件
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         # 更新滚动区域
         def _update_canvas(event=None):
@@ -892,9 +891,9 @@ class SettingsDialog:
         speed_info_text = """下载速度倍数控制下载延迟时间（默认：1.0x）
 • 0.5x = 慢速（延迟时间加倍，适合网络不稳定）
 • 1.0x = 正常速度（推荐，稳定性最好）
-• 1.5x-2.0x = 快速（延迟时间减半，可能触发人机验证）
+• 2.0x-4.0x = 快速（延迟时间大幅减少，可能触发人机验证）
 
-⚠️ 警告：过快的下载速度（>1.5x）可能会触发官网的人机验证！
+⚠️ 警告：过快的下载速度（>2.0x）可能会触发官网的人机验证！
 如测试出更稳定的速度，欢迎通过Issues反馈给作者"""
         
         speed_info_label = tk.Label(
@@ -1033,7 +1032,7 @@ class SettingsDialog:
         
         author_info = tk.Label(
             author_frame,
-            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.4\n\n感谢使用本软件！",
+            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.5\n\n感谢使用本软件！",
             font=ModernStyle.FONTS['normal'],
             bg='#F8F9FA',
             fg='#636E72',
@@ -1101,6 +1100,11 @@ class SettingsDialog:
             return
 
         messagebox.showinfo('成功', '设置已保存！')
+
+        # 调用回调函数刷新软件设置
+        if self.on_save:
+            self.on_save()
+
         self.dialog.destroy()
 
     def _update_remember_state(self):
@@ -1134,6 +1138,9 @@ class SettingsDialog:
 
     def on_close(self):
         """关闭对话框"""
+        # 解绑鼠标滚轮事件
+        if hasattr(self, '_mousewheel_handler'):
+            self.dialog.unbind_all("<MouseWheel>")
         self.dialog.destroy()
 
 
@@ -1311,13 +1318,21 @@ class DownloadHistoryDialog:
         # 清空列表
         for item in self.tree.get_children():
             self.tree.delete(item)
-        
+
         # 从数据库获取所有小说
         novels = self.db.get_all_novels()
-        
+
         # 添加到列表
         for novel in novels:
-            word_count_str = f"{novel['word_count']:,}"
+            # 根据源类型决定是否显示字数和章节数
+            is_official = novel.get('source', 'official') == 'official'
+            if is_official:
+                word_count_str = f"{novel['word_count']:,}"
+                chapter_count_str = novel['chapter_count']
+            else:
+                word_count_str = ''
+                chapter_count_str = ''
+
             # updated_at 已经是字符串格式，直接使用
             updated_at_str = novel['updated_at'] if novel['updated_at'] else '未知'
             self.tree.insert('', 'end', values=(
@@ -1325,7 +1340,7 @@ class DownloadHistoryDialog:
                 novel['title'],
                 novel['author'],
                 word_count_str,
-                novel['chapter_count'],
+                chapter_count_str,
                 novel['status'],
                 updated_at_str
             ), tags=(novel['novel_id'],))
@@ -1553,7 +1568,7 @@ class DownloadHistoryDialog:
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"开始批量下载，共 {total_count} 个小说\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"并发数: {concurrent_downloads}\n"))
             if use_api:
-                progress_dialog.after(0, lambda: self._add_log(progress_text, f"使用第三方源下载（API模式，无需字体解密）\n"))
+                progress_dialog.after(0, lambda: self._add_log(progress_text, f"使用第三方源下载（API模式，无需字体解密，下载前会对API进行测试请耐心等待）\n"))
             else:
                 progress_dialog.after(0, lambda: self._add_log(progress_text, f"使用官网下载（需登录，需字体解密）\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"{'='*50}\n\n"))
@@ -1577,6 +1592,7 @@ class DownloadHistoryDialog:
                         return (False, f"{title} (获取信息失败)")
                     
                     # 保存小说信息
+                    source = 'third_party' if use_api else 'official'
                     self.db.save_novel(
                         novel_id=novel_data['novel_id'],
                         title=novel_data['title'],
@@ -1584,7 +1600,8 @@ class DownloadHistoryDialog:
                         description=novel_data['description'],
                         cover_url=novel_data['cover_url'],
                         word_count=novel_data['word_count'],
-                        chapter_count=novel_data['chapter_count']
+                        chapter_count=novel_data['chapter_count'],
+                        source=source
                     )
                     
                     # 获取章节列表
@@ -1604,19 +1621,20 @@ class DownloadHistoryDialog:
                         # 更新章节下载进度
                         chapter_title = chapter['chapter_title']
                         chapter_data = thread_spider.get_chapter_content(novel_id, chapter['chapter_id'])
-                        
+
                         if chapter_data:
                             real_title = chapter_data.get('title', chapter_title)
                             content = chapter_data.get('content', '')
                             word_count = len(content)
-                            
+
                             self.db.save_chapter(
                                 novel_id=novel_id,
                                 chapter_id=chapter['chapter_id'],
                                 chapter_title=real_title,
                                 chapter_index=chapter['chapter_index'],
                                 content=content,
-                                word_count=word_count
+                                word_count=word_count,
+                                original_title=chapter_title  # 保存章节列表中的原始标题
                             )
                             chapter_success += 1
                             
@@ -1639,8 +1657,10 @@ class DownloadHistoryDialog:
                             f.write(f"书名: {novel_data['title']}\n")
                             f.write(f"作者: {novel_data['author']}\n")
                             f.write(f"简介: {novel_data['description']}\n")
-                            f.write(f"字数: {novel_data['word_count']:,} 字\n")
-                            f.write(f"章节数: {novel_data['chapter_count']} 章\n")
+                            # 只有官网模式才显示字数和章节数
+                            if not use_api:
+                                f.write(f"字数: {novel_data['word_count']:,} 字\n")
+                                f.write(f"章节数: {novel_data['chapter_count']} 章\n")
                             f.write("=" * 50 + "\n\n")
                             
                             for chapter in downloaded_chapters:
@@ -1816,8 +1836,10 @@ class DownloadHistoryDialog:
                     f.write(f"书名: {novel['title']}\n")
                     f.write(f"作者: {novel['author']}\n")
                     f.write(f"简介: {novel['description']}\n")
-                    f.write(f"字数: {novel['word_count']:,} 字\n")
-                    f.write(f"章节数: {novel['chapter_count']} 章\n")
+                    # 只有官网模式才显示字数和章节数
+                    if novel.get('source', 'official') == 'official':
+                        f.write(f"字数: {novel['word_count']:,} 字\n")
+                        f.write(f"章节数: {novel['chapter_count']} 章\n")
                     f.write("=" * 50 + "\n\n")
                     
                     # 写入章节内容
@@ -1907,6 +1929,30 @@ class NovelDownloaderGUI:
             # 跟踪失败的章节信息
             self.failed_chapters = []  # 存储失败的章节信息 [(chapter_id, chapter_title, chapter_url), ...]
             self.current_chapter_url = None  # 当前正在下载的章节URL
+            
+            # 暂停/继续下载状态管理
+            self.is_paused = False  # 是否暂停
+            self.is_downloading = False  # 是否正在下载
+            self.pause_event = threading.Event()  # 暂停事件对象
+            self.pause_event.set()  # 初始状态为未暂停
+
+            # 下载时间记录（用于移动平均算法预估剩余时间）
+            self.recent_download_times = []  # 记录最近N章的下载时间（秒）
+            self.MAX_RECENT_TIMES = 10  # 最多记录最近10章的时间
+            
+            # 继续下载时需要的上下文信息
+            self.resume_context = {
+                'start_chapter': None,
+                'end_chapter': None,
+                'total_chapters': None,
+                'start_index': None,
+                'end_index': None,
+                'chapters': None,
+                'current_spider': None,
+                'success_count': None,
+                'download_start_time': None,
+                'use_official_mode': None
+            }
     
             # 创建界面
             self.create_widgets()
@@ -1961,7 +2007,7 @@ class NovelDownloaderGUI:
                        background=colors['success'],
                        foreground='white',
                        borderwidth=0,
-                       padding=(15, 8),
+                       padding=(20, 10),
                        font=fonts['header'],
                        relief='flat')
         style.map('Success.TButton',
@@ -2150,7 +2196,34 @@ class NovelDownloaderGUI:
 
     def show_settings(self):
         """显示设置对话框"""
-        SettingsDialog(self.root)
+        SettingsDialog(self.root, on_save=self._refresh_settings)
+
+    def _refresh_settings(self):
+        """刷新设置，使配置更改生效"""
+        from config import get_source_preference, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
+
+        # 重新初始化爬虫以应用新的源设置
+        source_preference = get_source_preference()
+        use_api = True
+
+        if source_preference == SOURCE_OFFICIAL:
+            use_api = False
+        elif source_preference == SOURCE_THIRD_PARTY:
+            use_api = True
+        elif source_preference == SOURCE_ASK:
+            use_api = True
+
+        # 更新爬虫实例
+        self.spider = FanqieSpider(use_api=use_api)
+
+        # 刷新用户信息（如果已登录）
+        if self.is_logged_in:
+            from config import refresh_user_info
+            refresh_user_info()
+            self.update_login_status()
+
+        # 显示刷新提示
+        self.log("设置已更新，下次下载将使用新配置", 'info')
 
     def create_input_section(self, parent):
         """创建输入区域"""
@@ -2348,7 +2421,16 @@ class NovelDownloaderGUI:
             command=self.start_download,
             style='Primary.TButton'
         )
-        self.download_button.pack(side='left', padx=(0, 10))
+        self.download_button.pack(side='left', padx=(0, 5))
+        
+        # 暂停/继续按钮（初始隐藏）
+        self.pause_resume_button = ttk.Button(
+            button_frame,
+            text="暂停",
+            command=self.toggle_pause_resume,
+            style='Primary.TButton'
+        )
+        # 初始状态为隐藏
         
         # 人机验证按钮已隐藏
         # self.captcha_button = ttk.Button(
@@ -2365,7 +2447,7 @@ class NovelDownloaderGUI:
             command=self.show_download_history,
             style='Success.TButton'
         )
-        self.export_button.pack(side='left')
+        self.export_button.pack(side='left', padx=(0, 5))
 
     def create_log_section(self, parent):
         """创建日志显示区域"""
@@ -2480,11 +2562,31 @@ class NovelDownloaderGUI:
 
         novel_info = self.spider.get_novel_info(novel_id)
         if novel_info:
+            # 检查是否是授权验证错误
+            if novel_info.get('_error') == 'AUTH_FAILED':
+                error_msg = novel_info.get('_message', '第三方API授权验证失败')
+                messagebox.showerror(
+                    '授权验证失败',
+                    f'{error_msg}\n\n'
+                    f'建议解决方案：\n'
+                    f'1. 打开"设置"，切换到"官网"模式\n'
+                    f'2. 点击"登录Cookie"按钮获取Cookie\n'
+                    f'3. 重新尝试下载\n\n'
+                    f'注意：官网模式需要登录，但更稳定可靠。'
+                )
+                self.log("授权验证失败，建议切换到官网模式", 'error')
+                return
+
             self.current_novel_id = novel_info['novel_id']
             self.novel_title.config(text=novel_info['title'])
             self.novel_author.config(text=novel_info['author'])
-            self.novel_word_count.config(text=f"{novel_info['word_count']:,}")
-            self.novel_chapter_count.config(text=str(novel_info['chapter_count']))
+            # 只有官网模式才显示字数和章节数
+            if self.spider.use_api:
+                self.novel_word_count.config(text="")
+                self.novel_chapter_count.config(text="")
+            else:
+                self.novel_word_count.config(text=f"{novel_info['word_count']:,}")
+                self.novel_chapter_count.config(text=str(novel_info['chapter_count']))
             self.novel_description.config(text=novel_info['description'][:150] + '...' if len(novel_info['description']) > 150 else novel_info['description'])
             self.end_chapter.delete(0, tk.END)
             self.end_chapter.insert(0, str(novel_info['chapter_count']))
@@ -2493,10 +2595,47 @@ class NovelDownloaderGUI:
             messagebox.showerror('错误', '获取小说信息失败')
             self.log("获取小说信息失败", 'error')
 
+    def pause_download(self):
+        """暂停下载"""
+        if self.is_downloading and not self.is_paused:
+            self.is_paused = True
+            self.pause_event.clear()  # 设置暂停标志
+            self.log("用户请求暂停下载...", 'warning')
+            self.progress_label.config(text="下载已暂停")
+            self.download_button.config(state='disabled')
+            self.pause_resume_button.config(text="继续", style='Success.TButton')
+    
+    def resume_download(self):
+        """继续下载"""
+        if self.is_paused:
+            self.is_paused = False
+            self.pause_event.set()  # 清除暂停标志
+            self.log("用户请求继续下载...", 'info')
+            self.progress_label.config(text="继续下载...")
+            self.download_button.config(state='disabled')
+            self.pause_resume_button.config(text="暂停", style='Primary.TButton')
+    
+    def toggle_pause_resume(self):
+        """切换暂停/继续状态"""
+        if self.is_paused:
+            self.resume_download()
+        else:
+            self.pause_download()
+    
+    def show_download_controls(self):
+        """显示下载控制按钮（暂停/继续）"""
+        self.pause_resume_button.pack(side='left', padx=(0, 5))
+        self.pause_resume_button.config(text="暂停", style='Primary.TButton', state='normal')
+    
+    def hide_download_controls(self):
+        """隐藏下载控制按钮"""
+        self.pause_resume_button.pack_forget()
+        self.pause_resume_button.config(text="暂停", style='Primary.TButton')
+    
     def start_download(self):
         """开始下载"""
         # 检查是否已经在下载中
-        if self.download_button['state'] == 'disabled':
+        if self.download_button['state'] == 'disabled' and not self.is_paused:
             messagebox.showwarning('提示', '正在下载中，请等待当前下载完成')
             return
 
@@ -2524,7 +2663,20 @@ class NovelDownloaderGUI:
 
     def _download_thread(self, start_chapter, end_chapter):
         """下载线程"""
+        import time  # 导入time模块
         try:
+            # 设置下载状态
+            self.is_downloading = True
+            self.is_paused = False
+            self.pause_event.set()
+            
+            # 显示下载控制按钮
+            self.root.after(0, lambda: self.show_download_controls())
+            
+            # 更新按钮状态
+            self.root.after(0, lambda: self.download_button.config(state='disabled'))
+            self.root.after(0, lambda: self.export_button.config(state='disabled'))
+            
             self.log("=" * 60)
             self.log(f"开始下载: {self.current_novel_id}", 'info')
             self.log("=" * 60)
@@ -2539,7 +2691,7 @@ class NovelDownloaderGUI:
             if use_official_mode:
                 self.log("使用官网下载（需登录，需字体解密）", 'info')
             else:
-                self.log("使用第三方源下载（API模式，无需字体解密）", 'info')
+                self.log("使用第三方源下载（API模式，无需字体解密，下载前会对API进行测试请耐心等待）", 'info')
             current_spider = self.spider
 
             # 清除所有旧数据
@@ -2555,10 +2707,12 @@ class NovelDownloaderGUI:
 
             self.log(f"小说名称: {novel_info['title']}")
             self.log(f"作者: {novel_info['author']}")
-            self.log(f"字数: {novel_info['word_count']:,}")
-            self.log(f"章节数: {novel_info['chapter_count']}")
+            if use_official_mode:
+                self.log(f"字数: {novel_info['word_count']:,}")
+                self.log(f"章节数: {novel_info['chapter_count']}")
 
             # 保存小说信息
+            source = 'official' if use_official_mode else 'third_party'
             self.downloader.db.save_novel(
                 novel_id=novel_info['novel_id'],
                 title=novel_info['title'],
@@ -2566,7 +2720,8 @@ class NovelDownloaderGUI:
                 description=novel_info['description'],
                 cover_url=novel_info['cover_url'],
                 word_count=novel_info['word_count'],
-                chapter_count=novel_info['chapter_count']
+                chapter_count=novel_info['chapter_count'],
+                source=source
             )
 
             # 获取章节列表
@@ -2585,6 +2740,20 @@ class NovelDownloaderGUI:
             self.log(f"下载范围: 第 {start_index + 1} 章到第 {end_index} 章")
             self.log("=" * 60)
 
+            # 保存继续下载需要的上下文信息
+            self.resume_context.update({
+                'start_chapter': start_chapter,
+                'end_chapter': end_chapter,
+                'total_chapters': total_chapters,
+                'start_index': start_index,
+                'end_index': end_index,
+                'chapters': chapters,
+                'current_spider': current_spider,
+                'success_count': 0,
+                'download_start_time': time.time(),
+                'use_official_mode': use_official_mode
+            })
+
             # 下载章节
             success_count = 0
             consecutive_failures = 0  # 连续失败计数器
@@ -2592,25 +2761,42 @@ class NovelDownloaderGUI:
             captcha_detected = False  # 是否检测到人机验证
             
             # 进度跟踪
-            import time
             download_start_time = time.time()
             total_to_download = end_index - start_index
-            
+
+            # 清空下载时间记录（用于移动平均算法）
+            self.recent_download_times = []
+
             # 初始化进度条
             self.root.after(0, lambda: self.progress_bar.config(value=0))
             self.root.after(0, lambda: self.progress_label.config(text=f"准备下载: 0/{total_to_download} 章 (0%)"))
             self.root.after(0, lambda: self.eta_label.config(text=""))
 
             for idx in range(start_index, end_index):
+                # 检查是否暂停
+                if self.is_paused:
+                    self.log("下载已暂停，等待用户继续...", 'warning')
+                    # 等待用户继续
+                    self.pause_event.wait()
+                    self.log("继续下载...", 'info')
+                    # 重置连续失败计数器（避免暂停后的连续失败判定）
+                    consecutive_failures = 0
+                    # 更新继续下载的上下文信息
+                    self.resume_context['success_count'] = success_count
+                    self.resume_context['download_start_time'] = download_start_time
+                
                 chapter = chapters[idx]
                 chapter_id = chapter['chapter_id']
                 chapter_title = chapter['chapter_title']
-                
+
                 # 构建章节URL（仅官网模式使用）
                 chapter_url = f"https://fanqienovel.com/reader/{chapter_id}"
                 self.current_chapter_url = chapter_url
-                
+
                 self.log(f"[{idx + 1}/{total_chapters}] 正在下载: {chapter_title}")
+
+                # 记录开始下载时间（用于计算实际下载时间，不包括等待延迟）
+                chapter_start_time = time.time()
 
                 chapter_data = current_spider.get_chapter_content(self.current_novel_id, chapter_id)
 
@@ -2654,22 +2840,49 @@ class NovelDownloaderGUI:
                         chapter_title=real_title,
                         chapter_index=chapter['chapter_index'],
                         content=content,
-                        word_count=word_count
+                        word_count=word_count,
+                        original_title=chapter_title  # 保存章节列表中的原始标题
                     )
+
+                    # 记录实际下载时间（不包括等待延迟）
+                    chapter_download_time = time.time() - chapter_start_time
+                    self.recent_download_times.append(chapter_download_time)
+                    # 只保留最近N章的时间
+                    if len(self.recent_download_times) > self.MAX_RECENT_TIMES:
+                        self.recent_download_times.pop(0)
+
                     success_count += 1
                     consecutive_failures = 0  # 重置连续失败计数器
                     self.log(f"  ✓ 成功 - {real_title} ({word_count} 字)", 'success')
-                    
+
+                    # 根据源类型应用不同的延迟策略
+                    if use_official_mode:
+                        # 官网模式：使用智能延迟策略，模拟正常用户阅读速度
+                        from config import calculate_smart_delay, get_download_speed
+                        download_speed = get_download_speed()
+                        delay = calculate_smart_delay(word_count, apply_delay=True)
+                        if delay >= 0.5:
+                            self.log(f"等待 {delay:.1f} 秒后继续... (速度: {download_speed:.1f}x, 字数: {word_count})", 'info')
+                        time.sleep(delay)
+                    else:
+                        # 第三方模式：极短延迟（0.1-0.3秒）
+                        from config import calculate_smart_delay
+                        delay = calculate_smart_delay(word_count, apply_delay=False)
+                        if delay >= 0.2:  # 只在延迟较长时才打印
+                            self.log(f"等待 {delay:.1f} 秒后继续...", 'info')
+                        time.sleep(delay)
+
                     # 更新进度条
                     progress_percent = (success_count / total_to_download) * 100
                     elapsed_time = time.time() - download_start_time
-                    
-                    # 计算预估剩余时间
-                    if success_count > 0 and elapsed_time > 0:
-                        avg_time_per_chapter = elapsed_time / success_count
+
+                    # 计算预估剩余时间（使用移动平均算法）
+                    if self.recent_download_times:
+                        # 使用最近N章的平均时间（只计算实际下载时间，不包括等待延迟）
+                        avg_time_per_chapter = sum(self.recent_download_times) / len(self.recent_download_times)
                         remaining_chapters = total_to_download - success_count
                         eta_seconds = avg_time_per_chapter * remaining_chapters
-                        
+
                         # 格式化预估时间
                         if eta_seconds < 60:
                             eta_str = f"预估剩余时间: {int(eta_seconds)} 秒"
@@ -2677,9 +2890,13 @@ class NovelDownloaderGUI:
                             eta_str = f"预估剩余时间: {int(eta_seconds // 60)} 分 {int(eta_seconds % 60)} 秒"
                         else:
                             eta_str = f"预估剩余时间: {int(eta_seconds // 3600)} 小时 {int((eta_seconds % 3600) // 60)} 分"
+
+                        # 添加调试信息（每10章显示一次）
+                        if success_count % 10 == 0:
+                            print(f"[调试ETA] 最近{len(self.recent_download_times)}章平均下载时间: {avg_time_per_chapter:.2f}秒, 剩余: {remaining_chapters}章, 预估: {eta_str}")
                     else:
                         eta_str = ""
-                    
+
                     # 更新进度显示
                     self.root.after(0, lambda: self.progress_bar.config(value=progress_percent))
                     self.root.after(0, lambda: self.progress_label.config(text=f"下载进度: {success_count}/{total_to_download} 章 ({progress_percent:.1f}%)"))
@@ -2718,7 +2935,6 @@ class NovelDownloaderGUI:
                         self.log("如果问题持续，请稍后重试或切换到官网模式", 'warning')
                         
                         # 等待一段时间再继续，避免触发频率限制
-                        import time
                         import random
                         wait_time = 5 + random.uniform(2, 5)
                         self.log(f"等待 {wait_time:.1f} 秒后继续...", 'warning')
@@ -2803,6 +3019,15 @@ class NovelDownloaderGUI:
             self.log(f"下载出错: {e}", 'error')
             messagebox.showerror('错误', f'下载出错: {e}')
         finally:
+            # 重置下载状态
+            self.is_downloading = False
+            self.is_paused = False
+            self.pause_event.set()
+            
+            # 隐藏下载控制按钮
+            self.root.after(0, lambda: self.hide_download_controls())
+            
+            # 重置按钮状态
             self.root.after(0, lambda: self.download_button.config(state='normal'))
             self.root.after(0, lambda: self.export_button.config(state='normal'))
 

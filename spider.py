@@ -41,9 +41,9 @@ API_CONFIG = {
         "chapter": "/api/chapter",
     },
     "api_sources": [
+        {"base_url": "https://bk.yydjtc.cn", "supports_full_download": True},
         {"base_url": "https://qkfqapi.vv9v.cn", "supports_full_download": True},
         {"base_url": "http://49.232.137.12", "supports_full_download": True},
-        {"base_url": "https://bk.yydjtc.cn", "supports_full_download": True},
         {"base_url": "http://103.236.91.147:9999", "supports_full_download": False},
         {"base_url": "http://43.248.77.205:22222", "supports_full_download": True},
         {"base_url": "http://47.108.80.161:5005", "supports_full_download": True},
@@ -84,6 +84,8 @@ class NovelAPIManager:
         self._session = None
         # 选择最优节点（优先使用支持批量下载的节点）
         self.base_url = self._get_optimal_node()
+        # 记住返回内容更长的接口（'chapter' 或 'content'）
+        self.preferred_endpoint = None
 
     def _get_optimal_node(self) -> str:
         """自动选择支持批量下载的节点"""
@@ -154,6 +156,9 @@ class NovelAPIManager:
         for index, base in enumerate(candidates, start=1):
             url = f"{base}{endpoint}"
             try:
+                # 打印当前使用的 API 节点
+                print(f"  正在尝试 API 节点 {index}/{len(candidates)}: {base}")
+
                 response = self._get_session().get(
                     url,
                     params=params,
@@ -161,11 +166,26 @@ class NovelAPIManager:
                     timeout=timeout
                 )
 
-                # 成功返回时，记住该可用节点
+                # 检查响应状态码
                 if response.status_code == 200:
-                    if base != self.base_url:
-                        self._switch_base_url(base)
-                    return response
+                    # 检查响应内容是否为空
+                    response_text = response.text.strip()
+                    if not response_text:
+                        print(f"  节点 {base} 返回空内容，尝试下一个节点")
+                        continue
+
+                    # 尝试验证是否为有效的 JSON
+                    try:
+                        # 尝试解析 JSON
+                        data = response.json()
+                        # JSON 解析成功，记住该可用节点并返回
+                        if base != self.base_url:
+                            self._switch_base_url(base)
+                        return response
+                    except json.JSONDecodeError:
+                        # JSON 解析失败，继续尝试下一个节点
+                        print(f"  节点 {base} 返回非 JSON 内容，尝试下一个节点")
+                        continue
 
                 # 5xx 视为节点故障，尝试下一个
                 if response.status_code >= 500:
@@ -217,6 +237,13 @@ class NovelAPIManager:
 
             if response.status_code == 200:
                 data = response.json()
+                # 检查授权验证错误
+                if data.get("code") in [401, 403]:
+                    error_msg = data.get("message", "授权验证失败")
+                    return {
+                        "_error": "AUTH_FAILED",
+                        "_message": f"第三方API授权验证失败: {error_msg}\n\n建议:\n1. 切换到官网模式（需登录）\n2. 尝试更换其他API节点\n3. 检查网络连接"
+                    }
                 if data.get("code") == 200 and "data" in data:
                     level1_data = data["data"]
                     # 检查是否有错误信息（如书籍下架）
@@ -231,6 +258,13 @@ class NovelAPIManager:
                                 return {"_error": inner_msg, "_message": inner_msg}
                             return inner_data
                     return level1_data
+                else:
+                    # 处理其他错误代码
+                    error_msg = data.get("message", "未知错误")
+                    return {
+                        "_error": "API_ERROR",
+                        "_message": f"API返回错误 (code={data.get('code')}): {error_msg}"
+                    }
         except Exception as e:
             print(f"获取书籍详情失败: {str(e)}")
         return None
@@ -245,42 +279,207 @@ class NovelAPIManager:
 
             if response.status_code == 200:
                 data = response.json()
+                # 检查授权验证错误
+                if data.get("code") in [401, 403]:
+                    error_msg = data.get("message", "授权验证失败")
+                    print(f"❌ 第三方API授权验证失败: {error_msg}")
+                    print("建议:\n1. 切换到官网模式（需登录）\n2. 尝试更换其他API节点\n3. 检查网络连接")
+                    return None
                 if data.get("code") == 200 and "data" in data:
                     level1_data = data["data"]
                     if isinstance(level1_data, dict) and "data" in level1_data:
                         return level1_data["data"]
                     return level1_data
+                else:
+                    # 处理其他错误代码
+                    error_msg = data.get("message", "未知错误")
+                    print(f"❌ API返回错误 (code={data.get('code')}): {error_msg}")
+                    return None
         except Exception as e:
             print(f"获取章节列表失败: {str(e)}")
         return None
 
-    def get_chapter_content(self, item_id: str) -> Optional[Dict]:
+    def get_chapter_content(self, item_id: str, novel_id: str = None) -> Optional[Dict]:
         """获取章节内容（无水印）"""
         try:
-            # 优先使用简化的 /api/chapter 接口
+            # 同时尝试主接口和备用接口，返回内容更长的那个
+            primary_result = None
+            backup_result = None
+
+            # 如果有偏好的接口，先尝试它
+            if self.preferred_endpoint:
+                try:
+                    print(f"  ⚡ 优先使用接口: {self.preferred_endpoint}")
+                    if self.preferred_endpoint == 'chapter':
+                        chapter_endpoint = self.endpoints.get('chapter', '/api/chapter')
+                        params = {"item_id": item_id}
+                        if novel_id:
+                            params["book_id"] = novel_id
+                        response = self._request_with_failover(chapter_endpoint, params)
+                        if response and response.status_code == 200:
+                            # 先检查响应内容是否为空或不是 JSON
+                            response_text = response.text.strip()
+                            if not response_text:
+                                print(f"  优先接口返回空内容")
+                                self.preferred_endpoint = None
+                            else:
+                                # 尝试解析 JSON
+                                try:
+                                    data = response.json()
+                                except json.JSONDecodeError as e:
+                                    print(f"  优先接口返回非 JSON 内容: {response_text[:200]}")
+                                    self.preferred_endpoint = None
+                                else:
+                                    if data.get("code") in [401, 403]:
+                                        error_msg = data.get("message", "授权验证失败")
+                                        print(f"❌ 第三方API授权验证失败: {error_msg}")
+                                        self.preferred_endpoint = None  # 清除偏好，尝试其他接口
+                                    elif data.get("code") == 200 and "data" in data:
+                                        primary_result = data["data"]
+                                        content = primary_result.get('content', '')
+                                        content_length = len(content)
+                                        print(f"  优先接口返回内容长度: {content_length} 字符")
+                                        # 如果内容长度合理（>100字符），直接返回
+                                        if content_length > 100:
+                                            return primary_result
+                                        else:
+                                            # 内容太短，清除偏好，尝试其他接口
+                                            print(f"  优先接口内容过短，尝试其他接口")
+                                            self.preferred_endpoint = None
+                                            primary_result = None
+                    elif self.preferred_endpoint == 'content':
+                        params = {"tab": "小说", "item_id": item_id}
+                        if novel_id:
+                            params["book_id"] = novel_id
+                        response = self._request_with_failover(self.endpoints['content'], params)
+                        if response and response.status_code == 200:
+                            # 先检查响应内容是否为空或不是 JSON
+                            response_text = response.text.strip()
+                            if not response_text:
+                                print(f"  优先接口返回空内容")
+                                self.preferred_endpoint = None
+                            else:
+                                # 尝试解析 JSON
+                                try:
+                                    data = response.json()
+                                except json.JSONDecodeError as e:
+                                    print(f"  优先接口返回非 JSON 内容: {response_text[:200]}")
+                                    self.preferred_endpoint = None
+                                else:
+                                    if data.get("code") in [401, 403]:
+                                        error_msg = data.get("message", "授权验证失败")
+                                        print(f"❌ 第三方API授权验证失败: {error_msg}")
+                                        self.preferred_endpoint = None  # 清除偏好，尝试其他接口
+                                    elif data.get("code") == 200 and "data" in data:
+                                        backup_result = data["data"]
+                                        content = backup_result.get('content', '')
+                                        content_length = len(content)
+                                        print(f"  优先接口返回内容长度: {content_length} 字符")
+                                        # 如果内容长度合理（>100字符），直接返回
+                                        if content_length > 100:
+                                            return backup_result
+                                        else:
+                                            # 内容太短，清除偏好，尝试其他接口
+                                            print(f"  优先接口内容过短，尝试其他接口")
+                                            self.preferred_endpoint = None
+                                            backup_result = None
+                except Exception as e:
+                    print(f"  优先接口获取失败: {str(e)}")
+                    self.preferred_endpoint = None  # 清除偏好，按原逻辑尝试
+
+            # 尝试主接口 /api/chapter
             chapter_endpoint = self.endpoints.get('chapter', '/api/chapter')
             params = {"item_id": item_id}
-            response = self._request_with_failover(chapter_endpoint, params)
-            if response is None:
-                return None
+            if novel_id:
+                params["book_id"] = novel_id
 
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("code") == 200 and "data" in data:
-                    # 返回原始内容，不添加水印
-                    return data["data"]
+            try:
+                response = self._request_with_failover(chapter_endpoint, params)
+                if response and response.status_code == 200:
+                    # 先检查响应内容是否为空或不是 JSON
+                    response_text = response.text.strip()
+                    if not response_text:
+                        print(f"  主接口返回空内容")
+                    else:
+                        # 尝试解析 JSON
+                        try:
+                            data = response.json()
+                        except json.JSONDecodeError as e:
+                            print(f"  主接口返回非 JSON 内容: {response_text[:200]}")
+                        else:
+                            if data.get("code") in [401, 403]:
+                                error_msg = data.get("message", "授权验证失败")
+                                print(f"❌ 第三方API授权验证失败: {error_msg}")
+                                return None
+                            if data.get("code") == 200 and "data" in data:
+                                primary_result = data["data"]
+                                content = primary_result.get('content', '')
+                                content_length = len(content)
+                                print(f"  主接口返回内容长度: {content_length} 字符")
+            except Exception as e:
+                print(f"  主接口获取失败: {str(e)}")
 
-            # 回退到 /api/content 接口
+            # 尝试备用接口 /api/content
             params = {"tab": "小说", "item_id": item_id}
-            response = self._request_with_failover(self.endpoints['content'], params)
-            if response is None:
+            if novel_id:
+                params["book_id"] = novel_id
+
+            try:
+                response = self._request_with_failover(self.endpoints['content'], params)
+                if response and response.status_code == 200:
+                    # 先检查响应内容是否为空或不是 JSON
+                    response_text = response.text.strip()
+                    if not response_text:
+                        print(f"  备用接口返回空内容")
+                    else:
+                        # 尝试解析 JSON
+                        try:
+                            data = response.json()
+                        except json.JSONDecodeError as e:
+                            print(f"  备用接口返回非 JSON 内容: {response_text[:200]}")
+                        else:
+                            if data.get("code") in [401, 403]:
+                                error_msg = data.get("message", "授权验证失败")
+                                print(f"❌ 第三方API授权验证失败: {error_msg}")
+                                return None
+                            if data.get("code") == 200 and "data" in data:
+                                backup_result = data["data"]
+                                content = backup_result.get('content', '')
+                                content_length = len(content)
+                                print(f"  备用接口返回内容长度: {content_length} 字符")
+            except Exception as e:
+                print(f"  备用接口获取失败: {str(e)}")
+
+            # 比较两个结果，返回内容更长的那个
+            if primary_result and backup_result:
+                primary_len = len(primary_result.get('content', ''))
+                backup_len = len(backup_result.get('content', ''))
+                # 如果备用接口明显更好（多20%以上），记住它
+                if backup_len > primary_len * 1.2:
+                    print(f"  ✓ 选择备用接口（内容更长: {backup_len} vs {primary_len}）")
+                    self.preferred_endpoint = 'content'
+                    return backup_result
+                elif primary_len > backup_len * 1.2:
+                    print(f"  ✓ 选择主接口（内容更长: {primary_len} vs {backup_len}）")
+                    self.preferred_endpoint = 'chapter'
+                    return primary_result
+                else:
+                    # 内容长度相差不大，返回更长的那个，但不记住
+                    if backup_len > primary_len:
+                        print(f"  ✓ 选择备用接口（内容略长: {backup_len} vs {primary_len}）")
+                        return backup_result
+                    else:
+                        print(f"  ✓ 选择主接口（内容略长: {primary_len} vs {backup_len}）")
+                        return primary_result
+            elif backup_result:
+                print(f"  ✓ 使用备用接口结果")
+                return backup_result
+            elif primary_result:
+                print(f"  ✓ 使用主接口结果")
+                return primary_result
+            else:
                 return None
 
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("code") == 200 and "data" in data:
-                    # 返回原始内容，不添加水印
-                    return data["data"]
         except Exception as e:
             print(f"获取章节内容失败: {str(e)}")
         return None
@@ -382,14 +581,28 @@ class FanqieSpider:
             novel_id = novel_url.strip().strip('/')
             if '/page/' in novel_url:
                 novel_id = novel_url.split('/page/')[-1]
-            
+
             print(f"正在获取小说信息（API）: {novel_id}")
-            
+
             result = self.api_manager.get_book_detail(novel_id)
-            if not result or result.get('_error'):
-                print(f"获取小说信息失败: {result.get('_message', '未知错误') if result else '返回为空'}")
+            if not result:
+                print(f"获取小说信息失败: 返回为空")
                 return None
-            
+
+            if result.get('_error'):
+                error_type = result.get('_error', 'UNKNOWN_ERROR')
+                error_msg = result.get('_message', '未知错误')
+                print(f"获取小说信息失败 ({error_type}): {error_msg}")
+
+                # 如果是授权错误，返回特殊标记让 GUI 显示
+                if error_type == 'AUTH_FAILED':
+                    return {
+                        '_error': 'AUTH_FAILED',
+                        '_message': error_msg
+                    }
+
+                return None
+
             return {
                 'novel_id': str(result.get('book_id', novel_id)),
                 'title': result.get('book_name', ''),
@@ -518,17 +731,26 @@ class FanqieSpider:
         """通过 API 获取章节列表"""
         try:
             print(f"正在获取章节列表（API）: {novel_id}")
-            
+
             result = self.api_manager.get_chapter_list(novel_id)
             if not result:
                 print(f"获取章节列表失败: 返回为空")
                 return None
-            
+
             chapters = []
             if isinstance(result, dict):
                 all_item_ids = result.get("allItemIds", [])
                 chapter_list = result.get("chapterListWithVolume", [])
-                
+
+                # 打印调试信息
+                if chapter_list and len(chapter_list) > 0:
+                    print(f"  章节列表数据结构: {type(chapter_list)}")
+                    if len(chapter_list) > 0:
+                        first_volume = chapter_list[0]
+                        print(f"  第一个卷类型: {type(first_volume)}")
+                        if isinstance(first_volume, list) and len(first_volume) > 0:
+                            print(f"  第一个章节数据: {first_volume[0]}")
+
                 if chapter_list:
                     idx = 1
                     for volume in chapter_list:
@@ -536,7 +758,11 @@ class FanqieSpider:
                             for ch in volume:
                                 if isinstance(ch, dict):
                                     item_id = ch.get("itemId") or ch.get("item_id")
-                                    title = ch.get("title", f"第{idx}章")
+                                    # 尝试多个可能的标题字段
+                                    title = ch.get("title") or ch.get("chapter_title") or ch.get("name") or f"第{idx}章"
+                                    if not title or title == f"第{idx}章":
+                                        # 如果没有找到标题，使用默认格式
+                                        title = f"第{idx}章"
                                     if item_id:
                                         chapters.append({
                                             'chapter_id': str(item_id),
@@ -553,20 +779,22 @@ class FanqieSpider:
                         })
             elif isinstance(result, list):
                 for idx, ch in enumerate(result, 1):
-                    item_id = ch.get("item_id") or ch.get("chapter_id")
-                    title = ch.get("title", f"第{idx}章")
+                    item_id = ch.get("item_id") or ch.get("chapter_id") or ch.get("itemId")
+                    title = ch.get("title") or ch.get("chapter_title") or ch.get("name") or f"第{idx}章"
                     if item_id:
                         chapters.append({
                             'chapter_id': str(item_id),
                             'chapter_title': title,
                             'chapter_index': idx
                         })
-            
+
             if chapters:
                 print(f"获取章节列表成功: {len(chapters)} 个章节")
+                if len(chapters) > 0:
+                    print(f"  第一章标题: {chapters[0]['chapter_title']}")
             else:
                 print(f"获取章节列表失败: 未找到章节")
-            
+
             return chapters
         except Exception as e:
             print(f"获取章节列表时出错: {e}")
@@ -616,17 +844,42 @@ class FanqieSpider:
     def _get_chapter_content_api(self, novel_id, chapter_id):
         """通过 API 获取章节内容（无需字体解密）"""
         try:
-            result = self.api_manager.get_chapter_content(chapter_id)
+            result = self.api_manager.get_chapter_content(chapter_id, novel_id)
             if not result:
                 return None
-            
+
+            content = result.get('content', '')
+            title = result.get('title', '')
+
+            # 调试日志：检查标题
+            if not title:
+                print(f"  ⚠ 警告：API返回的标题为空，chapter_id={chapter_id}")
+
+            # 清理 HTML 标签，特别是图片标签
+            content = self._clean_html_content(content)
+
             return {
-                'title': result.get('title', ''),
-                'content': result.get('content', '')
+                'title': title,
+                'content': content
             }
         except Exception as e:
             print(f"获取章节内容失败: {e}")
             return None
+
+    def _clean_html_content(self, content: str) -> str:
+        """清理 HTML 内容，删除图片标签"""
+        import re
+
+        # 删除所有 img 标签
+        content = re.sub(r'<img[^>]*>', '', content)
+
+        # 删除其他可能的 HTML 标签（保留换行和段落结构）
+        content = re.sub(r'<[^>]+>', '', content)
+
+        # 清理多余的空行
+        content = re.sub(r'\n\s*\n\s*\n+', '\n\n', content)
+
+        return content.strip()
 
     def _get_chapter_content_web(self, novel_id, chapter_id):
         """通过官网爬取获取章节内容（参考博客优化，使用parsel库）"""
