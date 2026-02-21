@@ -22,10 +22,10 @@ def print_banner():
 def cmd_download(args):
     """下载小说命令"""
     print("\n使用 API 模式下载（无需登录，无需字体解密）...")
-    
+
     # 使用 API 模式（默认）
     spider = FanqieSpider(use_api=True)
-    
+
     downloader = NovelDownloader()
 
     # 解析小说ID
@@ -34,12 +34,13 @@ def cmd_download(args):
         print("错误: 无效的小说URL或ID")
         return
 
-    # 下载小说
+    # 下载小说（使用第三方模式，支持并发下载）
     success = downloader.download_novel(
         spider,
         novel_id,
         start_chapter=args.start,
-        end_chapter=args.end
+        end_chapter=args.end,
+        source='third_party'  # 使用第三方模式，启用10章并发下载
     )
 
     if success:

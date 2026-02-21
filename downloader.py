@@ -2,13 +2,15 @@
 import os
 import time
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from config import (
-    DOWNLOAD_DIR, 
-    OUTPUT_FORMAT, 
-    REQUEST_DELAY_MIN, 
+    DOWNLOAD_DIR,
+    OUTPUT_FORMAT,
+    REQUEST_DELAY_MIN,
     REQUEST_DELAY_MAX,
     MAX_CONCURRENT_REQUESTS,
-    calculate_smart_delay
+    calculate_smart_delay,
+    MAX_CONCURRENT_DOWNLOADS
 )
 from database import NovelDatabase
 
@@ -18,6 +20,7 @@ class NovelDownloader:
         self.db = NovelDatabase()
         self.download_ranges = {}  # 记录每个小说的下载范围
         self.current_source = None  # 当前使用的源：'official' 或 'third_party'
+        self.db_lock = None  # 数据库写入锁（并发模式下使用）
 
     def download_novel(self, spider, novel_id, start_chapter=1, end_chapter=None, source='official'):
         """
@@ -88,61 +91,111 @@ class NovelDownloader:
 
         # 根据源类型决定是否应用延迟
         apply_delay = (source == 'official')
-        print(f"下载模式: {'智能延迟（官网模式）' if apply_delay else '极速下载（第三方模式）'}")
+        print(f"下载模式: {'智能延迟（官网模式）' if apply_delay else f'极速并发下载（第三方模式，{MAX_CONCURRENT_DOWNLOADS}章并发）'}")
 
         # 下载章节
         success_count = 0
-        for idx in range(start_index, end_index):
-            chapter = chapters[idx]
-            chapter_id = chapter['chapter_id']
-            chapter_title = chapter['chapter_title']
-            chapter_index = chapter['chapter_index']
 
-            print(f"[{chapter_index}/{total_chapters}] 正在下载: {chapter_title}")
+        # 第三方模式：使用并发下载
+        if not apply_delay:
+            import threading
 
-            # 获取章节内容（包含标题和内容）
-            # 注意：第三方源返回的内容已经是纯文本，不需要字体解密
-            chapter_data = spider.get_chapter_content(novel_id, chapter_id)
+            # 初始化线程锁
+            self.db_lock = threading.Lock()
 
-            if chapter_data:
-                # 使用返回的真实标题
-                real_title = chapter_data.get('title', chapter_title)
-                content = chapter_data.get('content', '')
-                word_count = len(content)
+            # 定义下载单个章节的函数
+            def download_single_chapter(chapter_info):
+                nonlocal success_count
+                chapter = chapter_info
+                chapter_id = chapter['chapter_id']
+                chapter_title = chapter['chapter_title']
+                chapter_index = chapter['chapter_index']
 
-                # 保存到数据库，同时保存原始标题（来自章节列表）
-                self.db.save_chapter(
-                    novel_id=novel_id,
-                    chapter_id=chapter_id,
-                    chapter_title=real_title,
-                    chapter_index=chapter_index,
-                    content=content,
-                    word_count=word_count,
-                    original_title=chapter_title  # 保存章节列表中的原始标题
-                )
-                success_count += 1
-                if source == 'official':
-                    print(f"  ✓ 成功下载 - {real_title} ({word_count} 字)")
-                else:
+                print(f"[{chapter_index}/{total_chapters}] 正在下载: {chapter_title}")
+
+                # 获取章节内容（包含标题和内容）
+                chapter_data = spider.get_chapter_content(novel_id, chapter_id)
+
+                if chapter_data:
+                    # 使用返回的真实标题，如果为空则使用章节列表中的标题
+                    api_title = chapter_data.get('title', '')
+                    real_title = api_title if api_title and api_title.strip() else chapter_title
+                    content = chapter_data.get('content', '')
+                    word_count = len(content)
+
+                    # 使用锁保护数据库写入
+                    with self.db_lock:
+                        # 保存到数据库，同时保存原始标题（来自章节列表）
+                        self.db.save_chapter(
+                            novel_id=novel_id,
+                            chapter_id=chapter_id,
+                            chapter_title=real_title,
+                            chapter_index=chapter_index,
+                            content=content,
+                            word_count=word_count,
+                            original_title=chapter_title  # 保存章节列表中的原始标题
+                        )
+                        success_count += 1
+
                     print(f"  ✓ 成功下载 - {real_title}")
+                    return True
+                else:
+                    print(f"  ✗ 下载失败")
+                    return False
 
-                # 根据源类型应用不同的延迟策略
-                if apply_delay:
+            # 使用线程池并发下载
+            with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_DOWNLOADS) as executor:
+                # 提交所有下载任务
+                future_to_chapter = {
+                    executor.submit(download_single_chapter, chapters[idx]): idx
+                    for idx in range(start_index, end_index)
+                }
+
+                # 等待所有任务完成
+                for future in as_completed(future_to_chapter):
+                    pass  # 结果已在 download_single_chapter 中处理
+
+        # 官网模式：使用顺序下载
+        else:
+            for idx in range(start_index, end_index):
+                chapter = chapters[idx]
+                chapter_id = chapter['chapter_id']
+                chapter_title = chapter['chapter_title']
+                chapter_index = chapter['chapter_index']
+
+                print(f"[{chapter_index}/{total_chapters}] 正在下载: {chapter_title}")
+
+                # 获取章节内容（包含标题和内容）
+                # 注意：第三方源返回的内容已经是纯文本，不需要字体解密
+                chapter_data = spider.get_chapter_content(novel_id, chapter_id)
+
+                if chapter_data:
+                    # 使用返回的真实标题，如果为空则使用章节列表中的标题
+                    api_title = chapter_data.get('title', '')
+                    real_title = api_title if api_title and api_title.strip() else chapter_title
+                    content = chapter_data.get('content', '')
+                    word_count = len(content)
+
+                    # 保存到数据库，同时保存原始标题（来自章节列表）
+                    self.db.save_chapter(
+                        novel_id=novel_id,
+                        chapter_id=chapter_id,
+                        chapter_title=real_title,
+                        chapter_index=chapter_index,
+                        content=content,
+                        word_count=word_count,
+                        original_title=chapter_title  # 保存章节列表中的原始标题
+                    )
+                    success_count += 1
+                    print(f"  ✓ 成功下载 - {real_title} ({word_count} 字)")
+
                     # 官网模式：使用智能延迟策略，模拟正常用户阅读速度
                     delay = calculate_smart_delay(word_count, apply_delay=True)
                     print(f"等待 {delay:.1f} 秒后继续...")
                     time.sleep(delay)
                 else:
-                    # 第三方模式：极速下载，无延迟
-                    delay = calculate_smart_delay(word_count, apply_delay=False)
-                    if delay > 0:  # 只在需要延迟时才执行
-                        print(f"等待 {delay:.1f} 秒后继续...")
-                        time.sleep(delay)
-            else:
-                print(f"  ✗ 下载失败")
-                # 官网模式：下载失败时添加延迟，避免频繁重试触发限流
-                # 第三方模式：极速下载，无延迟
-                if apply_delay:
+                    print(f"  ✗ 下载失败")
+                    # 官网模式：下载失败时添加延迟，避免频繁重试触发限流
                     delay = calculate_smart_delay(word_count, apply_delay=True)
                     print(f"等待 {delay:.1f} 秒后继续...")
                     time.sleep(delay)

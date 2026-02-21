@@ -1032,7 +1032,7 @@ class SettingsDialog:
         
         author_info = tk.Label(
             author_frame,
-            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.5\n\n感谢使用本软件！",
+            text="作者: halei0v0\n项目: FXdownloader - 番茄小说下载器\n版本: v1.0.6\n\n感谢使用本软件！",
             font=ModernStyle.FONTS['normal'],
             bg='#F8F9FA',
             fg='#636E72',
@@ -1609,40 +1609,92 @@ class DownloadHistoryDialog:
                     if not chapters:
                         progress_dialog.after(0, lambda: self._add_log(progress_text, f"  ✗ 获取章节失败: {title}\n"))
                         return (False, f"{title} (获取章节失败)")
-                    
+
                     # 下载章节
                     chapter_success = 0
                     total_chapters = len(chapters)
-                    
-                    progress_dialog.after(0, lambda t=title, tc=total_chapters: 
+                    db_lock = threading.Lock()
+
+                    progress_dialog.after(0, lambda t=title, tc=total_chapters:
                         self._add_log(progress_text, f"  《{t}》共 {tc} 章\n"))
-                    
-                    for idx, chapter in enumerate(chapters, 1):
-                        # 更新章节下载进度
-                        chapter_title = chapter['chapter_title']
-                        chapter_data = thread_spider.get_chapter_content(novel_id, chapter['chapter_id'])
 
-                        if chapter_data:
-                            real_title = chapter_data.get('title', chapter_title)
-                            content = chapter_data.get('content', '')
-                            word_count = len(content)
+                    # 第三方模式：使用线程池并发下载章节
+                    if use_api:
+                        from config import MAX_CONCURRENT_DOWNLOADS
 
-                            self.db.save_chapter(
-                                novel_id=novel_id,
-                                chapter_id=chapter['chapter_id'],
-                                chapter_title=real_title,
-                                chapter_index=chapter['chapter_index'],
-                                content=content,
-                                word_count=word_count,
-                                original_title=chapter_title  # 保存章节列表中的原始标题
-                            )
-                            chapter_success += 1
-                            
-                            progress_dialog.after(0, lambda t=title, i=idx, tc=total_chapters, wc=word_count: 
-                                self._add_log(progress_text, f"    [{i}/{tc}] 第{i}章 ({wc}字)\n"))
-                        else:
-                            progress_dialog.after(0, lambda t=title, i=idx: 
-                                self._add_log(progress_text, f"    [{i}] ✗ 第{i}章 下载失败\n"))
+                        def download_single_chapter(idx, chapter):
+                            nonlocal chapter_success
+                            chapter_title = chapter['chapter_title']
+                            chapter_data = thread_spider.get_chapter_content(novel_id, chapter['chapter_id'])
+
+                            if chapter_data:
+                                # 使用返回的真实标题，如果为空则使用章节列表中的标题
+                                api_title = chapter_data.get('title', '')
+                                real_title = api_title if api_title and api_title.strip() else chapter_title
+                                content = chapter_data.get('content', '')
+                                word_count = len(content)
+
+                                # 使用锁保护数据库写入
+                                with db_lock:
+                                    self.db.save_chapter(
+                                        novel_id=novel_id,
+                                        chapter_id=chapter['chapter_id'],
+                                        chapter_title=real_title,
+                                        chapter_index=chapter['chapter_index'],
+                                        content=content,
+                                        word_count=word_count,
+                                        original_title=chapter_title  # 保存章节列表中的原始标题
+                                    )
+                                    chapter_success += 1
+
+                                progress_dialog.after(0, lambda t=title, i=idx, tc=total_chapters, wc=word_count:
+                                    self._add_log(progress_text, f"    [{i}/{tc}] 第{i}章 ({wc}字)\n"))
+                                return True
+                            else:
+                                progress_dialog.after(0, lambda t=title, i=idx:
+                                    self._add_log(progress_text, f"    [{i}] ✗ 第{i}章 下载失败\n"))
+                                return False
+
+                        # 使用线程池并发下载章节
+                        with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_DOWNLOADS) as executor:
+                            future_to_chapter = {
+                                executor.submit(download_single_chapter, idx, chapter): idx
+                                for idx, chapter in enumerate(chapters, 1)
+                            }
+                            # 等待所有任务完成
+                            for future in as_completed(future_to_chapter):
+                                pass
+
+                    # 官网模式：顺序下载章节
+                    else:
+                        for idx, chapter in enumerate(chapters, 1):
+                            # 更新章节下载进度
+                            chapter_title = chapter['chapter_title']
+                            chapter_data = thread_spider.get_chapter_content(novel_id, chapter['chapter_id'])
+
+                            if chapter_data:
+                                # 使用返回的真实标题，如果为空则使用章节列表中的标题
+                                api_title = chapter_data.get('title', '')
+                                real_title = api_title if api_title and api_title.strip() else chapter_title
+                                content = chapter_data.get('content', '')
+                                word_count = len(content)
+
+                                self.db.save_chapter(
+                                    novel_id=novel_id,
+                                    chapter_id=chapter['chapter_id'],
+                                    chapter_title=real_title,
+                                    chapter_index=chapter['chapter_index'],
+                                    content=content,
+                                    word_count=word_count,
+                                    original_title=chapter_title  # 保存章节列表中的原始标题
+                                )
+                                chapter_success += 1
+
+                                progress_dialog.after(0, lambda t=title, i=idx, tc=total_chapters, wc=word_count:
+                                    self._add_log(progress_text, f"    [{i}/{tc}] 第{i}章 ({wc}字)\n"))
+                            else:
+                                progress_dialog.after(0, lambda t=title, i=idx:
+                                    self._add_log(progress_text, f"    [{i}] ✗ 第{i}章 下载失败\n"))
                     
                     if chapter_success == total_chapters:
                         self.db.update_novel_status(novel_id, '下载完成')
@@ -1936,9 +1988,11 @@ class NovelDownloaderGUI:
             self.pause_event = threading.Event()  # 暂停事件对象
             self.pause_event.set()  # 初始状态为未暂停
 
-            # 下载时间记录（用于移动平均算法预估剩余时间）
-            self.recent_download_times = []  # 记录最近N章的下载时间（秒）
-            self.MAX_RECENT_TIMES = 10  # 最多记录最近10章的时间
+            # 下载时间记录（用于改进的预估算法）
+            self.recent_download_records = []  # 记录最近N章的下载记录 (字数, 下载时间秒, 延迟时间秒)
+            self.MAX_RECENT_TIMES = 15  # 最多记录最近15章
+            self.ewma_speed = None  # 指数加权移动平均速度 (字/秒)
+            self.EWMA_ALPHA = 0.3  # EWMA平滑系数（新数据权重）
             
             # 继续下载时需要的上下文信息
             self.resume_context = {
@@ -2764,8 +2818,9 @@ class NovelDownloaderGUI:
             download_start_time = time.time()
             total_to_download = end_index - start_index
 
-            # 清空下载时间记录（用于移动平均算法）
-            self.recent_download_times = []
+            # 清空下载时间记录（用于改进的预估算法）
+            self.recent_download_records = []
+            self.ewma_speed = None
 
             # 初始化进度条
             self.root.after(0, lambda: self.progress_bar.config(value=0))
@@ -2846,10 +2901,15 @@ class NovelDownloaderGUI:
 
                     # 记录实际下载时间（不包括等待延迟）
                     chapter_download_time = time.time() - chapter_start_time
-                    self.recent_download_times.append(chapter_download_time)
-                    # 只保留最近N章的时间
-                    if len(self.recent_download_times) > self.MAX_RECENT_TIMES:
-                        self.recent_download_times.pop(0)
+
+                    # 计算下载速度（字/秒）
+                    download_speed_chars_per_sec = word_count / chapter_download_time if chapter_download_time > 0 else 0
+
+                    # 更新指数加权移动平均速度
+                    if self.ewma_speed is None:
+                        self.ewma_speed = download_speed_chars_per_sec
+                    else:
+                        self.ewma_speed = self.EWMA_ALPHA * download_speed_chars_per_sec + (1 - self.EWMA_ALPHA) * self.ewma_speed
 
                     success_count += 1
                     consecutive_failures = 0  # 重置连续失败计数器
@@ -2863,39 +2923,78 @@ class NovelDownloaderGUI:
                         delay = calculate_smart_delay(word_count, apply_delay=True)
                         if delay >= 0.5:
                             self.log(f"等待 {delay:.1f} 秒后继续... (速度: {download_speed:.1f}x, 字数: {word_count})", 'info')
-                        time.sleep(delay)
                     else:
                         # 第三方模式：极短延迟（0.1-0.3秒）
                         from config import calculate_smart_delay
                         delay = calculate_smart_delay(word_count, apply_delay=False)
                         if delay >= 0.2:  # 只在延迟较长时才打印
                             self.log(f"等待 {delay:.1f} 秒后继续...", 'info')
-                        time.sleep(delay)
+
+                    # 记录下载记录（字数, 下载时间, 延迟时间）
+                    self.recent_download_records.append((word_count, chapter_download_time, delay))
+                    # 只保留最近N章的记录
+                    if len(self.recent_download_records) > self.MAX_RECENT_TIMES:
+                        self.recent_download_records.pop(0)
+
+                    time.sleep(delay)
 
                     # 更新进度条
                     progress_percent = (success_count / total_to_download) * 100
                     elapsed_time = time.time() - download_start_time
 
-                    # 计算预估剩余时间（使用移动平均算法）
-                    if self.recent_download_times:
-                        # 使用最近N章的平均时间（只计算实际下载时间，不包括等待延迟）
-                        avg_time_per_chapter = sum(self.recent_download_times) / len(self.recent_download_times)
-                        remaining_chapters = total_to_download - success_count
-                        eta_seconds = avg_time_per_chapter * remaining_chapters
+                    # 计算预估剩余时间（改进的多层预估算法）
+                    eta_str = ""
+                    if self.recent_download_records and self.ewma_speed and self.ewma_speed > 0:
+                        # 1. 计算最近N章的平均速度（字/秒）
+                        recent_speeds = []
+                        recent_delays = []
+                        for word_count, download_time, delay_time in self.recent_download_records:
+                            if download_time > 0:
+                                recent_speeds.append(word_count / download_time)
+                            recent_delays.append(delay_time)
 
-                        # 格式化预估时间
-                        if eta_seconds < 60:
-                            eta_str = f"预估剩余时间: {int(eta_seconds)} 秒"
-                        elif eta_seconds < 3600:
-                            eta_str = f"预估剩余时间: {int(eta_seconds // 60)} 分 {int(eta_seconds % 60)} 秒"
-                        else:
-                            eta_str = f"预估剩余时间: {int(eta_seconds // 3600)} 小时 {int((eta_seconds % 3600) // 60)} 分"
+                        # 使用中位数减少异常值影响
+                        if recent_speeds:
+                            sorted_speeds = sorted(recent_speeds)
+                            median_speed = sorted_speeds[len(sorted_speeds) // 2]
+                            avg_delay = sum(recent_delays) / len(recent_delays)
 
-                        # 添加调试信息（每10章显示一次）
-                        if success_count % 10 == 0:
-                            print(f"[调试ETA] 最近{len(self.recent_download_times)}章平均下载时间: {avg_time_per_chapter:.2f}秒, 剩余: {remaining_chapters}章, 预估: {eta_str}")
-                    else:
-                        eta_str = ""
+                            # 2. 综合预估：结合短期中位数速度和长期EWMA速度
+                            # 随着下载进度增加，逐渐增加EWMA的权重
+                            if success_count < 5:
+                                # 初始阶段：主要使用短期速度
+                                effective_speed = median_speed * 0.7 + self.ewma_speed * 0.3
+                            elif success_count < 15:
+                                # 过渡阶段：平衡使用
+                                effective_speed = median_speed * 0.5 + self.ewma_speed * 0.5
+                            else:
+                                # 稳定阶段：主要使用EWMA
+                                effective_speed = median_speed * 0.3 + self.ewma_speed * 0.7
+
+                            # 3. 计算剩余时间（包含下载时间和延迟）
+                            # 估算剩余总字数
+                            remaining_chapters = total_to_download - success_count
+                            estimated_remaining_words = remaining_chapters * (sum([r[0] for r in self.recent_download_records]) / len(self.recent_download_records))
+
+                            # 下载时间 = 剩余字数 / 有效速度
+                            download_time = estimated_remaining_words / effective_speed if effective_speed > 0 else 0
+
+                            # 延迟时间 = 剩余章数 * 平均延迟
+                            delay_time = remaining_chapters * avg_delay
+
+                            eta_seconds = download_time + delay_time
+
+                            # 格式化预估时间
+                            if eta_seconds < 60:
+                                eta_str = f"预估剩余时间: {int(eta_seconds)} 秒"
+                            elif eta_seconds < 3600:
+                                eta_str = f"预估剩余时间: {int(eta_seconds // 60)} 分 {int(eta_seconds % 60)} 秒"
+                            else:
+                                eta_str = f"预估剩余时间: {int(eta_seconds // 3600)} 小时 {int((eta_seconds % 3600) // 60)} 分"
+
+                            # 添加调试信息（每10章显示一次）
+                            if success_count % 10 == 0:
+                                print(f"[调试ETA] 中位数速度: {median_speed:.1f}字/s, EWMA速度: {self.ewma_speed:.1f}字/s, 有效速度: {effective_speed:.1f}字/s, 平均延迟: {avg_delay:.2f}s, 剩余: {remaining_chapters}章, 预估: {eta_str}")
 
                     # 更新进度显示
                     self.root.after(0, lambda: self.progress_bar.config(value=progress_percent))

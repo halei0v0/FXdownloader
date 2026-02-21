@@ -10,8 +10,9 @@ class NovelDatabase:
         self.init_database()
 
     def get_connection(self):
-        """获取数据库连接"""
-        conn = sqlite3.connect(self.db_path)
+        """获取数据库连接（支持多线程）"""
+        # check_same_thread=False 允许在不同线程中使用连接
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         return conn
 
