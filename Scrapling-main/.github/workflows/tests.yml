@@ -1,0 +1,124 @@
+name: Tests
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths-ignore:
+      - '*.md'
+      - '**/*.md'
+      - 'docs/**'
+      - 'images/**'
+      - '.github/**'
+      - 'agent-skill/**'
+      - '*.yml'
+      - '*.yaml'
+      - 'ruff.toml'
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths-ignore:
+      - '*.md'
+      - '**/*.md'
+      - 'docs/**'
+      - 'images/**'
+      - '.github/**'
+      - 'agent-skill/**'
+      - '*.yml'
+      - '*.yaml'
+      - 'ruff.toml'
+
+concurrency:
+  group: ${{github.workflow}}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    timeout-minutes: 60
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - python-version: "3.10"
+          os: macos-latest
+          env:
+            TOXENV: py310
+        - python-version: "3.11"
+          os: macos-latest
+          env:
+            TOXENV: py311
+        - python-version: "3.12"
+          os: macos-latest
+          env:
+            TOXENV: py312
+        - python-version: "3.13"
+          os: macos-latest
+          env:
+            TOXENV: py313
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: |
+          pyproject.toml
+          tox.ini
+
+    - name: Install all browsers dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install playwright==1.61.0 patchright==1.61.1
+
+    - name: Get Playwright version
+      id: playwright-version
+      run: |
+        PLAYWRIGHT_VERSION=$(python3 -c "import importlib.metadata; print(importlib.metadata.version('playwright'))")
+        echo "version=$PLAYWRIGHT_VERSION" >> $GITHUB_OUTPUT
+        echo "Playwright version: $PLAYWRIGHT_VERSION"
+
+    - name: Retrieve Playwright browsers from cache if any
+      id: playwright-cache
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/Library/Caches/ms-playwright
+          ~/.ms-playwright
+        key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-v1
+        restore-keys: |
+          ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-
+          ${{ runner.os }}-playwright-
+
+    - name: Install Playwright browsers
+      run: |
+        echo "Cache hit: ${{ steps.playwright-cache.outputs.cache-hit }}"
+        if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
+          python3 -m playwright install chromium
+        else
+          echo "Skipping install - using cached Playwright browsers"
+        fi
+        python3 -m playwright install-deps chromium
+
+    # Cache tox environments
+    - name: Cache tox environments
+      uses: actions/cache@v5
+      with:
+        path: .tox
+        # Include python version and os in the cache key
+        key: tox-v1-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('/Users/runner/work/Scrapling/pyproject.toml') }}
+        restore-keys: |
+          tox-v1-${{ runner.os }}-py${{ matrix.python-version }}-
+          tox-v1-${{ runner.os }}-
+
+    - name: Install tox
+      run: pip install -U tox
+
+    - name: Run tests
+      env: ${{ matrix.env }}
+      run: tox

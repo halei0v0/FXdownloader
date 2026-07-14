@@ -1,0 +1,21 @@
+# See https://docs.readthedocs.com/platform/stable/intro/zensical.html for details
+# Example: https://github.com/readthedocs/test-builds/tree/zensical
+
+version: 2
+
+build:
+  os: ubuntu-24.04
+  apt_packages:
+    - pngquant
+  tools:
+    python: "3.13"
+  jobs:
+    install:
+      - pip install -r docs/requirements.txt
+      - pip install ".[all]"
+    build:
+      html:
+        - zensical build
+    post_build:
+      - mkdir -p $READTHEDOCS_OUTPUT/html/
+      - cp --recursive site/* $READTHEDOCS_OUTPUT/html/

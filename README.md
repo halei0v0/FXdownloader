@@ -1,29 +1,38 @@
 # FXdownloader
 
-一个简单易用的番茄小说平台小说下载工具，支持图形界面和命令行两种操作方式。
-
-**注意！！**下载**全部章节**需要**番茄小说网站的SVIP账号**，否则只能下载官网可视部分！！
+多源小说下载工具，支持蚂蚁文学、顶点小说、笔下文学、铅笔小说、海棠文学、番茄小说六大源，多源自动搜索、分工加速下载、失败自动重试。
 
 ## 功能特点
 
-- 🎨 **现代化GUI界面** - 美观的图形界面，操作简单直观
-- 💻 **命令行支持** - 支持命令行操作，方便脚本集成
-- 📥 **批量章节下载** - 支持下载指定章节范围的小说
-- 📝 **导出TXT** - 支持将下载的小说导出为TXT格式
-- 🔐 **字体解密** - 自动解密番茄小说的字体加密内容
-- 💾 **本地数据库** - 使用SQLite数据库存储下载内容
-- 📚 **下载历史管理** - 查看和管理所有已下载的小说记录
-- 📦 **批量下载** - 支持批量导出多个小说到指定目录
-- 🌐 **智能重试** - 内置请求重试机制，提高下载成功率
+- **多源聚合搜索** - 输入书名即可同时搜索六大源，无需手动切换，自动给出所有可用结果
+- **多源分工下载** - 主源下载失败时自动切换其他源重试，按章节标题跨源匹配
+- **自动补缺重试** - 检测缺失/失败章节并自动用其他源重新下载
+- **章节去重排序** - 自动剔除章节列表开头倒序的"最新章节"，正确排序
+- **现代化 WebUI** - 基于 pywebview + HTML/CSS/JS 的深色主题界面
+- **字体解密** - 自动解密番茄小说的字体加密内容
+- **批量下载** - 支持选择章节范围批量下载，并发加速
+- **EXE 打包** - 支持 PyInstaller 一键打包为独立可执行文件
+
+## 支持的小说源
+
+| 源 | 域名 | 特点 |
+|---|---|---|
+| 蚂蚁文学 | mayiwsk.com | 无需登录，支持搜索 |
+| 顶点小说 | 23wxx.net | 无需登录，og:meta 完整 |
+| 笔下文学 | bxwxber.cc | 无需登录，GBK 编码 |
+| 铅笔小说 | 23qb.net | 无需登录，支持搜索，章节列表在独立 catalog 页 |
+| 海棠文学 | htwenxe.com | 杰奇 CMS，部分章节需登录 |
+| 番茄小说 | fanqienovel.com | 需登录，支持字体解密 |
 
 ## 环境要求
 
 - Python 3.8+
-- Windows/Linux/macOS
+- Windows / Linux / macOS
+- Edge 浏览器驱动（仅番茄官网登录需要）
 
 ## 安装步骤
 
-1. 克隆或下载本项目到本地：
+1. 克隆项目：
 ```bash
 git clone https://github.com/halei0v0/FXdownloader.git
 cd FXdownloader
@@ -34,97 +43,113 @@ cd FXdownloader
 pip install -r requirements.txt
 ```
 
+3. 安装 Scrapling（可选，用于多源爬取，推荐 editable 安装）：
+```bash
+pip install -e Scrapling-main
+```
+
 ## 使用方法
 
-### 图形界面模式
+### WebUI 模式（推荐）
 
-**Windows用户：**
+**Windows：** 双击 `启动WebUI.bat`
 
-- 双击运行 `启动.bat` 文件
-- 下载[release版本](https://github.com/halei0v0/FXdownloader/releases)
+**命令行：**
+```bash
+python web_ui/app.py
+```
 
-**其他系统：**
+打开后自动启动本地服务器并弹出窗口。界面操作：
+1. 顶部选择源（搜索时会自动多源选取）
+2. 输入书名或小说 URL，点击搜索
+3. 搜索结果中每条标注来源源，点击选择
+4. 获取章节列表后，勾选要下载的章节
+5. 点击下载，等待完成
+
+### GUI 模式（旧版 tkinter）
+
 ```bash
 python gui.py
 ```
 
 ### 命令行模式
 
-**Windows用户：**
-- 双击运行 `启动命令行.bat` 文件
-
-**其他系统：**
 ```bash
-python main.py [命令] [参数]
-```
-
-#### 可用命令
-
-**下载小说**
-```bash
-# 通过URL下载
+# 通过 URL 下载
 python main.py download https://fanqienovel.com/page/711914860
 
-# 通过小说ID下载
+# 通过小说 ID 下载
 python main.py download 711914860
 
 # 下载指定章节范围
 python main.py download 711914860 --start 1 --end 50
 
-# 下载并自动导出
-python main.py download 711914860 --export
-```
-
-**搜索小说**
-```bash
+# 搜索小说
 python main.py search 诡秘之主
-```
 
-**列出已下载的小说**
-```bash
+# 列出已下载的小说
 python main.py list
-```
 
-**导出已下载的小说**
-```bash
+# 导出已下载的小说
 python main.py export 711914860
 ```
 
-**删除小说**
+### 打包为 EXE
+
+**Windows：** 双击 `打包.bat`
+
+**命令行：**
 ```bash
-python main.py delete 711914860
+pyinstaller FXdownloader.spec
 ```
+
+打包后的可执行文件位于 `dist/FXdownloader.exe`。
 
 ## 项目结构
 
 ```
 FXdownloader/
-├── config.py           # 配置文件
-├── database.py         # 数据库操作模块
-├── downloader.py       # 下载器核心模块
-├── font_decrypt.py     # 字体解密模块
-├── gui.py             # 图形界面模块
-├── main.py            # 命令行入口
-├── spider.py          # 爬虫模块
-├── requirements.txt   # 依赖列表
-├── 启动.bat           # Windows GUI启动脚本
-├── 启动命令行.bat     # Windows CLI启动脚本
-├── 更新依赖.bat       # Windows依赖更新脚本
-├── downloads/         # 下载文件存储目录
-├── database/          # 数据库文件目录
-└── font_cache/        # 字体缓存目录
+├── web_ui/
+│   ├── app.py              # WebUI 后端（pywebview 桥接）
+│   └── index.html          # WebUI 前端（HTML/CSS/JS）
+├── sources/
+│   ├── __init__.py         # 源注册表
+│   ├── base.py             # 源抽象基类
+│   ├── biquge_source.py    # 蚂蚁文学源
+│   ├── generic_source.py   # 顶点/笔下/铅笔/海棠 可配置源
+│   ├── fanqie_source.py    # 番茄小说源
+│   ├── bing_search.py      # Bing 搜索（补充搜索方式）
+│   └── multi_source.py     # 多源搜索 + 分工下载管理
+├── config.py               # 配置管理
+├── database.py             # SQLite 数据库操作
+├── downloader.py           # 下载器核心
+├── spider.py               # 番茄小说爬虫
+├── font_decrypt.py         # 字体解密
+├── selenium_login.py        # Selenium 自动登录
+├── gui.py                  # 旧版 tkinter GUI
+├── main.py                 # 命令行入口
+├── FXdownloader.spec       # PyInstaller 打包配置
+├── Scrapling-main/         # Scrapling 爬虫库源码
+├── 启动WebUI.bat           # WebUI 启动脚本
+├── 启动.bat                # 旧版 GUI 启动脚本
+├── 启动命令行.bat          # 命令行启动脚本
+├── 打包.bat                # 打包脚本
+└── requirements.txt        # 依赖列表
 ```
 
 ## 依赖项
 
-- requests - HTTP请求库
-- beautifulsoup4 - HTML解析
-- lxml - XML/HTML解析引擎
-- fake-useragent - 随机User-Agent
-- fonttools - 字体处理
-- Pillow - 图像处理
-- ddddocr - 验证码识别
-- parsel - 网页解析
+- **requests** - HTTP 请求库
+- **beautifulsoup4** - HTML 解析
+- **lxml** - XML/HTML 解析引擎
+- **pywebview** - WebUI 窗口容器
+- **scrapling** - 高级爬虫框架（多源爬取）
+- **curl_cffi** - TLS 指纹模拟（scrapling 依赖）
+- **selenium** - 浏览器自动化（番茄登录）
+- **fonttools** - 字体处理
+- **Pillow** - 图像处理
+- **ddddocr** - 验证码识别
+- **fake-useragent** - 随机 User-Agent
 
 ## 许可证
 
@@ -132,19 +157,20 @@ FXdownloader/
 
 ## 免责声明
 
-本工具仅供个人学习和研究使用，请勿用于商业用途。使用本工具下载的内容版权归原作者所有，请在下载后24小时内删除。
+本工具仅供个人学习和研究使用，请勿用于商业用途。使用本工具下载的内容版权归原作者所有，请在下载后 24 小时内删除。
 
 ## 注意事项
 
 - 请遵守相关法律法规，尊重版权
 - 请勿频繁请求，避免对服务器造成压力
-- 本工具不保证100%可用性，番茄小说可能会更新反爬机制
-- 建议合理设置请求间隔，避免IP被封禁
-- 如果要使用自动识别登录，一点更要下载对应版本的msedgedriver.exe
+- 番茄官网模式下载需要登录，请使用 Selenium 自动登录或手动添加 Cookie
+- 番茄官网可能出现人机验证，触发后需等待几小时恢复
+- 如需使用自动登录，请下载对应版本的 msedgedriver.exe
+- 多源搜索依赖各源自身搜索接口，部分源搜索不可用时会影响结果数量
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request！【虽然作为新手的我并不会用 Pull Request(●ˇ∀ˇ●)】
+欢迎提交 Issue 和 Pull Request！
 
 ## 作者
 
@@ -152,90 +178,55 @@ halei0v0
 
 ## 更新日志
 
+### v2.0
+
+- 新增 5 个小说源：蚂蚁文学、顶点小说、笔下文学、铅笔小说、海棠文学
+- 多源聚合搜索：输入书名同时搜索所有源，无需切换模式
+- 多源分工下载：主源失败自动切换其他源，按章节标题跨源匹配重试
+- 章节列表去重排序：自动剔除开头倒序的"最新章节"
+- 全新 WebUI：pywebview + HTML/CSS/JS 深色主题界面
+- 修复打包问题：scrapling、browserforge、apify_fingerprint_datapoints 数据文件完整打包
+- 修复 Bing 搜索：改用各源自身搜索为主，Bing 作为补充
+
 ### v1.0.6
 
-1. 大幅提高第三方下载模式的下载速度
+- 大幅提高第三方下载模式的下载速度
+- 10 章并发下载
+- 优化官网模式下载时间预估
 
-- ✅10章并发下载
-- ✅优化官网模式下载时间预估
+### v1.0.5
 
-###  v1.0.5 
-
-1. 第三方下载模式已可用
-
-- ✅自动选择API
-
-- ✅多API支持
-
-下载需要耐心等待！
-
-软件后台在进行API测试
+- 第三方下载模式已可用
+- 自动选择 API
+- 多 API 支持
 
 ### v1.0.4
 
-1. 修复登录问题 (selenium_login.py)
-
-- ✅将Cookie验证从5个提高到24个
-
-- ✅登录成功时显示"已加载 24 个 Cookie"消息
-
-- ✅只有在显示24个Cookie后才关闭网页
-
-1. 下载进度条和预估时间 (gui.py)
-
-- ✅在日志区域上方添加了进度条
-
-- ✅显示下载进度百分比
-
-- ✅实时计算并显示预估剩余时间
-
-- ✅下载完成后进度条自动更新到100%
-
-3. 设置界面改进 (gui.py)
-
-- ✅添加了"恢复默认设置"按钮
-
-- ✅可以一键恢复所有设置到默认值
-
-4. 下载速度调整 (config.py + gui.py)
-
-- ✅添加了下载速度配置功能（0.5x-2.0x）
-
-- ✅提供了滑块控件调整速度
-
-- ✅添加了详细的说明文字，包括人机验证警告
-
-- ✅默认速度为1.0x，推荐设置为0.8x-1.2x
-
-5. 界面尺寸增大 (gui.py)
-
-- ✅主窗口：850x700 → 950x800
-
-- ✅设置对话框：450x750 → 500x800
-
-6. 字体解码修复 (font_decrypt.py)
-
-- ✅修复了"火l"应为"火山"的解码错误
-
-- ✅将58420码点的映射从'l'改为'山'
+- 修复登录问题，Cookie 验证从 5 个提高到 24 个
+- 下载进度条和预估时间
+- 设置界面改进，添加"恢复默认设置"按钮
+- 下载速度调整（0.5x-2.0x）
+- 界面尺寸增大
+- 字体解码修复
 
 ### v1.0.3
 
-- ✅动态的章节下载速度以减少触发人机验证的可能【如果出现连续下载失败那就是触发了官网的人机验证，等待几个小时即可恢复】
-- ✅断点续传功能
+- 动态章节下载速度以减少触发人机验证
+- 断点续传功能
 
 ### v1.0.2
 
-- ✅下载历史显示数据库中的小说信息
-- ✅批量导出功能，批量下载功能，支持一次性导出多个小说
-- ✅优化了下载历史管理界面
+- 下载历史显示数据库中的小说信息
+- 批量导出/下载功能
+- 优化下载历史管理界面
 
 ### v1.0.1
-- ✅增加账户登录功能
-- ✅支持SVIP账号下载全本小说
+
+- 增加账户登录功能
+- 支持 SVIP 账号下载全本小说
 
 ### v1.0
 
-- ✅初始版本发布
-- ✅支持GUI和CLI两种模式
-- ✅内置字体解密机制
+- 初始版本发布
+- 支持 GUI 和 CLI 两种模式
+- 内置字体解密机制

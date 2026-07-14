@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block announce %}
+  <a href="https://dataimpulse.com/?utm_source=scrapling&utm_medium=banner&utm_campaign=scrapling" target="_blank" style="display:flex; justify-content:center; padding:0px 0;">
+    <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/DataImpulse.png" alt="At DataImpulse, we specialize in developing custom proxy services for your business. Make requests from anywhere, collect data, and enjoy fast connections with our premium proxies." style="max-height:60px;">
+  </a>
+{% endblock %}
+
+{% block extrahead %}
+    <!-- Open Graph -->
+    <meta property="og:image" content="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/docs/assets/main_cover.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1344" />
+    <meta property="og:image:height" content="768" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Scrapling documentation" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/docs/assets/main_cover.png" />
+    <meta name="twitter:site" content="@Scrapling_dev" />
+    <meta name="twitter:creator" content="@D4Vinci1" />
+
+    <!-- General -->
+    <meta name="author" content="Karim Shoair" />
+    <meta name="theme-color" content="#673ab7" />
+{% endblock %}

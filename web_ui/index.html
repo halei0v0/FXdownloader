@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FXdownloader</title>
+<style>
+/* ============ CSS Custom Properties ============ */
+:root {
+    color-scheme: dark;
+    --bg-primary: #0F0F1A;
+    --bg-secondary: #1A1A2E;
+    --bg-card: rgba(26, 26, 46, 0.8);
+    --bg-card-hover: rgba(35, 35, 60, 0.9);
+    --bg-glass: rgba(255, 255, 255, 0.03);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glow: rgba(0, 212, 255, 0.3);
+    --accent-primary: #00D4FF;
+    --accent-secondary: #7B2DFF;
+    --accent-gradient: linear-gradient(135deg, #00D4FF, #7B2DFF);
+    --text-primary: #EAEAEA;
+    --text-secondary: #A0A0B8;
+    --text-muted: #6B6B80;
+    --success: #00E676;
+    --warning: #FFB300;
+    --error: #FF5252;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --shadow-glow: 0 0 20px rgba(0, 212, 255, 0.15);
+    --shadow-glow-strong: 0 0 30px rgba(0, 212, 255, 0.25);
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* ============ Reset & Base ============ */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ============ Custom Scrollbar ============ */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============ App Layout ============ */
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 620px;
+}
+
+/* ============ Header / Navbar ============ */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-glass);
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.app-logo {
+    width: 32px;
+    height: 32px;
+}
+
+.app-title {
+    font-size: 20px;
+    font-weight: 700;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.5px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.source-select {
+    appearance: none;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    color: var(--text-primary);
+    padding: 6px 32px 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    transition: all var(--transition-fast);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23A0A0B8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+.source-select:hover {
+    border-color: var(--border-glow);
+}
+.source-select:focus {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-glow);
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+}
+.btn-icon:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+    background: rgba(0, 212, 255, 0.08);
+}
+.btn-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-login {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    white-space: nowrap;
+}
+.btn-login:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+    background: rgba(0, 212, 255, 0.08);
+}
+.btn-login svg {
+    width: 14px;
+    height: 14px;
+}
+.btn-login.hidden {
+    display: none;
+}
+
+/* ============ Main Content ============ */
+.main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ============ Left Column ============ */
+.left-panel {
+    width: 420px;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-glass);
+    overflow-y: auto;
+    padding: 20px;
+    gap: 16px;
+}
+
+/* Search Bar */
+.search-wrapper {
+    position: relative;
+}
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-normal);
+}
+.search-bar:focus-within {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-glow-strong);
+    background: rgba(255, 255, 255, 0.05);
+}
+.search-bar svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.search-bar input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+}
+.search-bar input::placeholder {
+    color: var(--text-muted);
+}
+.search-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    background: var(--accent-gradient);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    white-space: nowrap;
+}
+.search-btn:hover {
+    opacity: 0.9;
+    box-shadow: var(--shadow-glow);
+}
+.search-btn:active {
+    transform: scale(0.97);
+}
+.search-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Search Results Dropdown */
+.search-results {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    max-height: 320px;
+    overflow-y: auto;
+    z-index: 200;
+    display: none;
+}
+.search-results.active {
+    display: block;
+    animation: slideDown 0.2s ease;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.search-result-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid var(--border-glass);
+}
+.search-result-item:last-child {
+    border-bottom: none;
+}
+.search-result-item:hover {
+    background: var(--bg-card-hover);
+}
+.result-info {
+    flex: 1;
+    min-width: 0;
+}
+.result-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.result-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.result-source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.badge-biquge {
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--accent-primary);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+.badge-fanqie {
+    background: rgba(123, 45, 255, 0.12);
+    color: var(--accent-secondary);
+    border: 1px solid rgba(123, 45, 255, 0.2);
+}
+
+/* Novel Info Card */
+.novel-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+.novel-card.active {
+    display: block;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.novel-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+.novel-cover {
+    width: 80px;
+    height: 110px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    flex-shrink: 0;
+}
+.novel-cover-placeholder {
+    width: 80px;
+    height: 110px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+.novel-cover-placeholder svg {
+    width: 28px;
+    height: 28px;
+}
+.novel-meta {
+    flex: 1;
+    min-width: 0;
+}
+.novel-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+}
+.novel-author {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.novel-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.novel-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    color: var(--text-secondary);
+}
+.novel-tag.status {
+    border-color: rgba(0, 230, 118, 0.2);
+    color: var(--success);
+    background: rgba(0, 230, 118, 0.08);
+}
+.novel-tag.count {
+    border-color: rgba(0, 212, 255, 0.2);
+    color: var(--accent-primary);
+    background: rgba(0, 212, 255, 0.08);
+}
+.novel-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-top: 12px;
+    max-height: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-glass);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    gap: 12px;
+}
+.empty-state svg {
+    width: 48px;
+    height: 48px;
+    opacity: 0.4;
+}
+.empty-state p {
+    font-size: 14px;
+}
+
+/* ============ Right Column - Chapter List ============ */
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.chapter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-glass);
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+}
+.chapter-header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.chapter-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.chapter-ctrl-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+}
+.chapter-ctrl-btn:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+
+.chapter-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.chapter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border-left: 3px solid transparent;
+}
+.chapter-item:hover {
+    background: var(--bg-card-hover);
+    border-left-color: var(--accent-primary);
+}
+.chapter-item.selected {
+    background: rgba(0, 212, 255, 0.06);
+    border-left-color: var(--accent-primary);
+}
+
+.chapter-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--text-muted);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+    position: relative;
+}
+.chapter-checkbox:checked {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+.chapter-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 4px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+.chapter-checkbox:hover {
+    border-color: var(--accent-primary);
+}
+
+.chapter-index {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 44px;
+    text-align: right;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.chapter-title-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.chapter-count-info {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-glass);
+    background: var(--bg-glass);
+    flex-shrink: 0;
+}
+
+/* ============ Bottom Bar ============ */
+.bottom-bar {
+    border-top: 1px solid var(--border-glass);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+    padding: 12px 20px;
+}
+
+.progress-section {
+    margin-bottom: 8px;
+    display: none;
+}
+.progress-section.active {
+    display: block;
+}
+
+.progress-bar-wrapper {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: var(--accent-gradient);
+    background-size: 200% 100%;
+    animation: progressSweep 2s linear infinite;
+    transition: width var(--transition-normal);
+}
+@keyframes progressSweep {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.progress-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+}
+.progress-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.progress-percent {
+    font-size: 12px;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+.bottom-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 28px;
+    background: var(--accent-gradient);
+    border: none;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    outline: none;
+    box-shadow: var(--shadow-glow);
+}
+.btn-download:hover {
+    box-shadow: var(--shadow-glow-strong);
+    transform: translateY(-1px);
+}
+.btn-download:active {
+    transform: translateY(0);
+}
+.btn-download:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+.btn-download svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: transparent;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+}
+.btn-cancel:hover {
+    border-color: var(--error);
+    color: var(--error);
+    background: rgba(255, 82, 82, 0.08);
+}
+.btn-cancel.hidden {
+    display: none;
+}
+.btn-cancel svg {
+    width: 14px;
+    height: 14px;
+}
+
+.btn-toggle-log {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    margin-left: auto;
+}
+.btn-toggle-log:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+.btn-toggle-log svg {
+    width: 12px;
+    height: 12px;
+    transition: transform var(--transition-fast);
+}
+.btn-toggle-log.expanded svg {
+    transform: rotate(180deg);
+}
+
+/* Log Panel */
+.log-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-normal);
+}
+.log-panel.expanded {
+    max-height: 160px;
+}
+.log-content {
+    height: 150px;
+    overflow-y: auto;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+    font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+.log-entry {
+    padding: 1px 0;
+    word-break: break-all;
+}
+.log-entry.info { color: var(--text-secondary); }
+.log-entry.success { color: var(--success); }
+.log-entry.warning { color: var(--warning); }
+.log-entry.error { color: var(--error); }
+
+/* ============ Settings Modal ============ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal-overlay.active {
+    display: flex;
+    animation: fadeIn 0.2s ease;
+}
+.modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    width: 380px;
+    max-width: 90vw;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+.modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+.modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.form-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.form-select {
+    appearance: none;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    color: var(--text-primary);
+    padding: 8px 32px 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23A0A0B8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+.form-select:hover {
+    border-color: var(--border-glow);
+}
+.form-select:focus {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-glow);
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.btn-modal {
+    padding: 8px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-family: inherit;
+}
+.btn-modal-cancel {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    color: var(--text-secondary);
+}
+.btn-modal-cancel:hover {
+    border-color: var(--border-glow);
+    color: var(--text-primary);
+}
+.btn-modal-save {
+    background: var(--accent-gradient);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+}
+.btn-modal-save:hover {
+    box-shadow: var(--shadow-glow);
+    opacity: 0.9;
+}
+
+/* ============ Toast Notifications ============ */
+.toast-container {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    animation: toastIn 0.3s ease;
+    max-width: 320px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.toast.success {
+    background: rgba(0, 230, 118, 0.15);
+    border: 1px solid rgba(0, 230, 118, 0.3);
+    color: var(--success);
+}
+.toast.error {
+    background: rgba(255, 82, 82, 0.15);
+    border: 1px solid rgba(255, 82, 82, 0.3);
+    color: var(--error);
+}
+.toast.warning {
+    background: rgba(255, 179, 0, 0.15);
+    border: 1px solid rgba(255, 179, 0, 0.3);
+    color: var(--warning);
+}
+.toast.info {
+    background: rgba(0, 212, 255, 0.15);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    color: var(--accent-primary);
+}
+.toast.removing {
+    animation: toastOut 0.3s ease forwards;
+}
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(40px); }
+}
+.toast svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <svg class="app-logo" viewBox="0 0 32 32" fill="none">
+                <defs>
+                    <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
+                        <stop offset="0%" stop-color="#00D4FF"/>
+                        <stop offset="100%" stop-color="#7B2DFF"/>
+                    </linearGradient>
+                </defs>
+                <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#logoGrad)" opacity="0.15" stroke="url(#logoGrad)" stroke-width="1.5"/>
+                <path d="M9 10h14M9 16h10M9 22h12" stroke="url(#logoGrad)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M22 18l3 3-3 3" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="app-title">FXdownloader</span>
+        </div>
+        <div class="header-right">
+            <select id="sourceSelect" class="source-select" title="选择小说源（搜索时自动多源选取）">
+                <option value="biquge">蚂蚁文学</option>
+                <option value="dingdian">顶点小说</option>
+                <option value="bxwx">笔下文学</option>
+                <option value="qianbi">铅笔小说</option>
+                <option value="haitang">海棠文学</option>
+                <option value="fanqie_api">番茄小说 (API)</option>
+                <option value="fanqie_official">番茄官网</option>
+            </select>
+            <button id="loginBtn" class="btn-login hidden" onclick="handleLogin()" title="登录番茄官网">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 1a3.5 3.5 0 00-3.5 3.5V6H3.5A1.5 1.5 0 002 7.5v6A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5v-6A1.5 1.5 0 0012.5 6H11.5V4.5A3.5 3.5 0 008 1z"/>
+                    <circle cx="8" cy="10.5" r="1"/>
+                </svg>
+                <span>登录</span>
+            </button>
+            <button class="btn-icon" onclick="openSettings()" title="设置">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="8" cy="8" r="2"/>
+                    <path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.93 2.93l1.41 1.41M11.66 11.66l1.41 1.41M2.93 13.07l1.41-1.41M11.66 4.34l1.41-1.41"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main">
+        <!-- Left Panel: Search & Novel Info -->
+        <div class="left-panel">
+            <div class="search-wrapper">
+                <div class="search-bar">
+                    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                        <circle cx="8" cy="8" r="5.5"/>
+                        <line x1="12.2" y1="12.2" x2="16" y2="16"/>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="搜索小说名称或输入URL..." autocomplete="off" />
+                    <button id="searchBtn" class="search-btn" onclick="handleSearch()">
+                        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                            <circle cx="6" cy="6" r="4.5"/>
+                            <line x1="9.5" y1="9.5" x2="13" y2="13"/>
+                        </svg>
+                        搜索
+                    </button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-spinner" style="display:none;">
+                <div class="spinner"></div>
+                <span>搜索中...</span>
+            </div>
+
+            <!-- Novel Info Card -->
+            <div id="novelCard" class="novel-card">
+                <div class="novel-card-header">
+                    <div id="novelCover" class="novel-cover-placeholder">
+                        <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.2">
+                            <rect x="4" y="2" width="20" height="24" rx="2"/>
+                            <line x1="8" y1="8" x2="20" y2="8"/>
+                            <line x1="8" y1="12" x2="18" y2="12"/>
+                            <line x1="8" y1="16" x2="16" y2="16"/>
+                            <line x1="8" y1="20" x2="19" y2="20"/>
+                        </svg>
+                    </div>
+                    <div class="novel-meta">
+                        <h3 id="novelTitle" class="novel-title"></h3>
+                        <p id="novelAuthor" class="novel-author"></p>
+                        <div id="novelTags" class="novel-tags"></div>
+                    </div>
+                </div>
+                <p id="novelDesc" class="novel-description"></p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state">
+                <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+                    <circle cx="24" cy="24" r="18"/>
+                    <path d="M18 30h12M16 24h16M20 18h8"/>
+                </svg>
+                <p>搜索小说或输入URL开始</p>
+            </div>
+        </div>
+
+        <!-- Right Panel: Chapter List -->
+        <div class="right-panel">
+            <div class="chapter-header">
+                <h2>章节列表</h2>
+                <div class="chapter-controls">
+                    <button class="chapter-ctrl-btn" onclick="selectAllChapters()">全选</button>
+                    <button class="chapter-ctrl-btn" onclick="invertSelection()">反选</button>
+                    <button class="chapter-ctrl-btn" onclick="clearSelection()">清空</button>
+                </div>
+            </div>
+            <div id="chapterCountInfo" class="chapter-count-info" style="display:none;"></div>
+            <div id="chapterList" class="chapter-list">
+                <div id="chapterEmptyState" class="empty-state">
+                    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+                        <rect x="6" y="4" width="36" height="40" rx="3"/>
+                        <line x1="14" y1="14" x2="34" y2="14"/>
+                        <line x1="14" y1="22" x2="30" y2="22"/>
+                        <line x1="14" y1="30" x2="32" y2="30"/>
+                    </svg>
+                    <p>选择小说后查看章节列表</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+        <div id="progressSection" class="progress-section">
+            <div class="progress-bar-wrapper">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="progress-info">
+                <span id="progressText" class="progress-text">准备下载...</span>
+                <span id="progressPercent" class="progress-percent">0%</span>
+            </div>
+        </div>
+        <div class="bottom-actions">
+            <button id="downloadBtn" class="btn-download" onclick="handleDownload()" disabled>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 2v8M4 7l4 4 4-4"/>
+                    <path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/>
+                </svg>
+                开始下载
+            </button>
+            <button id="cancelBtn" class="btn-cancel hidden" onclick="handleCancel()">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <line x1="3" y1="3" x2="11" y2="11"/>
+                    <line x1="11" y1="3" x2="3" y2="11"/>
+                </svg>
+                取消
+            </button>
+            <button id="toggleLogBtn" class="btn-toggle-log" onclick="toggleLog()">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 5l3 3 3-3"/>
+                </svg>
+                日志
+            </button>
+        </div>
+        <div id="logPanel" class="log-panel">
+            <div id="logContent" class="log-content"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal-overlay" onclick="closeSettingsOutside(event)">
+    <div class="modal">
+        <h3 class="modal-title">设置</h3>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">并发下载数</label>
+                <select id="settingConcurrent" class="form-select">
+                    <option value="1">1 (最慢，最安全)</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3 (默认)</option>
+                    <option value="4">4</option>
+                    <option value="5">5 (最快)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">下载速度倍数</label>
+                <select id="settingSpeed" class="form-select">
+                    <option value="0.5">0.5x (慢速)</option>
+                    <option value="1.0" selected>1.0x (正常)</option>
+                    <option value="2.0">2.0x (快速)</option>
+                    <option value="3.0">3.0x (极速)</option>
+                    <option value="4.0">4.0x (闪电)</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal btn-modal-cancel" onclick="closeSettings()">取消</button>
+            <button class="btn-modal btn-modal-save" onclick="saveSettings()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script>
+/* ====================================================================
+   State
+   ==================================================================== */
+const state = {
+    sourceKey: 'biquge',       // current source
+    novelId: null,             // current novel id
+    novelTitle: '',            // current novel title
+    chapters: [],              // [{chapter_id, chapter_title, chapter_index}]
+    selectedChapters: new Set(),
+    downloading: false,
+    logExpanded: false,
+};
+
+/* ====================================================================
+   Helpers
+   ==================================================================== */
+
+/* Toast notification */
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const icons = {
+        success: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-3.5"/></svg>',
+        error: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg>',
+        warning: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1 14h14L8 2z"/><line x1="8" y1="6" x2="8" y2="10"/><circle cx="8" cy="12" r="0.5"/></svg>',
+        info: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7" x2="8" y2="12"/><circle cx="8" cy="4.5" r="0.5"/></svg>',
+    };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = (icons[type] || icons.info) + `<span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+/* Add a log entry */
+function addLog(text, type = 'info') {
+    const logContent = document.getElementById('logContent');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    const now = new Date();
+    const time = now.toTimeString().slice(0, 8);
+    entry.textContent = `[${time}] ${text}`;
+    logContent.appendChild(entry);
+    logContent.scrollTop = logContent.scrollHeight;
+}
+
+/* Escape HTML */
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+/* Get source key from select */
+function getSelectedSourceKey() {
+    return document.getElementById('sourceSelect').value;
+}
+
+/* Map source key to internal source name for Python backend */
+function mapSourceKey(key) {
+    const map = {
+        'biquge': 'biquge',
+        'fanqie_api': 'fanqie_api',
+        'fanqie_official': 'fanqie_official',
+    };
+    return map[key] || key;
+}
+
+/* ====================================================================
+   Source Selector
+   ==================================================================== */
+document.getElementById('sourceSelect').addEventListener('change', function() {
+    state.sourceKey = this.value;
+    const loginBtn = document.getElementById('loginBtn');
+    if (this.value === 'fanqie_official') {
+        loginBtn.classList.remove('hidden');
+    } else {
+        loginBtn.classList.add('hidden');
+    }
+    // Reset state on source change
+    resetState();
+});
+
+function resetState() {
+    state.novelId = null;
+    state.novelTitle = '';
+    state.chapters = [];
+    state.selectedChapters.clear();
+    document.getElementById('novelCard').classList.remove('active');
+    document.getElementById('emptyState').style.display = '';
+    document.getElementById('searchResults').classList.remove('active');
+    document.getElementById('searchResults').innerHTML = '';
+    document.getElementById('chapterList').innerHTML = '';
+    document.getElementById('chapterEmptyState') || renderChapterEmpty();
+    renderChapterEmpty();
+    document.getElementById('chapterCountInfo').style.display = 'none';
+    document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('progressSection').classList.remove('active');
+    document.getElementById('logContent').innerHTML = '';
+}
+
+/* ====================================================================
+   Search
+   ==================================================================== */
+const searchInput = document.getElementById('searchInput');
+
+searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        handleSearch();
+    }
+});
+
+// Close search results on outside click
+document.addEventListener('click', function(e) {
+    const wrapper = document.querySelector('.search-wrapper');
+    if (!wrapper.contains(e.target)) {
+        document.getElementById('searchResults').classList.remove('active');
+    }
+});
+
+async function handleSearch() {
+    const keyword = searchInput.value.trim();
+    if (!keyword) {
+        showToast('请输入搜索关键词或URL', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('searchBtn');
+    const loading = document.getElementById('loadingState');
+    const resultsDiv = document.getElementById('searchResults');
+
+    btn.disabled = true;
+    btn.textContent = '搜索中...';
+    loading.style.display = 'flex';
+    resultsDiv.classList.remove('active');
+    resultsDiv.innerHTML = '';
+
+    try {
+        const sourceKey = getSelectedSourceKey();
+        const result = await window.pywebview.api.search(keyword, sourceKey);
+
+        loading.style.display = 'none';
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="4.5"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg> 搜索';
+
+        if (result && result.error) {
+            showToast(result.error, 'error');
+            addLog('搜索失败: ' + result.error, 'error');
+            return;
+        }
+
+        const novels = result || [];
+        if (novels.length === 0) {
+            showToast('未找到相关小说', 'warning');
+            return;
+        }
+
+        renderSearchResults(novels);
+        resultsDiv.classList.add('active');
+
+    } catch (e) {
+        loading.style.display = 'none';
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="4.5"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg> 搜索';
+        showToast('搜索出错: ' + (e.message || e), 'error');
+        addLog('搜索异常: ' + (e.message || e), 'error');
+    }
+}
+
+function renderSearchResults(novels) {
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = '';
+    novels.forEach((novel, idx) => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+
+        // 多源 badge：使用 source_name 字段，回退到 source
+        const srcName = novel.source_name || novel.source || '未知';
+        const badgeClass = novel.source === 'fanqie' ? 'badge-fanqie' : 'badge-biquge';
+        const author = novel.author ? escapeHtml(novel.author) : '佚名';
+        const wordCount = novel.word_count ? formatWordCount(novel.word_count) : '';
+        const chapterCount = novel.chapter_count ? novel.chapter_count + '章' : '';
+
+        item.innerHTML = `
+            <div class="result-info">
+                <div class="result-title">${escapeHtml(novel.title)}</div>
+                <div class="result-meta">${author}${wordCount ? ' | ' + wordCount : ''}${chapterCount ? ' | ' + chapterCount : ''}</div>
+            </div>
+            <span class="result-source-badge ${badgeClass}">${escapeHtml(srcName)}</span>
+        `;
+        item.addEventListener('click', () => selectNovel(novel));
+        resultsDiv.appendChild(item);
+    });
+}
+
+function formatWordCount(count) {
+    if (count >= 10000) {
+        return (count / 10000).toFixed(1) + '万字';
+    }
+    return count + '字';
+}
+
+/* ====================================================================
+   Select Novel (Parse)
+   ==================================================================== */
+async function selectNovel(novel) {
+    // Close search results
+    document.getElementById('searchResults').classList.remove('active');
+    document.getElementById('emptyState').style.display = 'none';
+
+    // 根据搜索结果来源自动切换源
+    const src = novel.source;
+    const sourceSelect = document.getElementById('sourceSelect');
+    if (src && src !== 'fanqie') {
+        // 非番茄源：直接用对应源
+        sourceSelect.value = src;
+        state.sourceKey = src;
+        document.getElementById('loginBtn').classList.add('hidden');
+    } else if (src === 'fanqie') {
+        // 番茄搜索结果使用 API 模式（免登录）
+        sourceSelect.value = 'fanqie_api';
+        state.sourceKey = 'fanqie_api';
+        document.getElementById('loginBtn').classList.add('hidden');
+    }
+
+    const novelCard = document.getElementById('novelCard');
+    // Show loading in card area
+    novelCard.classList.add('active');
+    document.getElementById('novelTitle').textContent = '加载中...';
+    document.getElementById('novelAuthor').textContent = '';
+    document.getElementById('novelDesc').textContent = '';
+    document.getElementById('novelTags').innerHTML = '';
+
+    try {
+        const sourceKey = state.sourceKey;
+        const result = await window.pywebview.api.parse_novel(novel.novel_id, sourceKey);
+
+        if (result && result.error) {
+            showToast(result.error, 'error');
+            addLog('解析失败: ' + result.error, 'error');
+            novelCard.classList.remove('active');
+            document.getElementById('emptyState').style.display = '';
+            return;
+        }
+
+        state.novelId = result.novel_id || novel.novel_id;
+        state.novelTitle = result.title || novel.title;
+        displayNovelInfo(result);
+        addLog('已选择小说: ' + state.novelTitle, 'success');
+
+        // Fetch chapters
+        await loadChapters();
+
+    } catch (e) {
+        showToast('解析小说失败: ' + (e.message || e), 'error');
+        addLog('解析异常: ' + (e.message || e), 'error');
+        novelCard.classList.remove('active');
+        document.getElementById('emptyState').style.display = '';
+    }
+}
+
+function displayNovelInfo(info) {
+    document.getElementById('novelTitle').textContent = info.title || '';
+    document.getElementById('novelAuthor').textContent = (info.author ? '作者: ' + info.author : '');
+
+    // Tags
+    const tagsEl = document.getElementById('novelTags');
+    tagsEl.innerHTML = '';
+    if (info.extra && info.extra.status) {
+        tagsEl.innerHTML += `<span class="novel-tag status">${escapeHtml(info.extra.status)}</span>`;
+    }
+    if (info.chapter_count) {
+        tagsEl.innerHTML += `<span class="novel-tag count">${info.chapter_count} 章节</span>`;
+    }
+    if (info.word_count) {
+        tagsEl.innerHTML += `<span class="novel-tag count">${formatWordCount(info.word_count)}</span>`;
+    }
+
+    // Description
+    document.getElementById('novelDesc').textContent = info.description || '';
+
+    // Cover
+    const coverEl = document.getElementById('novelCover');
+    if (info.cover_url) {
+        coverEl.innerHTML = '';
+        coverEl.className = 'novel-cover';
+        const img = document.createElement('img');
+        img.src = info.cover_url;
+        img.className = 'novel-cover';
+        img.onerror = function() {
+            coverEl.className = 'novel-cover-placeholder';
+            coverEl.innerHTML = '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="4" y="2" width="20" height="24" rx="2"/><line x1="8" y1="8" x2="20" y2="8"/><line x1="8" y1="12" x2="18" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg>';
+        };
+        coverEl.appendChild(img);
+    }
+}
+
+/* ====================================================================
+   Chapter List
+   ==================================================================== */
+async function loadChapters() {
+    if (!state.novelId) return;
+
+    const chapterList = document.getElementById('chapterList');
+    chapterList.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载章节列表...</span></div>';
+
+    try {
+        const sourceKey = getSelectedSourceKey();
+        const result = await window.pywebview.api.get_chapters(state.novelId, sourceKey);
+
+        if (result && result.error) {
+            showToast('获取章节列表失败: ' + result.error, 'error');
+            addLog('章节列表错误: ' + result.error, 'error');
+            renderChapterEmpty();
+            return;
+        }
+
+        state.chapters = result || [];
+        state.selectedChapters.clear();
+
+        if (state.chapters.length === 0) {
+            showToast('章节列表为空', 'warning');
+            renderChapterEmpty();
+            return;
+        }
+
+        renderChapterList();
+        document.getElementById('downloadBtn').disabled = false;
+        addLog('共加载 ' + state.chapters.length + ' 个章节', 'info');
+
+    } catch (e) {
+        showToast('加载章节出错: ' + (e.message || e), 'error');
+        addLog('章节列表异常: ' + (e.message || e), 'error');
+        renderChapterEmpty();
+    }
+}
+
+function renderChapterEmpty() {
+    const chapterList = document.getElementById('chapterList');
+    chapterList.innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="6" y="4" width="36" height="40" rx="3"/>
+            <line x1="14" y1="14" x2="34" y2="14"/>
+            <line x1="14" y1="22" x2="30" y2="22"/>
+            <line x1="14" y1="30" x2="32" y2="30"/>
+        </svg>
+        <p>选择小说后查看章节列表</p>
+    </div>`;
+    document.getElementById('chapterCountInfo').style.display = 'none';
+}
+
+function renderChapterList() {
+    const chapterList = document.getElementById('chapterList');
+    chapterList.innerHTML = '';
+
+    const fragment = document.createDocumentFragment();
+    state.chapters.forEach((ch) => {
+        const item = document.createElement('div');
+        item.className = 'chapter-item';
+        item.dataset.chapterId = ch.chapter_id;
+        item.dataset.index = ch.chapter_index;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'chapter-checkbox';
+        checkbox.dataset.chapterId = ch.chapter_id;
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                state.selectedChapters.add(ch.chapter_id);
+                item.classList.add('selected');
+            } else {
+                state.selectedChapters.delete(ch.chapter_id);
+                item.classList.remove('selected');
+            }
+            updateChapterCount();
+        });
+
+        const idx = document.createElement('span');
+        idx.className = 'chapter-index';
+        idx.textContent = ch.chapter_index;
+
+        const title = document.createElement('span');
+        title.className = 'chapter-title-text';
+        title.textContent = ch.chapter_title;
+        title.title = ch.chapter_title;
+
+        item.appendChild(checkbox);
+        item.appendChild(idx);
+        item.appendChild(title);
+
+        item.addEventListener('click', function(e) {
+            if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+
+        fragment.appendChild(item);
+    });
+
+    chapterList.appendChild(fragment);
+    updateChapterCount();
+}
+
+function updateChapterCount() {
+    const countInfo = document.getElementById('chapterCountInfo');
+    const total = state.chapters.length;
+    const selected = state.selectedChapters.size;
+    if (total > 0) {
+        countInfo.style.display = '';
+        countInfo.textContent = `共 ${total} 章 | 已选 ${selected} 章`;
+    } else {
+        countInfo.style.display = 'none';
+    }
+}
+
+function selectAllChapters() {
+    state.chapters.forEach(ch => state.selectedChapters.add(ch.chapter_id));
+    document.querySelectorAll('.chapter-checkbox').forEach(cb => {
+        cb.checked = true;
+        cb.closest('.chapter-item').classList.add('selected');
+    });
+    updateChapterCount();
+}
+
+function invertSelection() {
+    document.querySelectorAll('.chapter-checkbox').forEach(cb => {
+        cb.checked = !cb.checked;
+        const id = cb.dataset.chapterId;
+        if (cb.checked) {
+            state.selectedChapters.add(id);
+            cb.closest('.chapter-item').classList.add('selected');
+        } else {
+            state.selectedChapters.delete(id);
+            cb.closest('.chapter-item').classList.remove('selected');
+        }
+    });
+    updateChapterCount();
+}
+
+function clearSelection() {
+    state.selectedChapters.clear();
+    document.querySelectorAll('.chapter-checkbox').forEach(cb => {
+        cb.checked = false;
+        cb.closest('.chapter-item').classList.remove('selected');
+    });
+    updateChapterCount();
+}
+
+/* ====================================================================
+   Download
+   ==================================================================== */
+async function handleDownload() {
+    if (state.downloading) return;
+    if (!state.novelId) {
+        showToast('请先选择小说', 'warning');
+        return;
+    }
+    if (state.selectedChapters.size === 0) {
+        showToast('请至少选择一个章节', 'warning');
+        return;
+    }
+
+    // Ask for save directory
+    let saveDir;
+    try {
+        saveDir = await window.pywebview.api.select_save_dir();
+        if (!saveDir) {
+            showToast('已取消下载', 'warning');
+            return;
+        }
+    } catch (e) {
+        showToast('选择目录失败: ' + (e.message || e), 'error');
+        return;
+    }
+
+    state.downloading = true;
+    const downloadBtn = document.getElementById('downloadBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const progressSection = document.getElementById('progressSection');
+
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> 下载中...';
+    cancelBtn.classList.remove('hidden');
+    progressSection.classList.add('active');
+
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '准备下载...';
+    document.getElementById('progressPercent').textContent = '0%';
+
+    addLog(`开始下载: ${state.novelTitle}, ${state.selectedChapters.size}章 -> ${saveDir}`, 'info');
+
+    // Auto-expand log
+    if (!state.logExpanded) {
+        toggleLog();
+    }
+
+    try {
+        const sourceKey = getSelectedSourceKey();
+        const chapterIds = Array.from(state.selectedChapters);
+        const result = await window.pywebview.api.download(state.novelId, chapterIds, saveDir, sourceKey);
+
+        if (result && result.error) {
+            showToast('下载失败: ' + result.error, 'error');
+            addLog('下载失败: ' + result.error, 'error');
+        } else {
+            showToast('下载完成!', 'success');
+            addLog('下载已完成!', 'success');
+        }
+    } catch (e) {
+        showToast('下载出错: ' + (e.message || e), 'error');
+        addLog('下载异常: ' + (e.message || e), 'error');
+    } finally {
+        state.downloading = false;
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/></svg> 开始下载';
+        cancelBtn.classList.add('hidden');
+    }
+}
+
+async function handleCancel() {
+    try {
+        await window.pywebview.api.cancel_download();
+        showToast('已取消下载', 'warning');
+        addLog('用户取消了下载', 'warning');
+        state.downloading = false;
+        document.getElementById('downloadBtn').disabled = false;
+        document.getElementById('downloadBtn').innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/></svg> 开始下载';
+        document.getElementById('cancelBtn').classList.add('hidden');
+    } catch (e) {
+        showToast('取消失败: ' + (e.message || e), 'error');
+    }
+}
+
+/* ====================================================================
+   Progress / Log Callbacks (called from Python via evaluate_js)
+   ==================================================================== */
+function onProgress(data) {
+    const progressSection = document.getElementById('progressSection');
+    progressSection.classList.add('active');
+
+    const percent = data.percent || 0;
+    document.getElementById('progressBar').style.width = percent + '%';
+    document.getElementById('progressPercent').textContent = Math.round(percent) + '%';
+
+    if (data.chapter_title) {
+        document.getElementById('progressText').textContent =
+            `下载中: ${data.chapter_title} (${data.current || 0}/${data.total || '?'})`;
+    } else if (data.current && data.total) {
+        document.getElementById('progressText').textContent =
+            `下载中: 第${data.current}章 (${data.current}/${data.total})`;
+    }
+}
+
+function onLog(data) {
+    addLog(data.message || data, data.level || 'info');
+}
+
+/* ====================================================================
+   Settings
+   ==================================================================== */
+async function openSettings() {
+    try {
+        const settings = await window.pywebview.api.get_settings();
+        if (settings) {
+            if (settings.concurrent_downloads) {
+                document.getElementById('settingConcurrent').value = settings.concurrent_downloads;
+            }
+            if (settings.download_speed) {
+                document.getElementById('settingSpeed').value = settings.download_speed;
+            }
+        }
+    } catch (e) {
+        // Use defaults
+    }
+    document.getElementById('settingsModal').classList.add('active');
+}
+
+function closeSettings() {
+    document.getElementById('settingsModal').classList.remove('active');
+}
+
+function closeSettingsOutside(e) {
+    if (e.target === document.getElementById('settingsModal')) {
+        closeSettings();
+    }
+}
+
+async function saveSettings() {
+    const config = {
+        concurrent_downloads: parseInt(document.getElementById('settingConcurrent').value),
+        download_speed: parseFloat(document.getElementById('settingSpeed').value),
+    };
+    try {
+        const result = await window.pywebview.api.save_settings(JSON.stringify(config));
+        if (result && result.error) {
+            showToast('保存设置失败: ' + result.error, 'error');
+        } else {
+            showToast('设置已保存', 'success');
+            closeSettings();
+        }
+    } catch (e) {
+        showToast('保存设置出错: ' + (e.message || e), 'error');
+    }
+}
+
+/* ====================================================================
+   Login
+   ==================================================================== */
+async function handleLogin() {
+    try {
+        const result = await window.pywebview.api.open_login();
+        if (result && result.error) {
+            showToast('登录失败: ' + result.error, 'error');
+        } else if (result && result.success) {
+            showToast('登录成功!', 'success');
+            document.getElementById('loginBtn').querySelector('span').textContent = '已登录';
+        }
+    } catch (e) {
+        showToast('登录出错: ' + (e.message || e), 'error');
+    }
+}
+
+/* ====================================================================
+   Log Toggle
+   ==================================================================== */
+function toggleLog() {
+    state.logExpanded = !state.logExpanded;
+    const panel = document.getElementById('logPanel');
+    const btn = document.getElementById('toggleLogBtn');
+    if (state.logExpanded) {
+        panel.classList.add('expanded');
+        btn.classList.add('expanded');
+    } else {
+        panel.classList.remove('expanded');
+        btn.classList.remove('expanded');
+    }
+}
+
+/* ====================================================================
+   Init
+   ==================================================================== */
+window.addEventListener('DOMContentLoaded', function() {
+    addLog('FXdownloader 已启动', 'info');
+});
+</script>
+</body>
+</html>

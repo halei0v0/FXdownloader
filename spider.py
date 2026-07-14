@@ -527,25 +527,31 @@ class FanqieSpider:
                 if headers:
                     self.session.headers.update(headers)
 
+                # 实时读取 Cookie，确保登录后立即生效
+                try:
+                    import config as _cfg
+                    _cookies = _cfg.COOKIES
+                except Exception:
+                    _cookies = COOKIES
+
                 if method == 'GET':
                     response = self.session.get(
                         url,
                         params=params,
-                        cookies=COOKIES,
+                        cookies=_cookies,
                         timeout=REQUEST_TIMEOUT
                     )
                 else:
                     response = self.session.post(
                         url,
                         json=data,
-                        cookies=COOKIES,
+                        cookies=_cookies,
                         timeout=REQUEST_TIMEOUT
                     )
                 
                 response.raise_for_status()
                 
                 # 使用随机延迟，避免固定间隔被检测为爬虫
-                import random
                 delay = random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
                 time.sleep(delay)
                 return response
@@ -1117,7 +1123,7 @@ class FanqieSpider:
         try:
             print(f"正在搜索: {keyword}")
             
-            search_url = f"{FANQIE_BASE_URL}/search?keyword={keyword}"
+            search_url = f"{FANQIE_BASE_URL}/search/{keyword}"
             response = self._request(search_url)
             
             soup = BeautifulSoup(response.text, 'lxml')

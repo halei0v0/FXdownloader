@@ -69,8 +69,34 @@ OUTPUT_FORMAT = 'txt'  # txt 或 epub
 
 # 源选择配置
 SOURCE_ASK = "ask"  # 每次询问
-SOURCE_OFFICIAL = "official"  # 官网
+SOURCE_OFFICIAL = "official"  # 番茄官网
 SOURCE_THIRD_PARTY = "third_party"  # 第三方源
+SOURCE_BIQUGE = "biquge"  # 蚂蚁文学源（无需登录）
+
+# ===================== 蚂蚁文学源配置 =====================
+# 蚂蚁文学镜像列表
+BIQUGE_MIRRORS = [
+    'https://www.mayiwsk.com',
+]
+
+# 默认笔趣阁镜像
+BIQUGE_DEFAULT_MIRROR = BIQUGE_MIRRORS[0]
+
+
+def get_biquge_mirrors():
+    """获取笔趣阁镜像列表（可由用户配置覆盖）"""
+    config = load_config()
+    user_mirrors = config.get('biquge_mirrors')
+    if user_mirrors and isinstance(user_mirrors, list) and len(user_mirrors) > 0:
+        return user_mirrors
+    return BIQUGE_MIRRORS
+
+
+def set_biquge_mirrors(mirrors):
+    """设置笔趣阁镜像列表"""
+    config = load_config()
+    config['biquge_mirrors'] = mirrors
+    return save_config(config)
 
 # Cookie 配置（用于访问需要登录权限的内容）
 COOKIE_FILE = os.path.join(BASE_DIR, 'cookies.txt')
@@ -147,11 +173,14 @@ def load_cookies():
     return cookies
 
 def save_cookies(cookies):
-    """保存 Cookie 到 cookies.txt 文件"""
+    """保存 Cookie 到 cookies.txt 文件，并刷新全局 COOKIES"""
+    global COOKIES
     try:
         import json
         with open(COOKIE_FILE, 'w', encoding='utf-8') as f:
             json.dump(cookies, f, ensure_ascii=False, indent=2)
+        # 同步更新全局 COOKIES，使已导入 COOKIES 的模块能立即生效
+        COOKIES = cookies
         print(f"已保存 {len(cookies)} 个 Cookie 到 {COOKIE_FILE}")
         return True
     except Exception as e:
@@ -159,10 +188,12 @@ def save_cookies(cookies):
         return False
 
 def clear_cookies():
-    """清除保存的 Cookie"""
+    """清除保存的 Cookie，并刷新全局 COOKIES"""
+    global COOKIES
     try:
         if os.path.exists(COOKIE_FILE):
             os.remove(COOKIE_FILE)
+            COOKIES = {}
             print("已清除 Cookie")
             return True
     except Exception as e:

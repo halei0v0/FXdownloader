@@ -16,7 +16,14 @@
         "/api/detail": 2,
         "/api/book": 2
       }
+    },
+    "http://101.35.133.34:5000": {
+      "total_success": 4,
+      "endpoints": {
+        "/api/detail": 2,
+        "/api/book": 2
+      }
     }
   },
-  "last_export_path": "C:/Users/02halei/Desktop"
+  "last_export_path": "C:\\Users\\02halei\\Desktop"
 }

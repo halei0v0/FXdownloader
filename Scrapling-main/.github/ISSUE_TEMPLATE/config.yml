@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+contact_links:
+- name: Discussions
+  url: https://github.com/D4Vinci/Scrapling/discussions
+  about: >
+    The "Discussions" forum is where you want to start. 💖
+- name: Ask on our discord server
+  url: https://discord.gg/EMgGbDceNQ
+  about: >
+    Our community chat forum.

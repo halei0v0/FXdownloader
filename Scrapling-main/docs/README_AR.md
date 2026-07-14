@@ -1,0 +1,537 @@
+<!-- mcp-name: io.github.D4Vinci/Scrapling -->
+
+<h1 align="center">
+    <a href="https://scrapling.readthedocs.io">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/docs/assets/cover_dark.svg?sanitize=true">
+          <img alt="Scrapling Poster" src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/docs/assets/cover_light.svg?sanitize=true">
+        </picture>
+    </a>
+    <br>
+    <small>Effortless Web Scraping for the Modern Web</small>
+</h1>
+
+<p align="center">
+    <a href="https://github.com/D4Vinci/Scrapling/actions/workflows/tests.yml" alt="Tests">
+        <img alt="Tests" src="https://github.com/D4Vinci/Scrapling/actions/workflows/tests.yml/badge.svg"></a>
+    <a href="https://badge.fury.io/py/Scrapling" alt="PyPI version">
+        <img alt="PyPI version" src="https://badge.fury.io/py/Scrapling.svg"></a>
+    <a href="https://clickpy.clickhouse.com/dashboard/scrapling" rel="nofollow"><img src="https://img.shields.io/pypi/dm/scrapling" alt="PyPI package downloads"></a>
+    <a href="https://github.com/D4Vinci/Scrapling/tree/main/agent-skill" alt="AI Agent Skill directory">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Skill-black?style=flat&label=Agent&link=https%3A%2F%2Fgithub.com%2FD4Vinci%2FScrapling%2Ftree%2Fmain%2Fagent-skill"></a>
+    <a href="https://clawhub.ai/D4Vinci/scrapling-official" alt="OpenClaw Skill">
+        <img alt="OpenClaw Skill" src="https://img.shields.io/badge/Clawhub-darkred?style=flat&label=OpenClaw&link=https%3A%2F%2Fclawhub.ai%2FD4Vinci%2Fscrapling-official"></a>
+    <br/>
+    <a href="https://discord.gg/EMgGbDceNQ" alt="Discord" target="_blank">
+      <img alt="Discord" src="https://img.shields.io/discord/1360786381042880532?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FEMgGbDceNQ">
+    </a>
+    <a href="https://x.com/Scrapling_dev" alt="X (formerly Twitter)">
+      <img alt="X (formerly Twitter) Follow" src="https://img.shields.io/twitter/follow/Scrapling_dev?style=social&logo=x&link=https%3A%2F%2Fx.com%2FScrapling_dev">
+    </a>
+    <br/>
+    <a href="https://pypi.org/project/scrapling/" alt="Supported Python versions">
+        <img alt="Supported Python versions" src="https://img.shields.io/pypi/pyversions/scrapling.svg"></a>
+</p>
+
+<p align="center">
+    <a href="https://scrapling.readthedocs.io/en/latest/parsing/selection.html"><strong>طرق الاختيار</strong></a>
+    &middot;
+    <a href="https://scrapling.readthedocs.io/en/latest/fetching/choosing.html"><strong>اختيار Fetcher</strong></a>
+    &middot;
+    <a href="https://scrapling.readthedocs.io/en/latest/spiders/architecture.html"><strong>العناكب</strong></a>
+    &middot;
+    <a href="https://scrapling.readthedocs.io/en/latest/spiders/proxy-blocking.html"><strong>تدوير البروكسي</strong></a>
+    &middot;
+    <a href="https://scrapling.readthedocs.io/en/latest/cli/overview.html"><strong>واجهة سطر الأوامر</strong></a>
+    &middot;
+    <a href="https://scrapling.readthedocs.io/en/latest/ai/mcp-server.html"><strong>وضع MCP</strong></a>
+</p>
+
+Scrapling هو إطار عمل تكيفي لـ Web Scraping يتعامل مع كل شيء من طلب واحد إلى زحف كامل النطاق.
+
+محلله يتعلم من تغييرات المواقع ويعيد تحديد موقع عناصرك تلقائياً عند تحديث الصفحات. جوالبه تتجاوز أنظمة مكافحة الروبوتات مثل Cloudflare Turnstile مباشرةً. وإطار عمل Spider الخاص به يتيح لك التوسع إلى عمليات زحف متزامنة ومتعددة الجلسات مع إيقاف/استئناف وتدوير تلقائي لـ Proxy - كل ذلك في بضعة أسطر من Python. مكتبة واحدة، بدون تنازلات.
+
+زحف سريع للغاية مع إحصائيات فورية و Streaming. مبني بواسطة مستخرجي الويب لمستخرجي الويب والمستخدمين العاديين، هناك شيء للجميع.
+
+```python
+from scrapling.fetchers import Fetcher, AsyncFetcher, StealthyFetcher, DynamicFetcher
+StealthyFetcher.adaptive = True
+p = StealthyFetcher.fetch('https://example.com', headless=True, network_idle=True)  # احصل على الموقع بشكل خفي!
+products = p.css('.product', auto_save=True)                                        # استخرج بيانات تنجو من تغييرات تصميم الموقع!
+products = p.css('.product', adaptive=True)                                         # لاحقاً، إذا تغيرت بنية الموقع، مرر `adaptive=True` للعثور عليها!
+```
+أو توسع إلى عمليات زحف كاملة
+```python
+from scrapling.spiders import Spider, Response
+
+class MySpider(Spider):
+  name = "demo"
+  start_urls = ["https://example.com/"]
+
+  async def parse(self, response: Response):
+      for item in response.css('.product'):
+          yield {"title": item.css('h2::text').get()}
+
+MySpider().start()
+```
+
+<p align="center">
+    <a href="https://dataimpulse.com/?utm_source=scrapling&utm_medium=banner&utm_campaign=scrapling" target="_blank" style="display:flex; justify-content:center; padding:4px 0;">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/DataImpulse.png" alt="At DataImpulse, we specialize in developing custom proxy services for your business. Make requests from anywhere, collect data, and enjoy fast connections with our premium proxies." style="max-height:60px;">
+    </a>
+</p>
+
+# الرعاة البلاتينيون
+<table>
+  <tr>
+    <td width="200">
+      <a href="https://proxidize.com/?utm_source=github&utm_medium=sponsorship&utm_campaign=scrapling&utm_content=d4vinci" target="_blank" title="Clean Proxies with No Nonsense.">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/proxidize.png">
+      </a>
+    </td>
+    <td> توفر <a href="https://proxidize.com/?utm_source=github&utm_medium=sponsorship&utm_campaign=scrapling&utm_content=d4vinci" target="_blank"><b>Proxidize</b></a> وكلاء جوّالين وسكنيين للاستخراج، وأتمتة المتصفح، ومراقبة تحسين محركات البحث (SEO)، ووكلاء الذكاء الاصطناعي، وجمع البيانات. <i>استخدم الرمز <b>scrapling20</b> للحصول على خصم 20%</i>.
+    </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://coldproxy.com/" target="_blank" title="Residential, IPv6 & Datacenter Proxies for Web Scraping">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/coldproxy.png">
+      </a>
+    </td>
+    <td> توفر <a href="https://coldproxy.com/" target="_blank"><b>ColdProxy</b></a> وكلاء سكنيين ووكلاء مراكز بيانات لاستخراج بيانات الويب بشكل مستقر، وجمع البيانات العامة، والاختبار الموجَّه جغرافياً في أكثر من 195 دولة.
+    </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://hypersolutions.co/?utm_source=github&utm_medium=readme&utm_campaign=scrapling" target="_blank" title="Bot Protection Bypass API for Akamai, DataDome, Incapsula & Kasada">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/HyperSolutions.png">
+      </a>
+    </td>
+    <td> Scrapling يتعامل مع Cloudflare Turnstile. للحماية على مستوى المؤسسات، توفر <a href="https://hypersolutions.co?utm_source=github&utm_medium=readme&utm_campaign=scrapling">
+        <b>Hyper Solutions</b>
+      </a> نقاط نهاية API تولّد رموز antibot صالحة لـ <b>Akamai</b>، <b>DataDome</b>، <b>Kasada</b> و <b>Incapsula</b>. استدعاءات API بسيطة، بدون أتمتة متصفح. </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=d4vinci-scrapling" target="_blank" title="Evomi is your Swiss Quality Proxy Provider, starting at $0.49/GB">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/evomi.png">
+      </a>
+    </td>
+    <td>
+      <a href="https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=d4vinci-scrapling">
+        <b>Evomi</b>
+      </a>: بروكسيات سكنية بدءاً من 0.49$/جيجابايت. متصفح سكرابينج مع Chromium مُزيّف بالكامل، عناوين IP سكنية، حل تلقائي لـ CAPTCHA، وتجاوز أنظمة مكافحة البوتات. </br>
+      <b>واجهة Scraper API لنتائج بدون عناء. تكاملات MCP و N8N متاحة.</b>
+    </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://tikhub.io/?utm_source=github.com/D4Vinci/Scrapling&utm_medium=marketing_social&utm_campaign=retargeting&utm_content=carousel_ad" target="_blank" title="Unlock the Power of Social Media Data & AI">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/TikHub.jpg">
+      </a>
+    </td>
+    <td>
+      <a href="https://tikhub.io/?utm_source=github.com/D4Vinci/Scrapling&utm_medium=marketing_social&utm_campaign=retargeting&utm_content=carousel_ad" target="_blank">TikHub.io</a> يوفر أكثر من 900 واجهة API مستقرة عبر أكثر من 16 منصة تشمل TikTok و X و YouTube و Instagram، مع أكثر من 40 مليون مجموعة بيانات. <br /> يقدم أيضاً <a href="https://ai.tikhub.io/?ref=KarimShoair" target="_blank">نماذج ذكاء اصطناعي بأسعار مخفضة</a> - Claude و GPT و GEMINI والمزيد بخصم يصل إلى 71%.
+    </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://petrosky.io/d4vinci" target="_blank" title="PetroSky delivers cutting-edge VPS hosting.">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/petrosky.png">
+      </a>
+    </td>
+    <td>
+    أغلق حاسوبك. أدوات الكشط تواصل العمل. <br />
+    <a href="https://petrosky.io/d4vinci" target="_blank">PetroSky VPS</a> - خوادم سحابية مصممة للأتمتة المتواصلة. أجهزة Windows وLinux مع تحكم كامل. بدءًا من 6.99 يورو/شهريًا.
+    </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://substack.thewebscraping.club/p/scrapling-hands-on-guide?utm_source=github&utm_medium=repo&utm_campaign=scrapling" target="_blank" title="The #1 newsletter dedicated to Web Scraping">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/TWSC.png">
+      </a>
+    </td>
+    <td>
+    اقرأ مراجعة كاملة عن <a href="https://substack.thewebscraping.club/p/scrapling-hands-on-guide?utm_source=github&utm_medium=repo&utm_campaign=scrapling" target="_blank">Scrapling على The Web Scraping Club</a> (نوفمبر 2025)، النشرة الإخبارية الأولى المخصصة لكشط الويب.
+    </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://www.swiftproxy.net/?ref=D4Vinci" target="_blank" title="Scalable Solutions for Web Data Access">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/SwiftProxy.png">
+      </a>
+    </td>
+    <td>
+    يوفر <a href="https://www.swiftproxy.net/?ref=D4Vinci" target="_blank">Swiftproxy</a> بروكسيات سكنية قابلة للتوسع مع أكثر من 80 مليون عنوان IP في أكثر من 195 دولة، ويقدم اتصالات سريعة وموثوقة، وتدوير تلقائي، وأداء قوي ضد الحظر. تجربة مجانية متاحة.
+    </td>
+  </tr>
+  <tr>
+    <td width="200">
+      <a href="https://go.nodemaven.com/scraplingjune" target="_blank" title="Proxies with the Highest IP Scores">
+        <img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/NodeMaven.svg" width="240" height="100">
+      </a>
+    </td>
+    <td>
+    <a href="https://go.nodemaven.com/scraplingjune" target="_blank">NodeMaven</a> - مزود بروكسيات موثوق يقدم أعلى جودة IP في السوق. استخدم كود الخصم SCRAPLING35 للحصول على خصم 35% على البروكسيات.
+    </td>
+  </tr>
+</table>
+
+<i><sub>هل تريد عرض إعلانك هنا؟ انقر [هنا](https://github.com/sponsors/D4Vinci/sponsorships?tier_id=586646)</sub></i>
+# الرعاة
+
+<!-- sponsors -->
+
+<a href="https://serpapi.com/?utm_source=scrapling" target="_blank" title="Scrape Google and other search engines with SerpApi"><img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/SerpApi.png"></a>
+<a href="https://visit.decodo.com/Dy6W0b" target="_blank" title="Try the Most Efficient Residential Proxies for Free"><img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/decodo.png"></a>
+<a href="https://hasdata.com/?utm_source=github&utm_medium=banner&utm_campaign=D4Vinci" target="_blank" title="The web scraping service that actually beats anti-bot systems!"><img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/hasdata.png"></a>
+<a href="https://proxyempire.io/?ref=scrapling&utm_source=scrapling" target="_blank" title="Collect The Data Your Project Needs with the Best Residential Proxies"><img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/ProxyEmpire.png"></a>
+<a href="https://www.webshare.io/?referral_code=48r2m2cd5uz1" target="_blank" title="The Most Reliable Proxy with Unparalleled Performance"><img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/webshare.png"></a>
+<a href="https://proxiware.com/?ref=scrapling" target="_blank" title="Collect Any Data. At Any Scale."><img src="https://raw.githubusercontent.com/D4Vinci/Scrapling/main/images/proxiware.png"></a>
+
+
+<!-- /sponsors -->
+
+<i><sub>هل تريد عرض إعلانك هنا؟ انقر [هنا](https://github.com/sponsors/D4Vinci) واختر المستوى الذي يناسبك!</sub></i>
+
+---
+
+## الميزات الرئيسية
+
+### Spiders - إطار عمل زحف كامل
+- 🕷️ **واجهة Spider شبيهة بـ Scrapy**: عرّف Spiders مع `start_urls`، و async `parse` callbacks، وكائنات `Request`/`Response`.
+- ⚡ **زحف متزامن**: حدود تزامن قابلة للتكوين، وتحكم بالسرعة حسب النطاق، وتأخيرات التنزيل.
+- 🔄 **دعم الجلسات المتعددة**: واجهة موحدة لطلبات HTTP، ومتصفحات خفية بدون واجهة في Spider واحد - وجّه الطلبات إلى جلسات مختلفة بالمعرّف.
+- 💾 **إيقاف واستئناف**: استمرارية الزحف القائمة على Checkpoint. اضغط Ctrl+C للإيقاف بسلاسة؛ أعد التشغيل للاستئناف من حيث توقفت.
+- 📡 **وضع Streaming**: بث العناصر المستخرجة فور وصولها عبر `async for item in spider.stream()` مع إحصائيات فورية - مثالي لواجهات المستخدم وخطوط الأنابيب وعمليات الزحف الطويلة.
+- 🛡️ **كشف الطلبات المحظورة**: كشف تلقائي وإعادة محاولة للطلبات المحظورة مع منطق قابل للتخصيص.
+- 🤖 **الامتثال لـ robots.txt**: خيار `robots_txt_obey` الاختياري الذي يحترم توجيهات `Disallow` و `Crawl-delay` و `Request-rate` مع التخزين المؤقت لكل نطاق.
+- 🧪 **وضع التطوير**: تخزين الاستجابات على القرص في التشغيل الأول وإعادة تشغيلها في التشغيلات اللاحقة - كرّر العمل على منطق `parse()` دون الحاجة لإرسال طلبات جديدة إلى الخوادم المستهدفة.
+- 📦 **تصدير مدمج**: صدّر النتائج عبر الخطافات وخط الأنابيب الخاص بك أو JSON/JSONL المدمج مع `result.items.to_json()` / `result.items.to_jsonl()` على التوالي.
+
+### جلب متقدم للمواقع مع دعم الجلسات
+- **طلبات HTTP**: طلبات HTTP سريعة وخفية مع فئة `Fetcher`. يمكنها تقليد بصمة TLS للمتصفح والرؤوس واستخدام HTTP/3.
+- **التحميل الديناميكي**: جلب المواقع الديناميكية مع أتمتة كاملة للمتصفح من خلال فئة `DynamicFetcher` التي تدعم Chromium من Playwright و Google Chrome.
+- **تجاوز مكافحة الروبوتات**: قدرات تخفي متقدمة مع `StealthyFetcher` وانتحال fingerprint. يمكنه تجاوز جميع أنواع Turnstile/Interstitial من Cloudflare بسهولة بالأتمتة.
+- **إدارة الجلسات**: دعم الجلسات المستمرة مع فئات `FetcherSession` و`StealthySession` و`DynamicSession` لإدارة ملفات تعريف الارتباط والحالة عبر الطلبات.
+- **تدوير Proxy**: `ProxyRotator` مدمج مع استراتيجيات التدوير الدوري أو المخصصة عبر جميع أنواع الجلسات، بالإضافة إلى تجاوزات Proxy لكل طلب.
+- **حظر النطاقات والإعلانات**: حظر الطلبات إلى نطاقات محددة (ونطاقاتها الفرعية) أو تفعيل حظر الإعلانات المدمج (~3,500 نطاق إعلانات/تتبع معروف) في الجوالب المعتمدة على المتصفح.
+- **منع تسرب DNS**: دعم اختياري لـ DNS-over-HTTPS لتوجيه استعلامات DNS عبر Cloudflare DoH، مما يمنع تسرب DNS عند استخدام Proxy.
+- **دعم Async**: دعم async كامل عبر جميع الجوالب وفئات الجلسات async المخصصة.
+
+### الاستخراج التكيفي والتكامل مع الذكاء الاصطناعي
+- 🔄 **تتبع العناصر الذكي**: إعادة تحديد موقع العناصر بعد تغييرات الموقع باستخدام خوارزميات التشابه الذكية.
+- 🎯 **الاختيار المرن الذكي**: محددات CSS، محددات XPath، البحث القائم على الفلاتر، البحث النصي، البحث بالتعبيرات العادية والمزيد.
+- 🔍 **البحث عن عناصر مشابهة**: تحديد العناصر المشابهة للعناصر الموجودة تلقائياً.
+- 🤖 **خادم MCP للاستخدام مع الذكاء الاصطناعي**: خادم MCP مدمج لـ Web Scraping بمساعدة الذكاء الاصطناعي واستخراج البيانات. يتميز خادم MCP بقدرات قوية مخصصة تستفيد من Scrapling لاستخراج المحتوى المستهدف قبل تمريره إلى الذكاء الاصطناعي (Claude/Cursor/إلخ)، وبالتالي تسريع العمليات وتقليل التكاليف عن طريق تقليل استخدام الرموز. ([فيديو توضيحي](https://www.youtube.com/watch?v=qyFk3ZNwOxE))
+
+### بنية عالية الأداء ومختبرة ميدانياً
+- 🚀 **سريع كالبرق**: أداء محسّن يتفوق على معظم مكتبات Web Scraping في Python.
+- 🔋 **فعال في استخدام الذاكرة**: هياكل بيانات محسّنة وتحميل كسول لأقل استخدام للذاكرة.
+- ⚡ **تسلسل JSON سريع**: أسرع 10 مرات من المكتبة القياسية.
+- 🏗️ **مُختبر ميدانياً**: لا يمتلك Scrapling فقط تغطية اختبار بنسبة 92٪ وتغطية كاملة لتلميحات الأنواع، بل تم استخدامه يومياً من قبل مئات مستخرجي الويب خلال العام الماضي.
+
+### تجربة صديقة للمطورين/مستخرجي الويب
+- 🎯 **Shell تفاعلي لـ Web Scraping**: Shell IPython مدمج اختياري مع تكامل Scrapling، واختصارات، وأدوات جديدة لتسريع تطوير سكريبتات Web Scraping، مثل تحويل طلبات curl إلى طلبات Scrapling وعرض نتائج الطلبات في متصفحك.
+- 🚀 **استخدمه مباشرة من الطرفية**: اختيارياً، يمكنك استخدام Scrapling لاستخراج عنوان URL دون كتابة سطر واحد من الكود!
+- 🛠️ **واجهة تنقل غنية**: اجتياز DOM متقدم مع طرق التنقل بين العناصر الوالدية والشقيقة والفرعية.
+- 🧬 **معالجة نصوص محسّنة**: تعبيرات عادية مدمجة وطرق تنظيف وعمليات نصية محسّنة.
+- 📝 **إنشاء محددات تلقائي**: إنشاء محددات CSS/XPath قوية لأي عنصر.
+- 🔌 **واجهة مألوفة**: مشابه لـ Scrapy/BeautifulSoup مع نفس العناصر الزائفة المستخدمة في Scrapy/Parsel.
+- 📘 **تغطية كاملة للأنواع**: تلميحات نوع كاملة لدعم IDE ممتاز وإكمال الكود. يتم فحص قاعدة الكود بالكامل تلقائياً بواسطة **PyRight** و**MyPy** مع كل تغيير.
+- 🔋 **صورة Docker جاهزة**: مع كل إصدار، يتم بناء ودفع صورة Docker تحتوي على جميع المتصفحات تلقائياً.
+
+## البدء
+
+لنلقِ نظرة سريعة على ما يمكن لـ Scrapling فعله دون التعمق.
+
+### الاستخدام الأساسي
+طلبات HTTP مع دعم الجلسات
+```python
+from scrapling.fetchers import Fetcher, FetcherSession
+
+with FetcherSession(impersonate='chrome') as session:  # استخدم أحدث إصدار من بصمة TLS لـ Chrome
+    page = session.get('https://quotes.toscrape.com/', stealthy_headers=True)
+    quotes = page.css('.quote .text::text').getall()
+
+# أو استخدم طلبات لمرة واحدة
+page = Fetcher.get('https://quotes.toscrape.com/')
+quotes = page.css('.quote .text::text').getall()
+```
+وضع التخفي المتقدم
+```python
+from scrapling.fetchers import StealthyFetcher, StealthySession
+
+with StealthySession(headless=True, solve_cloudflare=True) as session:  # أبقِ المتصفح مفتوحاً حتى تنتهي
+    page = session.fetch('https://nopecha.com/demo/cloudflare', google_search=False)
+    data = page.css('#padded_content a').getall()
+
+# أو استخدم نمط الطلب لمرة واحدة، يفتح المتصفح لهذا الطلب، ثم يغلقه بعد الانتهاء
+page = StealthyFetcher.fetch('https://nopecha.com/demo/cloudflare')
+data = page.css('#padded_content a').getall()
+```
+أتمتة المتصفح الكاملة
+```python
+from scrapling.fetchers import DynamicFetcher, DynamicSession
+
+with DynamicSession(headless=True, disable_resources=False, network_idle=True) as session:  # أبقِ المتصفح مفتوحاً حتى تنتهي
+    page = session.fetch('https://quotes.toscrape.com/', load_dom=False)
+    data = page.xpath('//span[@class="text"]/text()').getall()  # محدد XPath إذا كنت تفضله
+
+# أو استخدم نمط الطلب لمرة واحدة، يفتح المتصفح لهذا الطلب، ثم يغلقه بعد الانتهاء
+page = DynamicFetcher.fetch('https://quotes.toscrape.com/')
+data = page.css('.quote .text::text').getall()
+```
+
+### Spiders
+ابنِ زواحف كاملة مع طلبات متزامنة وأنواع جلسات متعددة وإيقاف/استئناف:
+```python
+from scrapling.spiders import Spider, Request, Response
+
+class QuotesSpider(Spider):
+    name = "quotes"
+    start_urls = ["https://quotes.toscrape.com/"]
+    concurrent_requests = 10
+
+    async def parse(self, response: Response):
+        for quote in response.css('.quote'):
+            yield {
+                "text": quote.css('.text::text').get(),
+                "author": quote.css('.author::text').get(),
+            }
+
+        next_page = response.css('.next a')
+        if next_page:
+            yield response.follow(next_page[0].attrib['href'])
+
+result = QuotesSpider().start()
+print(f"Scraped {len(result.items)} quotes")
+result.items.to_json("quotes.json")
+```
+استخدم أنواع جلسات متعددة في Spider واحد:
+```python
+from scrapling.spiders import Spider, Request, Response
+from scrapling.fetchers import FetcherSession, AsyncStealthySession
+
+class MultiSessionSpider(Spider):
+    name = "multi"
+    start_urls = ["https://example.com/"]
+
+    def configure_sessions(self, manager):
+        manager.add("fast", FetcherSession(impersonate="chrome"))
+        manager.add("stealth", AsyncStealthySession(headless=True), lazy=True)
+
+    async def parse(self, response: Response):
+        for link in response.css('a::attr(href)').getall():
+            # وجّه الصفحات المحمية عبر جلسة التخفي
+            if "protected" in link:
+                yield Request(link, sid="stealth")
+            else:
+                yield Request(link, sid="fast", callback=self.parse)  # callback صريح
+```
+أوقف واستأنف عمليات الزحف الطويلة مع Checkpoints بتشغيل Spider هكذا:
+```python
+QuotesSpider(crawldir="./crawl_data").start()
+```
+اضغط Ctrl+C للإيقاف بسلاسة - يتم حفظ التقدم تلقائياً. لاحقاً، عند تشغيل Spider مرة أخرى، مرر نفس `crawldir`، وسيستأنف من حيث توقف.
+
+### التحليل المتقدم والتنقل
+```python
+from scrapling.fetchers import Fetcher
+
+# اختيار عناصر غني وتنقل
+page = Fetcher.get('https://quotes.toscrape.com/')
+
+# احصل على الاقتباسات بطرق اختيار متعددة
+quotes = page.css('.quote')  # محدد CSS
+quotes = page.xpath('//div[@class="quote"]')  # XPath
+quotes = page.find_all('div', {'class': 'quote'})  # بأسلوب BeautifulSoup
+# نفس الشيء مثل
+quotes = page.find_all('div', class_='quote')
+quotes = page.find_all(['div'], class_='quote')
+quotes = page.find_all(class_='quote')  # وهكذا...
+# البحث عن عنصر بمحتوى النص
+quotes = page.find_by_text('quote', tag='div')
+
+# التنقل المتقدم
+quote_text = page.css('.quote')[0].css('.text::text').get()
+quote_text = page.css('.quote').css('.text::text').getall()  # محددات متسلسلة
+first_quote = page.css('.quote')[0]
+author = first_quote.next_sibling.css('.author::text')
+parent_container = first_quote.parent
+
+# علاقات العناصر والتشابه
+similar_elements = first_quote.find_similar()
+below_elements = first_quote.below_elements()
+```
+يمكنك استخدام المحلل مباشرة إذا كنت لا تريد جلب المواقع كما يلي:
+```python
+from scrapling.parser import Selector
+
+page = Selector("<html>...</html>")
+```
+وهو يعمل بنفس الطريقة تماماً!
+
+### أمثلة إدارة الجلسات بشكل Async
+```python
+import asyncio
+from scrapling.fetchers import FetcherSession, AsyncStealthySession, AsyncDynamicSession
+
+async with FetcherSession(http3=True) as session:  # `FetcherSession` واعٍ بالسياق ويعمل في كلا النمطين المتزامن/async
+    page1 = session.get('https://quotes.toscrape.com/')
+    page2 = session.get('https://quotes.toscrape.com/', impersonate='firefox135')
+
+# استخدام جلسة async
+async with AsyncStealthySession(max_pages=2) as session:
+    tasks = []
+    urls = ['https://example.com/page1', 'https://example.com/page2']
+
+    for url in urls:
+        task = session.fetch(url)
+        tasks.append(task)
+
+    print(session.get_pool_stats())  # اختياري - حالة مجموعة علامات تبويب المتصفح (مشغول/حر/خطأ)
+    results = await asyncio.gather(*tasks)
+    print(session.get_pool_stats())
+```
+
+## واجهة سطر الأوامر والـ Shell التفاعلي
+
+يتضمن Scrapling واجهة سطر أوامر قوية:
+
+[![asciicast](https://asciinema.org/a/736339.svg)](https://asciinema.org/a/736339)
+
+تشغيل Shell الـ Web Scraping التفاعلي
+```bash
+scrapling shell
+```
+استخرج الصفحات إلى ملف مباشرة دون برمجة (يستخرج المحتوى داخل وسم `body` افتراضياً). إذا انتهى ملف الإخراج بـ `.txt`، فسيتم استخراج محتوى النص للهدف. إذا انتهى بـ `.md`، فسيكون تمثيل Markdown لمحتوى HTML؛ إذا انتهى بـ `.html`، فسيكون محتوى HTML نفسه.
+```bash
+scrapling extract get 'https://example.com' content.md
+scrapling extract get 'https://example.com' content.txt --css-selector '#fromSkipToProducts' --impersonate 'chrome'  # جميع العناصر المطابقة لمحدد CSS '#fromSkipToProducts'
+scrapling extract fetch 'https://example.com' content.md --css-selector '#fromSkipToProducts' --no-headless
+scrapling extract stealthy-fetch 'https://nopecha.com/demo/cloudflare' captchas.html --css-selector '#padded_content a' --solve-cloudflare
+```
+
+> [!NOTE]
+> هناك العديد من الميزات الإضافية، لكننا نريد إبقاء هذه الصفحة موجزة، بما في ذلك خادم MCP والـ Shell التفاعلي لـ Web Scraping. تحقق من الوثائق الكاملة [هنا](https://scrapling.readthedocs.io/en/latest/)
+
+## معايير الأداء
+
+Scrapling ليس قوياً فحسب - بل هو أيضاً سريع بشكل مذهل. تقارن المعايير التالية محلل Scrapling مع أحدث إصدارات المكتبات الشائعة الأخرى.
+
+### اختبار سرعة استخراج النص (5000 عنصر متداخل)
+
+| # |      المكتبة      | الوقت (ms) | vs Scrapling |
+|---|:-----------------:|:----------:|:------------:|
+| 1 |     Scrapling     |    1.98    |     1.0x     |
+| 2 |   Parsel/Scrapy   |    1.99    |     1.005    |
+| 3 |     Raw Lxml      |    2.48    |    1.253     |
+| 4 |      PyQuery      |   23.15    |     ~12x     |
+| 5 |    Selectolax     |   196.09   |     ~99x     |
+| 6 |  MechanicalSoup   |  1531.24   |   ~773.4x    |
+| 7 |   BS4 with Lxml   |  1535.19   |   ~775.3x    |
+| 8 | BS4 with html5lib |  3388.16   |   ~1711.2x   |
+
+
+### أداء تشابه العناصر والبحث النصي
+
+قدرات العثور على العناصر التكيفية لـ Scrapling تتفوق بشكل كبير على البدائل:
+
+| المكتبة     | الوقت (ms) | vs Scrapling |
+|-------------|:----------:|:------------:|
+| Scrapling   |    2.29    |     1.0x     |
+| AutoScraper |   12.46    |    5.441x    |
+
+
+> تمثل جميع المعايير متوسطات أكثر من 100 تشغيل. انظر [benchmarks.py](https://github.com/D4Vinci/Scrapling/blob/main/benchmarks.py) للمنهجية.
+
+## التثبيت
+
+يتطلب Scrapling إصدار Python 3.10 أو أعلى:
+
+```bash
+pip install scrapling
+```
+
+> [!IMPORTANT]
+> يتضمن هذا التثبيت فقط محرك المحلل وتبعياته، بدون أي جوالب أو تبعيات سطر الأوامر. لذلك، فإن استيراد أي شيء من `scrapling.fetchers` أو `scrapling.spiders`، كما في الأمثلة أعلاه، سيؤدي إلى خطأ `ModuleNotFoundError` مع هذا التثبيت وحده. إذا كنت ستستخدم أيًا من الجوالب أو العناكب، فقم أولًا بتثبيت تبعيات الجوالب كما هو موضح أدناه.
+
+### التبعيات الاختيارية
+
+1. إذا كنت ستستخدم أياً من الميزات الإضافية أدناه، أو الجوالب، أو فئاتها، فستحتاج إلى تثبيت تبعيات الجوالب وتبعيات المتصفح الخاصة بها على النحو التالي:
+    ```bash
+    pip install "scrapling[fetchers]"
+
+    scrapling install           # normal install
+    scrapling install  --force  # force reinstall
+    ```
+
+    يقوم هذا بتنزيل جميع المتصفحات، إلى جانب تبعيات النظام وتبعيات معالجة fingerprint الخاصة بها.
+
+    أو يمكنك تثبيتها من الكود بدلاً من تشغيل أمر كالتالي:
+    ```python
+    from scrapling.cli import install
+
+    install([], standalone_mode=False)          # normal install
+    install(["--force"], standalone_mode=False) # force reinstall
+    ```
+
+2. ميزات إضافية:
+   - تثبيت ميزة خادم MCP:
+       ```bash
+       pip install "scrapling[ai]"
+       ```
+   - تثبيت ميزات Shell (Shell الـ Web Scraping وأمر `extract`):
+       ```bash
+       pip install "scrapling[shell]"
+       ```
+   - تثبيت كل شيء:
+       ```bash
+       pip install "scrapling[all]"
+       ```
+   تذكر أنك تحتاج إلى تثبيت تبعيات المتصفح مع `scrapling install` بعد أي من هذه الإضافات (إذا لم تكن قد فعلت ذلك بالفعل)
+
+### Docker
+يمكنك أيضاً تثبيت صورة Docker مع جميع الإضافات والمتصفحات باستخدام الأمر التالي من DockerHub:
+```bash
+docker pull pyd4vinci/scrapling
+```
+أو تنزيلها من سجل GitHub:
+```bash
+docker pull ghcr.io/d4vinci/scrapling:latest
+```
+يتم بناء هذه الصورة ودفعها تلقائياً باستخدام GitHub Actions والفرع الرئيسي للمستودع.
+
+## المساهمة
+
+نرحب بالمساهمات! يرجى قراءة [إرشادات المساهمة](https://github.com/D4Vinci/Scrapling/blob/main/CONTRIBUTING.md) قبل البدء.
+
+## إخلاء المسؤولية
+
+> [!CAUTION]
+> يتم توفير هذه المكتبة للأغراض التعليمية والبحثية فقط. باستخدام هذه المكتبة، فإنك توافق على الامتثال لقوانين استخراج البيانات والخصوصية المحلية والدولية. المؤلفون والمساهمون غير مسؤولين عن أي إساءة استخدام لهذا البرنامج. احترم دائماً شروط خدمة المواقع وملفات robots.txt.
+
+## 🎓 الاستشهادات
+إذا استخدمت مكتبتنا لأغراض بحثية، يرجى الاستشهاد بنا بالمرجع التالي:
+```text
+  @misc{scrapling,
+    author = {Karim Shoair},
+    title = {Scrapling},
+    year = {2024},
+    url = {https://github.com/D4Vinci/Scrapling},
+    note = {An adaptive Web Scraping framework that handles everything from a single request to a full-scale crawl!}
+  }
+```
+
+## الترخيص
+
+هذا العمل مرخص بموجب ترخيص BSD-3-Clause.
+
+## الشكر والتقدير
+
+يتضمن هذا المشروع كوداً معدلاً من:
+- Parsel (ترخيص BSD) - يُستخدم للوحدة الفرعية [translator](https://github.com/D4Vinci/Scrapling/blob/main/scrapling/core/translator.py)
+
+---
+<div align="center"><small>مصمم ومصنوع بـ ❤️ بواسطة كريم شعير.</small></div><br>

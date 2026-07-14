@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
 import threading
+import sys
 from spider import FanqieSpider, parse_novel_url
 from downloader import NovelDownloader
 from database import NovelDatabase
@@ -80,6 +81,10 @@ class LoginDialog:
         self.server_thread = None
         self.server_port = 0
         self.cookies_received = False
+        
+        # 初始化爬虫（登录必须使用官网模式，因为第三方模式不需要登录）
+        from spider import FanqieSpider
+        self.spider = FanqieSpider(use_api=False)
         
         # 创建对话框窗口
         self.dialog = tk.Toplevel(parent)
@@ -651,16 +656,6 @@ sessionid=xxx; passport_csrf_token=xxx; passport_assist_user=xxx
         else:
             self.status_label.config(text=result['message'], fg='#D63031')
             self.login_btn.config(state='normal', bg='#FF6B6B')
-    
-    def on_login_success(self):
-        """登录成功回调"""
-        self.dialog.destroy()
-        if self.callback:
-            self.callback(True)
-    
-    def on_close(self):
-        """关闭对话框"""
-        self.dialog.destroy()
 
 
 class ModernStyle:
@@ -911,89 +906,6 @@ class SettingsDialog:
         )
         speed_info_label.pack(fill='x', pady=(0, 20))
 
-        # 源选择设置
-        source_frame = tk.Frame(content_frame, bg='#F8F9FA', padx=15, pady=12)
-        source_frame.pack(fill='x', pady=(0, 15))
-        
-        source_title = tk.Label(
-            source_frame,
-            text="下载源选择",
-            font=ModernStyle.FONTS['header'],
-            bg='#F8F9FA',
-            fg=ModernStyle.COLORS['text']
-        )
-        source_title.pack(anchor='w', pady=(0, 10))
-        
-        from config import get_source_preference, is_remember_source_choice, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
-        
-        current_source = get_source_preference()
-        self.source_var = tk.StringVar(value=current_source)
-        
-        # 每次询问
-        ask_radio = tk.Radiobutton(
-            source_frame,
-            text="每次询问",
-            variable=self.source_var,
-            value=SOURCE_ASK,
-            font=ModernStyle.FONTS['normal'],
-            bg='#F8F9FA',
-            fg=ModernStyle.COLORS['text'],
-            selectcolor='#F8F9FA',
-            activebackground='#F8F9FA',
-            activeforeground=ModernStyle.COLORS['primary'],
-            command=lambda: self._update_remember_state()
-        )
-        ask_radio.pack(anchor='w', pady=(0, 5))
-        
-        # 官网
-        official_radio = tk.Radiobutton(
-            source_frame,
-            text="官网（需登录，需字体解密）",
-            variable=self.source_var,
-            value=SOURCE_OFFICIAL,
-            font=ModernStyle.FONTS['normal'],
-            bg='#F8F9FA',
-            fg=ModernStyle.COLORS['text'],
-            selectcolor='#F8F9FA',
-            activebackground='#F8F9FA',
-            activeforeground=ModernStyle.COLORS['primary'],
-            command=lambda: self._update_remember_state()
-        )
-        official_radio.pack(anchor='w', pady=(0, 5))
-        
-        # 第三方源
-        third_party_radio = tk.Radiobutton(
-            source_frame,
-            text="第三方源（无需登录，速度快）",
-            variable=self.source_var,
-            value=SOURCE_THIRD_PARTY,
-            font=ModernStyle.FONTS['normal'],
-            bg='#F8F9FA',
-            fg=ModernStyle.COLORS['text'],
-            selectcolor='#F8F9FA',
-            activebackground='#F8F9FA',
-            activeforeground=ModernStyle.COLORS['primary'],
-            command=lambda: self._update_remember_state()
-        )
-        third_party_radio.pack(anchor='w', pady=(0, 10))
-        
-        # 记住源选择复选框
-        current_remember = is_remember_source_choice()
-        self.remember_var = tk.BooleanVar(value=current_remember)
-        
-        self.remember_checkbox = tk.Checkbutton(
-            source_frame,
-            text="记住源选择（下次不再询问）",
-            variable=self.remember_var,
-            font=ModernStyle.FONTS['normal'],
-            bg='#F8F9FA',
-            fg=ModernStyle.COLORS['text'],
-            selectcolor='#F8F9FA',
-            activebackground='#F8F9FA',
-            activeforeground=ModernStyle.COLORS['primary']
-        )
-        self.remember_checkbox.pack(anchor='w', pady=(0, 10))
-
         # API 说明
         api_frame = tk.Frame(content_frame, bg='#F8F9FA', padx=15, pady=12)
         api_frame.pack(fill='x', pady=(0, 15))
@@ -1073,24 +985,12 @@ class SettingsDialog:
     
     def save_settings(self):
         """保存设置"""
-        from config import set_concurrent_downloads, set_source_preference, set_remember_source_choice, set_download_speed
+        from config import set_concurrent_downloads, set_download_speed
 
         # 保存并发设置
         concurrent = self.concurrent_var.get()
         if not set_concurrent_downloads(concurrent):
             messagebox.showerror('错误', '保存并发设置失败！')
-            return
-
-        # 保存源选择设置
-        source = self.source_var.get()
-        if not set_source_preference(source):
-            messagebox.showerror('错误', '保存源选择设置失败！')
-            return
-
-        # 保存记住源选择设置
-        remember = self.remember_var.get()
-        if not set_remember_source_choice(remember):
-            messagebox.showerror('错误', '保存记住源选择设置失败！')
             return
 
         # 保存下载速度设置
@@ -1107,33 +1007,18 @@ class SettingsDialog:
 
         self.dialog.destroy()
 
-    def _update_remember_state(self):
-        """更新记住源选择复选框的状态"""
-        from config import SOURCE_ASK
-        
-        # 如果选择的是"每次询问"，禁用"记住源选择"复选框
-        if self.source_var.get() == SOURCE_ASK:
-            self.remember_checkbox.config(state='disabled')
-        else:
-            self.remember_checkbox.config(state='normal')
-
     def reset_to_default(self):
         """恢复默认设置"""
-        from config import DEFAULT_CONCURRENT_DOWNLOADS, DEFAULT_DOWNLOAD_SPEED, SOURCE_ASK
-        
+        from config import DEFAULT_CONCURRENT_DOWNLOADS, DEFAULT_DOWNLOAD_SPEED
+
         if messagebox.askyesno('确认', '确定要恢复默认设置吗？'):
             # 恢复并发下载数
             self.concurrent_var.set(DEFAULT_CONCURRENT_DOWNLOADS)
-            
+
             # 恢复下载速度
             self.speed_var.set(DEFAULT_DOWNLOAD_SPEED)
             self.speed_value_label.config(text=f"{DEFAULT_DOWNLOAD_SPEED:.1f}x")
-            
-            # 恢复源选择
-            self.source_var.set(SOURCE_ASK)
-            self.remember_var.set(False)
-            self._update_remember_state()
-            
+
             messagebox.showinfo('成功', '已恢复默认设置！')
 
     def on_close(self):
@@ -1324,26 +1209,28 @@ class DownloadHistoryDialog:
 
         # 添加到列表
         for novel in novels:
+            # 将Row对象转换为字典
+            novel_dict = dict(novel)
             # 根据源类型决定是否显示字数和章节数
-            is_official = novel.get('source', 'official') == 'official'
+            is_official = novel_dict.get('source', 'official') == 'official'
             if is_official:
-                word_count_str = f"{novel['word_count']:,}"
-                chapter_count_str = novel['chapter_count']
+                word_count_str = f"{novel_dict['word_count']:,}"
+                chapter_count_str = novel_dict['chapter_count']
             else:
                 word_count_str = ''
                 chapter_count_str = ''
 
             # updated_at 已经是字符串格式，直接使用
-            updated_at_str = novel['updated_at'] if novel['updated_at'] else '未知'
+            updated_at_str = novel_dict['updated_at'] if novel_dict['updated_at'] else '未知'
             self.tree.insert('', 'end', values=(
                 '☐',
-                novel['title'],
-                novel['author'],
+                novel_dict['title'],
+                novel_dict['author'],
                 word_count_str,
                 chapter_count_str,
-                novel['status'],
+                novel_dict['status'],
                 updated_at_str
-            ), tags=(novel['novel_id'],))
+            ), tags=(novel_dict['novel_id'],))
     
     def on_tree_click(self, event):
         """处理Treeview点击事件"""
@@ -1387,8 +1274,10 @@ class DownloadHistoryDialog:
         # 生成列表内容
         content = ""
         for novel in novels:
-            content += f"# 《{novel['title']}》\n"
-            content += f"{novel['novel_id']}\n\n"
+            # 将Row对象转换为字典
+            novel_dict = dict(novel)
+            content += f"# 《{novel_dict['title']}》\n"
+            content += f"{novel_dict['novel_id']}\n\n"
         
         # 保存文件
         try:
@@ -1486,11 +1375,11 @@ class DownloadHistoryDialog:
         # 创建批量下载进度对话框
         progress_dialog = tk.Toplevel(self.dialog)
         progress_dialog.title("批量下载")
-        progress_dialog.geometry("500x300")
+        progress_dialog.geometry("550x400")
         progress_dialog.resizable(False, False)
         progress_dialog.transient(self.dialog)
         progress_dialog.grab_set()
-        
+
         # 居中显示
         progress_dialog.update_idletasks()
         width = progress_dialog.winfo_width()
@@ -1498,11 +1387,12 @@ class DownloadHistoryDialog:
         x = self.dialog.winfo_rootx() + (self.dialog.winfo_width() // 2) - (width // 2)
         y = self.dialog.winfo_rooty() + (self.dialog.winfo_height() // 2) - (height // 2)
         progress_dialog.geometry(f'{width}x{height}+{x}+{y}')
-        
+
         # 创建进度界面
         progress_frame = tk.Frame(progress_dialog, bg=ModernStyle.COLORS['bg'], padx=20, pady=20)
         progress_frame.pack(fill='both', expand=True)
-        
+
+        # 状态标签
         status_label = tk.Label(
             progress_frame,
             text="准备下载...",
@@ -1510,13 +1400,33 @@ class DownloadHistoryDialog:
             bg=ModernStyle.COLORS['bg'],
             fg=ModernStyle.COLORS['text']
         )
-        status_label.pack(pady=(0, 20))
-        
+        status_label.pack(pady=(0, 10))
+
+        # 进度条
+        progress_bar = ttk.Progressbar(
+            progress_frame,
+            orient='horizontal',
+            length=0,
+            mode='determinate'
+        )
+        progress_bar.pack(fill='x', pady=(0, 10))
+
+        # 详细信息标签（包含进度、速度、预估时间）
+        detail_label = tk.Label(
+            progress_frame,
+            text="",
+            font=ModernStyle.FONTS['normal'],
+            bg=ModernStyle.COLORS['bg'],
+            fg=ModernStyle.COLORS['text_secondary']
+        )
+        detail_label.pack(pady=(0, 10))
+
+        # 日志文本框
         progress_text = scrolledtext.ScrolledText(
             progress_frame,
-            height=10,
+            height=8,
             state='disabled',
-            font=('Consolas', 9),
+            font=('Consolas', 8),
             bg=ModernStyle.COLORS['surface'],
             fg=ModernStyle.COLORS['text'],
             padx=10,
@@ -1525,33 +1435,24 @@ class DownloadHistoryDialog:
             borderwidth=1
         )
         progress_text.pack(fill='both', expand=True)
+
+        # 下载开始时间（用于计算速度和预估时间）
+        import time
+        download_start_time = [time.time()]  # 使用列表以便在闭包中修改
         
         # 在新线程中执行批量下载
         def do_batch_download():
             from spider import FanqieSpider
-            from config import get_concurrent_downloads, get_source_preference, is_remember_source_choice, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
+            from config import get_concurrent_downloads, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
             from concurrent.futures import ThreadPoolExecutor, as_completed
             import threading
 
-            # 确定下载源
-            source_preference = get_source_preference()
-            remember_source = is_remember_source_choice()
-
-            use_api = None
-            if source_preference == SOURCE_OFFICIAL:
-                use_api = False
-            elif source_preference == SOURCE_THIRD_PARTY:
-                use_api = True
-            elif source_preference == SOURCE_ASK:
-                # 每次询问
-                use_api = messagebox.askyesno(
-                    "选择下载源",
-                    "请选择下载方式：\n\n【是】使用第三方源（API模式，无需登录，速度快）\n【否】使用官网（需登录，需字体解密）"
-                )
-
-            if use_api is None:
-                # 用户取消了
+            if self.download_mode == SOURCE_THIRD_PARTY:
+                progress_dialog.after(0, lambda: progress_dialog.destroy())
+                self.root.after(100, self._launch_tomato_downloader)
                 return
+
+            use_api = self.download_mode != SOURCE_OFFICIAL
 
             spider = FanqieSpider(use_api=use_api)
             concurrent_downloads = get_concurrent_downloads()
@@ -1564,6 +1465,9 @@ class DownloadHistoryDialog:
             total_count = len(novel_list)
 
             # 添加总体进度信息
+            progress_dialog.after(0, lambda: progress_bar.config(value=0))
+            progress_dialog.after(0, lambda: progress_bar.config(maximum=100))
+            progress_dialog.after(0, lambda: detail_label.config(text="初始化中..."))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"{'='*50}\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"开始批量下载，共 {total_count} 个小说\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"并发数: {concurrent_downloads}\n"))
@@ -1747,18 +1651,64 @@ class DownloadHistoryDialog:
                 # 等待任务完成
                 for future in as_completed(future_to_novel):
                     success, error = future.result()
-                    
+
                     with result_lock:
                         completed_count += 1
                         if success:
                             success_count += 1
                         else:
                             failed_novels.append(error)
-                        
+
+                        # 计算进度百分比
+                        progress_percent = (completed_count / total_count) * 100
+
+                        # 计算已用时间
+                        elapsed_time = time.time() - download_start_time[0]
+
+                        # 计算下载速度（小说/秒）
+                        if elapsed_time > 0:
+                            speed = completed_count / elapsed_time
+                        else:
+                            speed = 0
+
+                        # 计算预估剩余时间（秒）
+                        if speed > 0:
+                            remaining_novels = total_count - completed_count
+                            estimated_remaining = remaining_novels / speed
+                        else:
+                            estimated_remaining = 0
+
+                        # 格式化时间显示
+                        def format_time(seconds):
+                            if seconds < 60:
+                                return f"{int(seconds)}秒"
+                            elif seconds < 3600:
+                                minutes = int(seconds / 60)
+                                secs = int(seconds % 60)
+                                return f"{minutes}分{secs}秒"
+                            else:
+                                hours = int(seconds / 3600)
+                                minutes = int((seconds % 3600) / 60)
+                                return f"{hours}小时{minutes}分"
+
+                        elapsed_str = format_time(elapsed_time)
+                        remaining_str = format_time(estimated_remaining) if estimated_remaining > 0 else "计算中..."
+
+                        # 更新进度条
+                        progress_dialog.after(0, lambda p=progress_percent: progress_bar.config(value=p))
+
                         # 更新状态标签
                         progress_dialog.after(0, lambda: self._safe_update_ui(
                             status_label,
                             lambda: status_label.config(text=f"正在下载 ({completed_count}/{total_count})")
+                        ))
+
+                        # 更新详细信息标签
+                        progress_dialog.after(0, lambda e=elapsed_str, r=remaining_str, s=speed: self._safe_update_ui(
+                            detail_label,
+                            lambda: detail_label.config(
+                                text=f"进度: {progress_percent:.1f}% | 速度: {s:.2f} 本/秒 | 已用时: {e} | 预计剩余: {r}"
+                            )
                         ))
             
             # 刷新历史列表
@@ -1766,26 +1716,55 @@ class DownloadHistoryDialog:
                 progress_dialog,
                 lambda: self.load_download_history()
             ))
-            
+
+            # 计算总用时
+            total_time = time.time() - download_start_time[0]
+            avg_speed = total_count / total_time if total_time > 0 else 0
+
+            def format_time(seconds):
+                if seconds < 60:
+                    return f"{int(seconds)}秒"
+                elif seconds < 3600:
+                    minutes = int(seconds / 60)
+                    secs = int(seconds % 60)
+                    return f"{minutes}分{secs}秒"
+                else:
+                    hours = int(seconds / 3600)
+                    minutes = int((seconds % 3600) / 60)
+                    return f"{hours}小时{minutes}分"
+
+            total_time_str = format_time(total_time)
+
             # 显示结果
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"\n{'='*50}\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"批量下载完成！\n"))
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"成功: {success_count}/{total_count}\n"))
-            
+            progress_dialog.after(0, lambda: self._add_log(progress_text, f"总用时: {total_time_str}\n"))
+            progress_dialog.after(0, lambda: self._add_log(progress_text, f"平均速度: {avg_speed:.2f} 本/秒\n"))
+
             if failed_novels:
                 progress_dialog.after(0, lambda: self._add_log(progress_text, f"\n失败的小说 ({len(failed_novels)}个):\n"))
                 for i, novel in enumerate(failed_novels[:5]):
                     progress_dialog.after(0, lambda n=novel: self._add_log(progress_text, f"  - {n}\n"))
                 if len(failed_novels) > 5:
-                    progress_dialog.after(0, lambda c=len(failed_novels): 
+                    progress_dialog.after(0, lambda c=len(failed_novels):
                         self._add_log(progress_text, f"  ... 还有 {c - 5} 个\n"))
-            
+
             progress_dialog.after(0, lambda: self._add_log(progress_text, f"{'='*50}\n"))
-            
+
+            # 更新进度条为100%
+            progress_dialog.after(0, lambda: progress_bar.config(value=100))
+
             # 更新状态标签
             progress_dialog.after(0, lambda: self._safe_update_ui(
                 status_label,
                 lambda: status_label.config(text="下载完成")
+            ))
+
+            # 更新详细信息标签
+            progress_dialog.after(0, lambda: self._safe_update_ui(
+                detail_label,
+                lambda: detail_label.config(text=f"完成！成功 {success_count}/{total_count} 本，总用时 {total_time_str}")
             ))
             
             # 显示结果对话框
@@ -1871,27 +1850,30 @@ class DownloadHistoryDialog:
             try:
                 filename = f"{title}.txt"
                 output_path = os.path.join(export_path, filename)
-                
+
                 novel = self.db.get_novel(novel_id)
                 if not novel:
                     failed_novels.append(f"{title} (小说不存在)")
                     continue
-                
+
+                # 将Row对象转换为字典
+                novel_dict = dict(novel)
+
                 chapters = self.db.get_chapters(novel_id)
                 if not chapters:
                     failed_novels.append(f"{title} (没有可导出的章节)")
                     continue
-                
+
                 with open(output_path, 'w', encoding='utf-8') as f:
                     # 写入小说信息
                     f.write("=" * 50 + "\n")
-                    f.write(f"书名: {novel['title']}\n")
-                    f.write(f"作者: {novel['author']}\n")
-                    f.write(f"简介: {novel['description']}\n")
+                    f.write(f"书名: {novel_dict['title']}\n")
+                    f.write(f"作者: {novel_dict['author']}\n")
+                    f.write(f"简介: {novel_dict['description']}\n")
                     # 只有官网模式才显示字数和章节数
-                    if novel.get('source', 'official') == 'official':
-                        f.write(f"字数: {novel['word_count']:,} 字\n")
-                        f.write(f"章节数: {novel['chapter_count']} 章\n")
+                    if novel_dict.get('source', 'official') == 'official':
+                        f.write(f"字数: {novel_dict['word_count']:,} 字\n")
+                        f.write(f"章节数: {novel_dict['chapter_count']} 章\n")
                     f.write("=" * 50 + "\n\n")
                     
                     # 写入章节内容
@@ -1955,25 +1937,15 @@ class NovelDownloaderGUI:
             self.root.geometry("950x800")
             self.root.resizable(True, True)
             self.root.minsize(800, 600)
-            
+
             # 设置样式
             self.setup_styles()
-            
-            # 初始化爬虫和下载器（根据源选择配置决定是否使用API）
-            from config import get_source_preference, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
-    
-            source_preference = get_source_preference()
-            use_api = True  # 默认使用API
-    
-            if source_preference == SOURCE_OFFICIAL:
-                use_api = False
-            elif source_preference == SOURCE_THIRD_PARTY:
-                use_api = True
-    
-            elif source_preference == SOURCE_ASK:
-                use_api = True  # 每次询问时默认使用API
-    
-            self.spider = FanqieSpider(use_api=use_api)
+
+            # 下载模式：'official' 或 'third_party'
+            self.download_mode = None
+
+            # 初始化爬虫和下载器
+            self.spider = FanqieSpider(use_api=False)
             self.downloader = NovelDownloader()
             self.current_novel_id = None
             self.is_logged_in = False
@@ -2010,6 +1982,91 @@ class NovelDownloaderGUI:
     
             # 创建界面
             self.create_widgets()
+
+            # 启动时询问下载模式
+            self.root.after(100, self._ask_download_mode)
+
+    def _ask_download_mode(self):
+        """启动时询问用户选择下载模式"""
+        from config import get_source_preference, set_source_preference, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
+
+        saved = get_source_preference()
+        if saved != SOURCE_ASK:
+            self.download_mode = saved
+            self._apply_download_mode()
+            return
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("选择下载模式")
+        dialog.geometry("480x340")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - 240
+        y = (dialog.winfo_screenheight() // 2) - 170
+        dialog.geometry(f'+{x}+{y}')
+
+        main_frame = tk.Frame(dialog, bg='#FFFFFF')
+        main_frame.pack(fill='both', expand=True)
+
+        title_frame = tk.Frame(main_frame, bg='#FF6B6B', height=50)
+        title_frame.pack(fill='x')
+        title_frame.pack_propagate(False)
+        tk.Label(title_frame, text="选择下载模式", font=('Microsoft YaHei UI', 14, 'bold'), bg='#FF6B6B', fg='white').pack(pady=10)
+
+        content = tk.Frame(main_frame, bg='#FFFFFF', padx=30, pady=20)
+        content.pack(fill='both', expand=True)
+
+        tk.Label(content, text="请选择本次使用的下载模式：", font=('Microsoft YaHei UI', 10), bg='#FFFFFF', fg='#2D3436').pack(anchor='w', pady=(0, 15))
+
+        remember_var = tk.BooleanVar(value=False)
+
+        def choose(mode):
+            self.download_mode = mode
+            if remember_var.get():
+                set_source_preference(mode)
+            self._apply_download_mode()
+            dialog.destroy()
+
+        btn_frame = tk.Frame(content, bg='#FFFFFF')
+        btn_frame.pack(fill='x', pady=(0, 15))
+
+        tk.Button(
+            btn_frame, text="📖 官网模式", font=('Microsoft YaHei UI', 11, 'bold'),
+            bg='#0984E3', fg='white', borderwidth=0, padx=20, pady=12, cursor='hand2',
+            command=lambda: choose(SOURCE_OFFICIAL)
+        ).pack(side='left', expand=True, fill='x', padx=(0, 8))
+
+        tk.Button(
+            btn_frame, text="🚀 第三方模式", font=('Microsoft YaHei UI', 11, 'bold'),
+            bg='#00B894', fg='white', borderwidth=0, padx=20, pady=12, cursor='hand2',
+            command=lambda: choose(SOURCE_THIRD_PARTY)
+        ).pack(side='right', expand=True, fill='x', padx=(8, 0))
+
+        tk.Label(content, text="官网模式：需登录，需字体解密，更稳定\n第三方模式：启动 TomatoNovelDownloader，无需登录",
+                 font=('Microsoft YaHei UI', 8), bg='#FFFFFF', fg='#636E72', justify='left').pack(anchor='w', pady=(0, 10))
+
+        tk.Checkbutton(
+            content, text="记住选择（下次不再询问）", variable=remember_var,
+            font=('Microsoft YaHei UI', 9), bg='#FFFFFF', fg='#636E72',
+            selectcolor='#FFFFFF', activebackground='#FFFFFF'
+        ).pack(anchor='w')
+
+    def _apply_download_mode(self):
+        """应用下载模式设置"""
+        from config import SOURCE_OFFICIAL
+
+        if self.download_mode == SOURCE_OFFICIAL:
+            self.spider = FanqieSpider(use_api=False)
+            self.log("当前模式：官网下载（需登录，需字体解密）", 'info')
+            # 官网模式需要登录，创建登录区域
+            self._create_login_area()
+        else:
+            self.spider = FanqieSpider(use_api=True)
+            self.log("当前模式：第三方下载（点击下载按钮将启动 TomatoNovelDownloader）", 'info')
+            # 第三方模式不需要登录，不创建登录区域
 
     def setup_styles(self):
         """设置现代化样式"""
@@ -2140,9 +2197,37 @@ class NovelDownloaderGUI:
         )
         subtitle_label.pack(side='left', padx=8, pady=15)
         
-        # 登录区域
-        login_frame = tk.Frame(title_frame, bg=ModernStyle.COLORS['primary'])
-        login_frame.pack(side='right', padx=20, pady=15)
+        # 右侧区域容器（登录区域 + 设置按钮）
+        self.right_frame = tk.Frame(title_frame, bg=ModernStyle.COLORS['primary'])
+        self.right_frame.pack(side='right', padx=20, pady=15)
+        
+        # 登录区域（初始为空，在模式确定后根据需要创建）
+        self.login_frame = None
+        self.login_status_label = None
+        self.login_btn = None
+        
+        # 设置按钮（始终显示）
+        settings_btn = tk.Button(
+            self.right_frame,
+            text="设置",
+            command=self.show_settings,
+            bg='#95A5A6',
+            fg='white',
+            borderwidth=0,
+            padx=15,
+            pady=6,
+            font=('Microsoft YaHei UI', 9, 'bold'),
+            cursor='hand2'
+        )
+        settings_btn.pack(side='right', padx=(10, 0))
+    
+    def _create_login_area(self):
+        """创建登录区域（仅官网模式需要）"""
+        if self.login_frame is not None:
+            return  # 已创建
+        
+        self.login_frame = tk.Frame(self.right_frame, bg=ModernStyle.COLORS['primary'])
+        self.login_frame.pack(side='right', padx=(0, 10))
         
         # 检查是否已登录（检查是否有有效的session_id或passport_csrf_token等关键cookie）
         cookies = load_cookies()
@@ -2150,7 +2235,7 @@ class NovelDownloaderGUI:
 
         # 登录状态标签
         self.login_status_label = tk.Label(
-            login_frame,
+            self.login_frame,
             text=self._get_login_status_text(),
             font=('Microsoft YaHei UI', 9),
             bg=ModernStyle.COLORS['primary'],
@@ -2160,7 +2245,7 @@ class NovelDownloaderGUI:
         
         # 登录按钮
         self.login_btn = tk.Button(
-            login_frame,
+            self.login_frame,
             text="退出登录" if self.is_logged_in else "登录",
             command=self.on_login_click,
             bg='white',
@@ -2172,21 +2257,6 @@ class NovelDownloaderGUI:
             cursor='hand2'
         )
         self.login_btn.pack(side='left', padx=(10, 0))
-        
-        # 设置按钮
-        settings_btn = tk.Button(
-            login_frame,
-            text="设置",
-            command=self.show_settings,
-            bg='#95A5A6',
-            fg='white',
-            borderwidth=0,
-            padx=15,
-            pady=6,
-            font=('Microsoft YaHei UI', 9, 'bold'),
-            cursor='hand2'
-        )
-        settings_btn.pack(side='left', padx=(10, 0))
     
     def on_login_click(self):
         """点击登录/退出登录按钮"""
@@ -2198,8 +2268,9 @@ class NovelDownloaderGUI:
                 self.is_logged_in = False
                 # 清除用户信息缓存
                 try:
-                    from config import USER_INFO
-                    USER_INFO.clear()
+                    import config as _cfg
+                    if _cfg.USER_INFO is not None and hasattr(_cfg.USER_INFO, 'clear'):
+                        _cfg.USER_INFO.clear()
                 except:
                     pass
                 self.update_login_status()
@@ -2254,22 +2325,6 @@ class NovelDownloaderGUI:
 
     def _refresh_settings(self):
         """刷新设置，使配置更改生效"""
-        from config import get_source_preference, SOURCE_ASK, SOURCE_OFFICIAL, SOURCE_THIRD_PARTY
-
-        # 重新初始化爬虫以应用新的源设置
-        source_preference = get_source_preference()
-        use_api = True
-
-        if source_preference == SOURCE_OFFICIAL:
-            use_api = False
-        elif source_preference == SOURCE_THIRD_PARTY:
-            use_api = True
-        elif source_preference == SOURCE_ASK:
-            use_api = True
-
-        # 更新爬虫实例
-        self.spider = FanqieSpider(use_api=use_api)
-
         # 刷新用户信息（如果已登录）
         if self.is_logged_in:
             from config import refresh_user_info
@@ -2277,7 +2332,7 @@ class NovelDownloaderGUI:
             self.update_login_status()
 
         # 显示刷新提示
-        self.log("设置已更新，下次下载将使用新配置", 'info')
+        self.log("设置已更新", 'info')
 
     def create_input_section(self, parent):
         """创建输入区域"""
@@ -2686,6 +2741,62 @@ class NovelDownloaderGUI:
         self.pause_resume_button.pack_forget()
         self.pause_resume_button.config(text="暂停", style='Primary.TButton')
     
+    def _find_tomato_downloader(self):
+        """查找 TomatoNovelDownloader 可执行文件路径"""
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        candidates = [
+            os.path.join(base_dir, 'TomatoNovelDownloader.exe'),
+            os.path.join(base_dir, 'TomatoNovelDownloader-Win64-v2.4.0.exe'),
+        ]
+
+        if getattr(sys, 'frozen', False):
+            candidates.append(os.path.join(sys._MEIPASS, 'TomatoNovelDownloader.exe'))
+            candidates.append(os.path.join(sys._MEIPASS, 'TomatoNovelDownloader-Win64-v2.4.0.exe'))
+
+        for path in candidates:
+            if os.path.exists(path):
+                return path
+        return None
+
+    def _launch_tomato_downloader(self):
+        """启动 TomatoNovelDownloader 并关闭 FXdownloader"""
+        exe_path = self._find_tomato_downloader()
+        if not exe_path:
+            messagebox.showerror(
+                '错误',
+                '未找到 TomatoNovelDownloader 可执行文件！\n\n'
+                '请确保以下文件之一存在于程序目录中：\n'
+                '• TomatoNovelDownloader.exe\n'
+                '• TomatoNovelDownloader-Win64-v2.4.0.exe'
+            )
+            self.download_button.config(state='normal')
+            self.export_button.config(state='normal')
+            return
+
+        confirm = messagebox.askyesno(
+            '切换到第三方下载器',
+            '第三方下载将使用 TomatoNovelDownloader 进行下载。\n\n'
+            'FXdownloader 将自动关闭，由 TomatoNovelDownloader 接管下载任务。\n\n'
+            '是否继续？'
+        )
+        if not confirm:
+            self.download_button.config(state='normal')
+            self.export_button.config(state='normal')
+            return
+
+        try:
+            import subprocess
+            subprocess.Popen([exe_path])
+            self.root.after(500, self.root.destroy)
+        except Exception as e:
+            messagebox.showerror('错误', f'启动 TomatoNovelDownloader 失败：{e}')
+            self.download_button.config(state='normal')
+            self.export_button.config(state='normal')
+
     def start_download(self):
         """开始下载"""
         # 检查是否已经在下载中
@@ -2695,6 +2806,11 @@ class NovelDownloaderGUI:
 
         if not self.current_novel_id:
             messagebox.showwarning('提示', '请先获取小说信息')
+            return
+
+        from config import SOURCE_THIRD_PARTY
+        if self.download_mode == SOURCE_THIRD_PARTY:
+            self._launch_tomato_downloader()
             return
 
         try:
@@ -2739,9 +2855,9 @@ class NovelDownloaderGUI:
             self.failed_chapters = []
 
             # 根据实际使用的模式显示信息
-            from config import get_source_preference, SOURCE_OFFICIAL
-            use_official_mode = get_source_preference() == SOURCE_OFFICIAL
-            
+            from config import SOURCE_OFFICIAL
+            use_official_mode = self.download_mode == SOURCE_OFFICIAL
+
             if use_official_mode:
                 self.log("使用官网下载（需登录，需字体解密）", 'info')
             else:
@@ -3168,24 +3284,16 @@ class NovelDownloaderGUI:
 
     def open_captcha_page(self, chapter_url=None):
         """打开人机验证页面（仅适用于官网模式）
-        
+
         Args:
             chapter_url: 可选的章节URL，如果未提供则使用最后一个失败的章节URL
         """
-        # 检查当前模式
-        from config import get_source_preference, SOURCE_OFFICIAL
-        if get_source_preference() != SOURCE_OFFICIAL:
+        from config import SOURCE_OFFICIAL
+        if self.download_mode != SOURCE_OFFICIAL:
             messagebox.showwarning(
-                '提示', 
+                '提示',
                 '人机验证功能仅适用于官网模式。\n\n'
-                '当前使用的是API模式（第三方源），无需人机验证。\n\n'
-                '如果API下载失败，请：\n'
-                '1. 等待片刻后重试（程序会自动切换API节点）\n'
-                '2. 或在设置中切换到官网模式\n\n'
-                '官网模式特点：\n'
-                '- 需要登录\n'
-                '- 需要字体解密\n'
-                '- 可能需要人机验证'
+                '当前使用的是第三方模式，无需人机验证。'
             )
             return
         
