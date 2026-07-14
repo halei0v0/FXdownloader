@@ -1,0 +1,46 @@
+# Python 字节码缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# PyInstaller 构建产物
+build/
+dist/
+*.spec.bak
+
+# 字体缓存（运行时自动生成）
+font_cache/
+
+# 数据库（运行时生成）
+database/
+
+# 下载的小说（运行时生成）
+downloads/
+
+# 用户配置和 Cookie
+config.json
+cookies.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 调试文件
+debug_*
+_dump_*
+_test_*
+_debug_*
+
+# 日志
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+
+# OS
+Thumbs.db
+.DS_Store

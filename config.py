@@ -112,7 +112,8 @@ def load_config():
         'concurrent_downloads': DEFAULT_CONCURRENT_DOWNLOADS,
         'source_preference': SOURCE_ASK,  # 源选择偏好
         'remember_source_choice': False,  # 是否记住源选择
-        'download_speed': DEFAULT_DOWNLOAD_SPEED  # 下载速度倍数
+        'download_speed': DEFAULT_DOWNLOAD_SPEED,  # 下载速度倍数
+        'remove_empty_lines': False,  # 导出时是否去除空行（默认不去除）
     }
     if os.path.exists(CONFIG_FILE):
         try:
@@ -144,6 +145,17 @@ def set_concurrent_downloads(count):
     """设置并发下载数"""
     config = load_config()
     config['concurrent_downloads'] = max(1, min(count, MAX_CONCURRENT_DOWNLOADS))
+    return save_config(config)
+
+def get_remove_empty_lines():
+    """是否导出时去除空行"""
+    config = load_config()
+    return config.get('remove_empty_lines', False)
+
+def set_remove_empty_lines(value):
+    """设置是否导出时去除空行"""
+    config = load_config()
+    config['remove_empty_lines'] = bool(value)
     return save_config(config)
 
 def load_cookies():

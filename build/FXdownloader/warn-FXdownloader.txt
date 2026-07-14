@@ -24,7 +24,7 @@ missing module named _posixsubprocess - imported by subprocess (conditional), mu
 missing module named fcntl - imported by subprocess (optional), pty (delayed, optional)
 missing module named _frozen_importlib_external - imported by importlib._bootstrap (delayed), importlib (optional), importlib.abc (optional), zipimport (top-level)
 excluded module named _frozen_importlib - imported by importlib (optional), importlib.abc (optional), zipimport (top-level)
-missing module named posix - imported by os (conditional, optional), shutil (conditional), importlib._bootstrap_external (conditional), posixpath (optional)
+missing module named posix - imported by os (conditional, optional), posixpath (optional), shutil (conditional), importlib._bootstrap_external (conditional)
 missing module named resource - imported by posix (top-level), IPython.utils.timing (optional)
 missing module named asyncio.DefaultEventLoopPolicy - imported by asyncio (delayed, conditional), asyncio.events (delayed, conditional)
 missing module named annotationlib - imported by typing_extensions (conditional), msgspec._utils (conditional), attr._compat (conditional), IPython.lib.pretty (conditional), _pytest.compat (conditional), hypothesis.strategies._internal.core (delayed, conditional), pydantic._internal._typing_extra (conditional), pydantic._internal._decorators (delayed, conditional), pydantic._internal._model_construction (delayed, conditional)

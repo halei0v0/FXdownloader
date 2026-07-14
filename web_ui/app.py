@@ -413,8 +413,36 @@ class Api:
 
         return success_count
 
+    @staticmethod
+    def _clean_empty_lines(text):
+        """去除多余空行，只保留段落间必要的单个换行
+
+        规则：
+        - 去除每行首尾空白
+        - 去除连续空行（多个空行压缩为0个）
+        - 去除开头和结尾的空行
+        """
+        if not text:
+            return ''
+        lines = text.split('\n')
+        # 去除每行首尾空白，过滤掉空行
+        cleaned = [line.strip() for line in lines]
+        cleaned = [line for line in cleaned if line]
+        return '\n'.join(cleaned)
+
     def _write_output(self, output_file, novel_info, chapter_ids, results):
-        """按章节顺序写入输出文件"""
+        """按章节顺序写入输出文件
+
+        根据配置 remove_empty_lines 决定是否去除空行（默认不去除）。
+        """
+        remove_empty = app_config.get_remove_empty_lines()
+
+        def _clean(text):
+            """根据配置清理空行"""
+            if not remove_empty:
+                return text
+            return self._clean_empty_lines(text)
+
         with open(output_file, 'w', encoding='utf-8') as f:
             if novel_info:
                 f.write(f"{'=' * 50}\n")
@@ -422,20 +450,22 @@ class Api:
                 if novel_info.author:
                     f.write(f"作者: {novel_info.author}\n")
                 if novel_info.description:
-                    f.write(f"简介: {novel_info.description}\n")
+                    f.write(f"简介: {_clean(novel_info.description)}\n")
                 if novel_info.word_count:
                     f.write(f"字数: {novel_info.word_count:,} 字\n")
-                f.write(f"{'=' * 50}\n\n")
+                f.write(f"{'=' * 50}\n")
 
             for i, cid in enumerate(chapter_ids, 1):
                 data = results.get(cid)
                 if not data:
                     continue
                 title = data.get('title', f'第{i}章')
-                content = data.get('content', '')
+                content = _clean(data.get('content', ''))
+                if not content:
+                    continue
                 f.write(f"\n{'=' * 30}\n")
                 f.write(f"{title}\n")
-                f.write(f"{'=' * 30}\n\n")
+                f.write(f"{'=' * 30}\n")
                 f.write(content)
                 f.write("\n")
 
@@ -453,6 +483,7 @@ class Api:
             return {
                 'concurrent_downloads': config.get('concurrent_downloads', 3),
                 'download_speed': config.get('download_speed', 1.0),
+                'remove_empty_lines': config.get('remove_empty_lines', False),
             }
         except Exception as e:
             return {'error': str(e)}
@@ -472,6 +503,8 @@ class Api:
                 current['concurrent_downloads'] = int(config['concurrent_downloads'])
             if 'download_speed' in config:
                 current['download_speed'] = float(config['download_speed'])
+            if 'remove_empty_lines' in config:
+                current['remove_empty_lines'] = bool(config['remove_empty_lines'])
 
             result = app_config.save_config(current)
             if result:

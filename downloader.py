@@ -215,12 +215,37 @@ class NovelDownloader:
 
         return success_count > 0
 
+    @staticmethod
+    def _clean_empty_lines(text):
+        """去除多余空行，只保留段落间必要的单个换行"""
+        if not text:
+            return ''
+        lines = text.split('\n')
+        cleaned = [line.strip() for line in lines]
+        cleaned = [line for line in cleaned if line]
+        return '\n'.join(cleaned)
+
     def export_to_txt(self, novel_id, output_path=None):
-        """导出为TXT文件"""
+        """导出为TXT文件
+
+        根据 config.remove_empty_lines 决定是否去除空行（默认不去除）。
+        """
         novel = self.db.get_novel(novel_id)
         if not novel:
             print("小说不存在！")
             return False
+
+        # 根据配置决定是否去除空行
+        try:
+            import config as _cfg
+            remove_empty = _cfg.get_remove_empty_lines()
+        except Exception:
+            remove_empty = False
+
+        def _clean(text):
+            if not remove_empty:
+                return text
+            return self._clean_empty_lines(text)
 
         # 使用记录的下载范围，如果没有记录则导出所有章节
         if novel_id in self.download_ranges:
@@ -255,12 +280,12 @@ class NovelDownloader:
                 f.write("=" * 50 + "\n")
                 f.write(f"书名: {novel_dict['title']}\n")
                 f.write(f"作者: {novel_dict['author']}\n")
-                f.write(f"简介: {novel_dict['description']}\n")
+                f.write(f"简介: {_clean(novel_dict.get('description', ''))}\n")
                 # 只有官网模式才显示字数和章节数
                 if novel_dict.get('source', 'official') == 'official':
                     f.write(f"字数: {novel_dict['word_count']:,} 字\n")
                     f.write(f"章节数: {novel_dict['chapter_count']} 章\n")
-                f.write("=" * 50 + "\n\n")
+                f.write("=" * 50 + "\n")
 
                 # 写入章节内容
                 for chapter in chapters:
@@ -283,10 +308,14 @@ class NovelDownloader:
                     else:
                         chapter_title = chapter_title.strip()
 
+                    content = _clean(chapter_dict.get('content', ''))
+                    if not content:
+                        continue
+
                     f.write(f"\n{'='*30}\n")
                     f.write(f"{chapter_title}\n")
-                    f.write(f"{'='*30}\n\n")
-                    f.write(chapter_dict['content'])
+                    f.write(f"{'='*30}\n")
+                    f.write(content)
                     f.write("\n")
 
             print(f"✓ 导出成功！文件保存到: {output_path}")

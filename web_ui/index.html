@@ -851,6 +851,58 @@ html, body {
     font-size: 13px;
     color: var(--text-secondary);
 }
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: 11px;
+    transition: var(--transition-fast);
+}
+.toggle-slider:before {
+    content: "";
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: var(--transition-fast);
+}
+.toggle-switch input:checked + .toggle-slider {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: var(--accent-primary);
+}
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(18px);
+    background: var(--accent-primary);
+}
+.toggle-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
 .form-select {
     appearance: none;
     background: var(--bg-glass);
@@ -1161,6 +1213,16 @@ html, body {
                     <option value="3.0">3.0x (极速)</option>
                     <option value="4.0">4.0x (闪电)</option>
                 </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">导出时去除空行</label>
+                <div class="toggle-row">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingRemoveEmptyLines">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">开启后导出文件中不会出现空行</span>
+                </div>
             </div>
         </div>
         <div class="modal-footer">
@@ -1747,6 +1809,7 @@ async function openSettings() {
             if (settings.download_speed) {
                 document.getElementById('settingSpeed').value = settings.download_speed;
             }
+            document.getElementById('settingRemoveEmptyLines').checked = !!settings.remove_empty_lines;
         }
     } catch (e) {
         // Use defaults
@@ -1768,6 +1831,7 @@ async function saveSettings() {
     const config = {
         concurrent_downloads: parseInt(document.getElementById('settingConcurrent').value),
         download_speed: parseFloat(document.getElementById('settingSpeed').value),
+        remove_empty_lines: document.getElementById('settingRemoveEmptyLines').checked,
     };
     try {
         const result = await window.pywebview.api.save_settings(JSON.stringify(config));

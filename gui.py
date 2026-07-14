@@ -1608,22 +1608,31 @@ class DownloadHistoryDialog:
                         output_path = os.path.join(export_path, filename)
                         
                         downloaded_chapters = self.db.get_chapters(novel_id)
+                        from config import get_remove_empty_lines
+                        _remove_empty = get_remove_empty_lines()
+                        def _clean_gui(text):
+                            if not _remove_empty:
+                                return text
+                            return self.downloader._clean_empty_lines(text)
                         with open(output_path, 'w', encoding='utf-8') as f:
                             f.write("=" * 50 + "\n")
                             f.write(f"书名: {novel_data['title']}\n")
                             f.write(f"作者: {novel_data['author']}\n")
-                            f.write(f"简介: {novel_data['description']}\n")
+                            f.write(f"简介: {_clean_gui(novel_data.get('description', ''))}\n")
                             # 只有官网模式才显示字数和章节数
                             if not use_api:
                                 f.write(f"字数: {novel_data['word_count']:,} 字\n")
                                 f.write(f"章节数: {novel_data['chapter_count']} 章\n")
-                            f.write("=" * 50 + "\n\n")
+                            f.write("=" * 50 + "\n")
                             
                             for chapter in downloaded_chapters:
+                                content = _clean_gui(chapter.get('content', ''))
+                                if not content:
+                                    continue
                                 f.write(f"\n{'='*30}\n")
                                 f.write(f"{chapter['chapter_title']}\n")
-                                f.write(f"{'='*30}\n\n")
-                                f.write(chapter['content'])
+                                f.write(f"{'='*30}\n")
+                                f.write(content)
                                 f.write("\n")
                         
                         progress_dialog.after(0, lambda t=title, cs=chapter_success: 
@@ -1864,24 +1873,33 @@ class DownloadHistoryDialog:
                     failed_novels.append(f"{title} (没有可导出的章节)")
                     continue
 
+                from config import get_remove_empty_lines as _get_rel
+                _remove_empty2 = _get_rel()
+                def _clean_gui2(text):
+                    if not _remove_empty2:
+                        return text
+                    return self.downloader._clean_empty_lines(text)
                 with open(output_path, 'w', encoding='utf-8') as f:
                     # 写入小说信息
                     f.write("=" * 50 + "\n")
                     f.write(f"书名: {novel_dict['title']}\n")
                     f.write(f"作者: {novel_dict['author']}\n")
-                    f.write(f"简介: {novel_dict['description']}\n")
+                    f.write(f"简介: {_clean_gui2(novel_dict.get('description', ''))}\n")
                     # 只有官网模式才显示字数和章节数
                     if novel_dict.get('source', 'official') == 'official':
                         f.write(f"字数: {novel_dict['word_count']:,} 字\n")
                         f.write(f"章节数: {novel_dict['chapter_count']} 章\n")
-                    f.write("=" * 50 + "\n\n")
+                    f.write("=" * 50 + "\n")
                     
                     # 写入章节内容
                     for chapter in chapters:
+                        content = _clean_gui2(chapter.get('content', ''))
+                        if not content:
+                            continue
                         f.write(f"\n{'='*30}\n")
                         f.write(f"{chapter['chapter_title']}\n")
-                        f.write(f"{'='*30}\n\n")
-                        f.write(chapter['content'])
+                        f.write(f"{'='*30}\n")
+                        f.write(content)
                         f.write("\n")
                 
                 success_count += 1
