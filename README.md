@@ -1,7 +1,5 @@
 # FXdownloader
 
-<img src="https://cdn.jsdelivr.net/gh/halei0v0/warehouse@imgmd//imgmd/20260714171411871.png" alt="1" style="zoom:10%;" />
-
 多源小说下载工具，支持蚂蚁文学、顶点小说、笔下文学、铅笔小说、海棠文学、番茄小说六大源，多源自动搜索、分工加速下载、失败自动重试。
 
 ## 功能特点
