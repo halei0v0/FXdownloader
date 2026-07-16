@@ -208,14 +208,18 @@ class Api:
 
     # ============== 下载 ==============
 
-    def download(self, novel_id, chapter_ids, save_dir, source_key='biquge'):
+    def download(self, novel_id, chapter_ids, save_dir, source_key='biquge', append_mode=False):
         """在后台线程中下载章节（多源分工 + 失败重试 + 暂停/续传 + ETA）
 
         下载流程：
         1. 创建任务记录到数据库（支持暂停/续传）
-        2. 主源并发下载所有章节
+        2. 主源并发下载所有章节（单章失败同源重试）
         3. 统计失败/缺失章节
         4. 自动用其他源重新下载失败章节
+        5. 写入输出文件（append_mode=True 时追加到已有文件，用于补全内容）
+
+        Args:
+            append_mode: True 表示追加到已有输出文件（更新小说补全缺失内容时使用）
         """
         if self._download_thread and self._download_thread.is_alive():
             return {'error': '已有下载任务正在进行中'}
@@ -227,15 +231,15 @@ class Api:
 
         self._download_thread = threading.Thread(
             target=self._download_worker,
-            args=(str(novel_id), chapter_ids, save_dir, source_key),
+            args=(str(novel_id), chapter_ids, save_dir, source_key, append_mode),
             daemon=True,
         )
         self._download_thread.start()
 
         return {'status': 'started'}
 
-    def _download_worker(self, novel_id, chapter_ids, save_dir, source_key):
-        """后台下载工作线程：多源并发 + 失败重试 + 暂停/续传 + ETA"""
+    def _download_worker(self, novel_id, chapter_ids, save_dir, source_key, append_mode=False):
+        """后台下载工作线程：多源并发 + 同源重试 + 跨源重试 + 暂停/续传 + ETA"""
         try:
             source = self._get_source(source_key)
             if not source:
@@ -336,7 +340,10 @@ class Api:
 
             if self._cancel_event.is_set():
                 self._push_log('下载已被用户取消', 'warning')
-                self._write_output(output_file, novel_info, chapter_ids, results)
+                if append_mode:
+                    self._append_output(output_file, novel_info, results)
+                else:
+                    self._write_output(output_file, novel_info, chapter_ids, results)
                 try:
                     self._db.set_task_status(task_id, 'cancelled')
                 except Exception:
@@ -371,8 +378,11 @@ class Api:
                 if retry_ok > 0:
                     self._push_log(f'补缺成功 {retry_ok} 章', 'success')
 
-            # 写入文件
-            self._write_output(output_file, novel_info, chapter_ids, results)
+            # 写入文件（append_mode 下追加到已有文件，用于补全缺失内容）
+            if append_mode:
+                self._append_output(output_file, novel_info, results)
+            else:
+                self._write_output(output_file, novel_info, chapter_ids, results)
 
             success_count = len(results)
             failed_count = total - success_count
@@ -396,6 +406,8 @@ class Api:
                     f'下载完成! 成功 {success_count}/{total} 章，失败 {failed_count} 章 -> {output_file}',
                     'warning'
                 )
+                # 指出彻底失败的章节并通知前端自动选中
+                self._push_failed_chapters(novel_id, chapter_ids, results, chapter_id_to_title)
             else:
                 self._push_log(f'下载完成! 成功 {success_count}/{total} 章 -> {output_file}', 'success')
 
@@ -406,18 +418,59 @@ class Api:
             self._current_task_id = None
 
     def _download_one(self, source, novel_id, chapter_id, lock):
-        """下载单个章节（在执行前检查暂停状态）"""
-        # 暂停检测：如果 pause_event 被 set，则等待恢复
-        while self._pause_event.is_set() and not self._cancel_event.is_set():
-            time.sleep(0.5)
-        if self._cancel_event.is_set():
-            return None
+        """下载单个章节（同源重试 + 暂停/取消检测）
 
-        data = source.get_chapter_content(novel_id, str(chapter_id))
-        if data and lock:
+        失败时在相同源重试，最多 MAX_RETRIES 次，每次间隔小幅延迟。
+        所有重试均失败才返回 None（交给跨源重试流程）。
+        """
+        max_retries = max(1, getattr(app_config, 'MAX_RETRIES', 3))
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            # 暂停检测：每次尝试前都等待恢复
+            while self._pause_event.is_set() and not self._cancel_event.is_set():
+                time.sleep(0.5)
+            if self._cancel_event.is_set():
+                return None
+
+            try:
+                data = source.get_chapter_content(novel_id, str(chapter_id))
+                if data and data.get('content'):
+                    if lock:
+                        with lock:
+                            if attempt > 1:
+                                self._push_log(
+                                    f'同源重试成功（第{attempt}次）: {data.get("title", chapter_id)}',
+                                    'success',
+                                )
+                            else:
+                                self._push_log(f'下载成功: {data.get("title", chapter_id)}', 'success')
+                    return data
+            except Exception as e:
+                last_err = e
+
+            # 本次尝试失败，准备下一次重试（最后一次不再等待）
+            if attempt < max_retries:
+                if self._cancel_event.is_set():
+                    return None
+                time.sleep(1.0 * attempt)  # 简单退避：1s, 2s ...
+                if lock:
+                    with lock:
+                        title_hint = ''
+                        try:
+                            title_hint = f' ({chapter_id})'
+                        except Exception:
+                            pass
+                        self._push_log(
+                            f'章节{title_hint} 下载失败，准备同源第{attempt + 1}次重试...',
+                            'warning',
+                        )
+
+        # 所有同源重试均失败
+        if lock:
             with lock:
-                self._push_log(f'下载成功: {data.get("title", chapter_id)}', 'success')
-        return data
+                err_msg = f'（{last_err}）' if last_err else ''
+                self._push_log(f'章节 {chapter_id} 同源重试 {max_retries} 次仍失败{err_msg}', 'error')
+        return None
 
     def _retry_failed_chapters(self, failed_ids, chapter_id_to_title, novel_info,
                                 primary_source_key, results, lock):
@@ -637,6 +690,11 @@ class Api:
         """检查当前是否暂停"""
         return {'paused': self._pause_event.is_set()}
 
+    def get_download_status(self):
+        """获取当前下载状态（供批量下载轮询使用）"""
+        active = self._download_thread is not None and self._download_thread.is_alive()
+        return {'active': active, 'task_id': self._current_task_id or ''}
+
     def get_paused_tasks(self):
         """获取所有暂停的任务"""
         try:
@@ -826,7 +884,6 @@ class Api:
             config = app_config.load_config()
             return {
                 'concurrent_downloads': config.get('concurrent_downloads', 3),
-                'download_speed': config.get('download_speed', 1.0),
                 'remove_empty_lines': config.get('remove_empty_lines', False),
             }
         except Exception as e:
@@ -845,8 +902,6 @@ class Api:
 
             if 'concurrent_downloads' in config:
                 current['concurrent_downloads'] = int(config['concurrent_downloads'])
-            if 'download_speed' in config:
-                current['download_speed'] = float(config['download_speed'])
             if 'remove_empty_lines' in config:
                 current['remove_empty_lines'] = bool(config['remove_empty_lines'])
 
@@ -1007,6 +1062,35 @@ class Api:
     def _push_error(self, message):
         """向前端推送错误日志"""
         self._push_log(message, 'error')
+
+    def _push_failed_chapters(self, novel_id, chapter_ids, results, chapter_id_to_title):
+        """收集彻底失败的章节并通知前端自动选中
+
+        在所有重试（同源 + 跨源）结束后调用，将仍未成功下载的章节
+        通过 evaluate_js(onFailedChapters) 推送到前端，前端会自动选中
+        这些章节的复选框并高亮，方便用户手动重试。
+        """
+        if not self._window:
+            return
+        failed = []
+        for cid in chapter_ids:
+            if cid in results and results[cid].get('content'):
+                continue
+            failed.append({
+                'chapter_id': str(cid),
+                'chapter_title': chapter_id_to_title.get(cid, '') or str(cid),
+            })
+        if not failed:
+            return
+        try:
+            data = json.dumps({
+                'novel_id': str(novel_id),
+                'count': len(failed),
+                'chapters': failed,
+            })
+            self._window.evaluate_js(f'onFailedChapters({data})')
+        except Exception:
+            pass
 
     # ============== 历史记录 ==============
 
@@ -1270,11 +1354,15 @@ class Api:
     # ============== 更新小说 ==============
 
     def update_novel(self, novel_id, source_key='biquge'):
-        """更新小说：检查并下载新增章节
+        """更新小说：检测新章节 + 补全上次未完成的内容
 
-        对比已下载任务的章节列表和当前章节列表，找出新增章节。
-        WebUI 下载流程不存 DB，因此从 download_tasks 表中查找已完成的任务，
-        获取其 chapter_ids 作为"已下载"集合。
+        对比已下载任务的章节列表和当前章节列表：
+        1. 新增章节：当前有、上次任务中没有的章节
+        2. 缺失内容章节：上次任务中存在但因失败/中断未下载完成的章节
+           （在 chapter_ids_json 中但不在 completed_ids_json 中，且当前仍存在）
+
+        Returns:
+            dict: 包含 new_chapters / incomplete_chapters 及各自计数
         """
         try:
             source = self._get_source(source_key)
@@ -1286,32 +1374,50 @@ class Api:
             if not chapters:
                 return {'error': '获取章节列表失败'}
 
-            # 从已完成的下载任务中获取已下载的章节ID集合
-            existing_ids = set()
+            # 从最近的下载任务中获取已记录的章节ID集合
+            existing_ids = set()       # 上次任务记录的全部章节ID
+            completed_ids = set()      # 上次任务实际下载完成的章节ID
             try:
                 with self._db.get_connection() as conn:
                     cursor = conn.cursor()
+                    # 包含 completed 和 partial 状态，以检测未完成内容
                     cursor.execute('''
                         SELECT chapter_ids_json, completed_ids_json
                         FROM download_tasks
-                        WHERE novel_id = ? AND status = 'completed'
+                        WHERE novel_id = ? AND status IN ('completed', 'partial')
                         ORDER BY updated_at DESC LIMIT 1
                     ''', (str(novel_id),))
                     row = cursor.fetchone()
                     if row:
                         old_chapters = json.loads(row['chapter_ids_json'] or '[]')
                         existing_ids = set(old_chapters)
+                        completed_ids = set(json.loads(row['completed_ids_json'] or '[]'))
             except Exception:
                 pass
 
-            # 找出新增章节
-            new_chapters = [ch for ch in chapters if str(ch.chapter_id) not in existing_ids]
-            if not new_chapters:
-                return {'status': 'ok', 'new_count': 0, 'message': '没有新章节'}
+            # 缺失内容：上次任务中有但未完成的章节（当前仍存在）
+            missing_content_ids = existing_ids - completed_ids
+
+            new_chapters = []
+            incomplete_chapters = []
+            for ch in chapters:
+                cid = str(ch.chapter_id)
+                if cid not in existing_ids:
+                    new_chapters.append(ch)
+                elif cid in missing_content_ids:
+                    incomplete_chapters.append(ch)
+
+            new_count = len(new_chapters)
+            incomplete_count = len(incomplete_chapters)
+
+            if new_count == 0 and incomplete_count == 0:
+                return {'status': 'ok', 'new_count': 0, 'incomplete_count': 0,
+                        'message': '没有新章节，内容完整'}
 
             return {
                 'status': 'ok',
-                'new_count': len(new_chapters),
+                'new_count': new_count,
+                'incomplete_count': incomplete_count,
                 'new_chapters': [
                     {
                         'chapter_id': str(ch.chapter_id),
@@ -1320,6 +1426,14 @@ class Api:
                     }
                     for ch in new_chapters
                 ],
+                'incomplete_chapters': [
+                    {
+                        'chapter_id': str(ch.chapter_id),
+                        'chapter_title': ch.chapter_title,
+                        'chapter_index': ch.chapter_index,
+                    }
+                    for ch in incomplete_chapters
+                ],
                 'novel_id': str(novel_id),
                 'source_key': source_key,
             }
@@ -1327,21 +1441,46 @@ class Api:
             return {'error': str(e)}
 
     def download_new_chapters(self, novel_id, source_key, save_dir):
-        """下载新增章节并合并到现有文件"""
+        """下载新增章节 + 补全上次未完成的内容，并合并到现有文件
+
+        通过 update_novel 检测：
+        - new_chapters: 上次任务没有的新章节
+        - incomplete_chapters: 上次任务中未下载完成、当前仍存在的章节
+        合并下载后以追加模式写入已有文件，避免覆盖已下载内容。
+        """
         try:
             check = self.update_novel(novel_id, source_key)
             if check.get('error'):
                 return check
-            new_chapters = check.get('new_chapters', [])
-            if not new_chapters:
-                return {'status': 'ok', 'message': '没有新章节需要下载', 'new_count': 0}
 
-            # 下载新章节（异步启动，返回 new_count 供前端参考）
-            chapter_ids = [ch['chapter_id'] for ch in new_chapters]
-            result = self.download(novel_id, chapter_ids, save_dir, source_key)
-            # 合并 new_count 到返回值
+            new_chapters = check.get('new_chapters', [])
+            incomplete_chapters = check.get('incomplete_chapters', [])
+            new_count = len(new_chapters)
+            incomplete_count = len(incomplete_chapters)
+
+            if new_count == 0 and incomplete_count == 0:
+                return {'status': 'ok', 'message': check.get('message', '没有新章节，内容完整'),
+                        'new_count': 0, 'incomplete_count': 0}
+
+            # 合并新章节 + 缺失章节（去重，保持章节顺序）
+            seen = set()
+            chapter_ids = []
+            for ch in (new_chapters + incomplete_chapters):
+                cid = ch['chapter_id']
+                if cid not in seen:
+                    seen.add(cid)
+                    chapter_ids.append(cid)
+
+            if incomplete_count > 0:
+                self._push_log(
+                    f'检测到 {incomplete_count} 章内容缺失，将补全下载', 'warning'
+                )
+
+            # 追加模式：合并到已有文件，不覆盖已下载内容
+            result = self.download(novel_id, chapter_ids, save_dir, source_key, append_mode=True)
             if isinstance(result, dict):
-                result['new_count'] = len(chapter_ids)
+                result['new_count'] = new_count
+                result['incomplete_count'] = incomplete_count
             return result
         except Exception as e:
             return {'error': str(e)}
@@ -1393,6 +1532,21 @@ def start_http_server(port):
     server.serve_forever()
 
 
+def _get_icon_path():
+    """获取应用图标路径（兼容 PyInstaller 打包）
+
+    开发模式：从项目根目录的 assets/icon.ico 读取
+    打包模式：图标已嵌入 exe 资源，返回 None 让系统使用 exe 图标
+    """
+    if getattr(sys, 'frozen', False):
+        # 打包模式：图标已嵌入 exe PE 头，pywebview 会自动使用
+        return None
+    # 开发模式：从项目根目录读取
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    icon = os.path.join(root, 'assets', 'icon.ico')
+    return icon if os.path.exists(icon) else None
+
+
 def main():
     """启动 WebUI"""
     port = find_free_port()
@@ -1411,15 +1565,19 @@ def main():
     api = Api()
 
     # 创建 pywebview 窗口
-    window = webview.create_window(
-        title='FXdownloader',
-        url=f'http://127.0.0.1:{port}/index.html',
-        js_api=api,
-        width=1100,
-        height=780,
-        min_size=(960, 680),
-        text_select=False,
-    )
+    icon_path = _get_icon_path()
+    window_kwargs = {
+        'title': 'FXdownloader',
+        'url': f'http://127.0.0.1:{port}/index.html',
+        'js_api': api,
+        'width': 1100,
+        'height': 780,
+        'min_size': (960, 680),
+        'text_select': False,
+    }
+    if icon_path:
+        window_kwargs['icon'] = icon_path
+    window = webview.create_window(**window_kwargs)
 
     # 保存窗口引用到 API（延迟设置，因为创建时 api 还没有 window 引用）
     def on_loaded():

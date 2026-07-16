@@ -566,6 +566,14 @@ html, body {
     background: rgba(0, 212, 255, 0.06);
     border-left-color: var(--accent-primary);
 }
+/* 下载失败章节高亮（自动选中后提示用户手动重试） */
+.chapter-item.failed {
+    background: rgba(255, 82, 82, 0.10);
+    border-left-color: #ff5252;
+}
+.chapter-item.failed .chapter-title-text {
+    color: #ff6b6b;
+}
 
 .chapter-checkbox {
     appearance: none;
@@ -1622,9 +1630,501 @@ option {
     text-align: center;
 }
 .view-empty svg { width: 56px; height: 56px; opacity: 0.3; }
+
+/* ================================================================
+   ★★★ 高级动画 & 毛玻璃增强系统 ★★★
+   ================================================================ */
+
+/* ---- 动态极光背景 ---- */
+.aurora-bg {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+.aurora-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.35;
+    will-change: transform;
+}
+.aurora-orb.orb-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, #00D4FF, transparent 70%);
+    top: -150px; left: -100px;
+    animation: orbFloat1 20s ease-in-out infinite;
+}
+.aurora-orb.orb-2 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, #7B2DFF, transparent 70%);
+    bottom: -200px; right: -150px;
+    animation: orbFloat2 25s ease-in-out infinite;
+}
+.aurora-orb.orb-3 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, #00E676, transparent 70%);
+    top: 40%; left: 50%;
+    opacity: 0.15;
+    animation: orbFloat3 30s ease-in-out infinite;
+}
+@keyframes orbFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(100px, 80px) scale(1.15); }
+    66% { transform: translate(-60px, 120px) scale(0.9); }
+}
+@keyframes orbFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-120px, -80px) scale(1.1); }
+    66% { transform: translate(80px, -60px) scale(0.95); }
+}
+@keyframes orbFloat3 {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-30%, -60%) scale(1.2); }
+}
+
+/* ---- 噪点纹理叠加（增加毛玻璃质感） ---- */
+.aurora-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.03 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+}
+
+/* ---- 确保 app 内容在背景之上 ---- */
+#app { position: relative; z-index: 1; }
+
+/* ---- 全局毛玻璃增强 ---- */
+.header,
+.nav-bar,
+.bottom-bar,
+.chapter-header {
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    background: rgba(15, 15, 26, 0.75) !important;
+}
+
+/* ---- 玻璃卡片增强 ---- */
+.novel-card,
+.novel-grid-card,
+.modal,
+.search-results,
+.list-item {
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    background: rgba(26, 26, 46, 0.65) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ---- 搜索栏聚焦霓虹脉冲 ---- */
+.search-bar {
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+.search-bar:focus-within {
+    border-color: var(--accent-primary);
+    box-shadow:
+        0 0 0 1px rgba(0, 212, 255, 0.3),
+        0 0 24px rgba(0, 212, 255, 0.2),
+        0 0 48px rgba(123, 45, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    animation: searchPulse 2s ease-in-out infinite;
+}
+@keyframes searchPulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(0,212,255,0.3), 0 0 24px rgba(0,212,255,0.2), 0 0 48px rgba(123,45,255,0.1); }
+    50% { box-shadow: 0 0 0 1px rgba(0,212,255,0.5), 0 0 32px rgba(0,212,255,0.3), 0 0 64px rgba(123,45,255,0.15); }
+}
+
+/* ---- 按钮霓虹辉光增强 ---- */
+.btn-download {
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+.btn-download::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    animation: shimmer 3s infinite;
+}
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+.btn-download:hover {
+    box-shadow:
+        0 0 24px rgba(0, 212, 255, 0.35),
+        0 0 48px rgba(123, 45, 255, 0.2),
+        0 4px 16px rgba(0, 0, 0, 0.3) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+}
+
+/* ---- 搜索按钮流光 ---- */
+.search-btn {
+    position: relative;
+    overflow: hidden;
+}
+.search-btn::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2.5s infinite;
+}
+.search-btn:hover {
+    box-shadow: 0 0 16px rgba(0, 212, 255, 0.4) !important;
+    transform: scale(1.05) !important;
+}
+
+/* ---- 图标按钮波纹 ---- */
+.btn-icon {
+    position: relative;
+    overflow: hidden;
+}
+.btn-icon:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.15);
+}
+.btn-icon::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    border-radius: 50%;
+    background: rgba(0, 212, 255, 0.15);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s ease, height 0.4s ease;
+}
+.btn-icon:active::after {
+    width: 80px; height: 80px;
+    transition: 0s;
+}
+
+/* ---- 章节列表项渐入 + 悬停增强 ---- */
+.chapter-item {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chapter-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent-gradient);
+    transform: scaleY(0);
+    transition: transform 0.25s ease;
+    border-radius: 0 2px 2px 0;
+}
+.chapter-item:hover {
+    background: rgba(0, 212, 255, 0.08) !important;
+    transform: translateX(4px);
+}
+.chapter-item:hover::before {
+    transform: scaleY(1);
+}
+.chapter-item.selected {
+    background: rgba(0, 212, 255, 0.06) !important;
+}
+.chapter-item.selected::before {
+    transform: scaleY(1);
+}
+
+/* ---- 章节列表交错入场动画 ---- */
+.chapter-item {
+    animation: chapterSlideIn 0.3s ease backwards;
+}
+
+/* ---- 小说卡片 3D 悬浮 ---- */
+.novel-grid-card {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.novel-grid-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg);
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(0,212,255,0.5), rgba(123,45,255,0.5));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+.novel-grid-card:hover {
+    transform: translateY(-6px) scale(1.02) !important;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.4),
+        0 0 24px rgba(0, 212, 255, 0.15) !important;
+}
+.novel-grid-card:hover::before {
+    opacity: 1;
+}
+
+/* ---- 进度条增强（脉冲发光） ---- */
+.progress-bar {
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+}
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: progressShine 1.5s linear infinite;
+}
+@keyframes progressShine {
+    0% { left: -50%; }
+    100% { left: 150%; }
+}
+
+/* ---- 模态框入场动画 ---- */
+.modal {
+    animation: modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+@keyframes modalIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-overlay.active {
+    animation: overlayIn 0.25s ease !important;
+}
+@keyframes overlayIn {
+    from { opacity: 0; backdrop-filter: blur(0); }
+    to { opacity: 1; backdrop-filter: blur(8px); }
+}
+
+/* ---- Toast 增强（弹跳入场） ---- */
+.toast {
+    animation: toastBounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+}
+@keyframes toastBounceIn {
+    0% { opacity: 0; transform: translateX(40px) scale(0.8); }
+    60% { opacity: 1; transform: translateX(-5px) scale(1.02); }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ---- 导航 Tab 滑动指示器 ---- */
+.nav-tab {
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-tab::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 50%;
+    width: 0; height: 2px;
+    background: var(--accent-gradient);
+    border-radius: 1px;
+    transform: translateX(-50%);
+    transition: width 0.3s ease;
+}
+.nav-tab:hover::after {
+    width: 60%;
+}
+.nav-tab.active::after {
+    width: 80%;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+.nav-tab.active {
+    text-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+/* ---- 自定义复选框增强 ---- */
+.chapter-checkbox {
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.chapter-checkbox:checked {
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+    animation: checkBounce 0.3s ease;
+}
+@keyframes checkBounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* ---- 标签徽章发光 ---- */
+.novel-tag.status {
+    box-shadow: 0 0 8px rgba(0, 230, 118, 0.15);
+}
+.novel-tag.count {
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.15);
+}
+.badge-biquge, .badge-fanqie {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+/* ---- 日志面板展开增强 ---- */
+.log-panel {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* ---- 空状态 SVG 浮动 ---- */
+.view-empty svg {
+    animation: floatGentle 3s ease-in-out infinite;
+}
+.empty-state svg {
+    animation: floatGentle 3s ease-in-out infinite;
+}
+@keyframes floatGentle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+/* ---- 滚动条增强 ---- */
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(0,212,255,0.3), rgba(123,45,255,0.3));
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(0,212,255,0.5), rgba(123,45,255,0.5));
+}
+
+/* ---- 列表项悬停增强 ---- */
+.list-item {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.list-item:hover {
+    transform: translateX(4px);
+    border-color: rgba(0, 212, 255, 0.3) !important;
+    background: rgba(35, 35, 60, 0.8) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(0,212,255,0.08);
+}
+
+/* ---- App Logo 旋转发光 ---- */
+.app-logo {
+    filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.3));
+    animation: logoBreathe 4s ease-in-out infinite;
+}
+@keyframes logoBreathe {
+    0%, 100% { filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.3)); }
+    50% { filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.5)); }
+}
+
+/* ---- 标题渐变动画 ---- */
+.app-title {
+    background-size: 200% auto;
+    animation: titleGradient 4s linear infinite;
+}
+@keyframes titleGradient {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+}
+
+/* ---- 设置/表单选择框聚焦增强 ---- */
+.form-select:focus, .source-select:focus {
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.3), 0 0 16px rgba(0, 212, 255, 0.15) !important;
+}
+
+/* ---- 加载动画增强 ---- */
+.spinner {
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+/* ---- 搜索结果下拉增强 ---- */
+.search-results {
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    background: rgba(26, 26, 46, 0.92) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05) !important;
+}
+.search-result-item {
+    transition: all 0.2s ease;
+}
+.search-result-item:hover {
+    background: rgba(0, 212, 255, 0.08) !important;
+    transform: translateX(4px);
+}
+
+/* ---- 涟漪效果 ---- */
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(0);
+    animation: rippleEffect 0.6s ease-out;
+    pointer-events: none;
+}
+@keyframes rippleEffect {
+    to { transform: scale(4); opacity: 0; }
+}
+
+/* ---- 分类标签增强 ---- */
+.category-chip {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.category-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.12);
+}
+.category-chip.active {
+    background: rgba(0, 212, 255, 0.15) !important;
+    border-color: var(--accent-primary) !important;
+    color: var(--accent-primary) !important;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+}
+
+/* ---- 排名徽章发光 ---- */
+.grid-card-rank {
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+    animation: rankPulse 2s ease-in-out infinite;
+}
+@keyframes rankPulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(0, 212, 255, 0.3); }
+    50% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.5); }
+}
+
+/* ---- 渐入工具类 ---- */
+.fade-in-up {
+    animation: fadeInUp 0.4s ease backwards;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- reduced-motion 支持 ---- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    .aurora-bg { display: none; }
+}
+
 </style>
 </head>
 <body>
+
+<!-- 动态极光背景 -->
+<div class="aurora-bg">
+    <div class="aurora-orb orb-1"></div>
+    <div class="aurora-orb orb-2"></div>
+    <div class="aurora-orb orb-3"></div>
+</div>
 
 <div id="app">
     <!-- Header -->
@@ -1959,16 +2459,6 @@ option {
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">下载速度倍数</label>
-                <select id="settingSpeed" class="form-select">
-                    <option value="0.5">0.5x (慢速)</option>
-                    <option value="1.0" selected>1.0x (正常)</option>
-                    <option value="2.0">2.0x (快速)</option>
-                    <option value="3.0">3.0x (极速)</option>
-                    <option value="4.0">4.0x (闪电)</option>
-                </select>
-            </div>
-            <div class="form-group">
                 <label class="form-label">导出时去除空行</label>
                 <div class="toggle-row">
                     <label class="toggle-switch">
@@ -2074,6 +2564,9 @@ const state = {
     favoritesLoaded: false,    // 收藏是否已加载
     historyLoaded: false,      // 历史是否已加载
     pausedLoaded: false,       // 续传任务是否已加载
+    batchDownloading: false,    // 批量下载进行中
+    batchCancel: false,         // 批量下载取消标志
+    supplementMode: false,     // 补全模式：更新小说后选中缺失章节，下载时追加到已有文件
 };
 
 /* ====================================================================
@@ -2541,6 +3034,9 @@ function renderChapterList() {
                 state.selectedChapters.delete(ch.chapter_id);
                 item.classList.remove('selected');
             }
+            // 用户手动操作后清除失败高亮，并退出补全模式（选择已变更）
+            item.classList.remove('failed');
+            state.supplementMode = false;
             updateChapterCount();
         });
 
@@ -2589,6 +3085,7 @@ function selectAllChapters() {
         cb.checked = true;
         cb.closest('.chapter-item').classList.add('selected');
     });
+    state.supplementMode = false;
     updateChapterCount();
 }
 
@@ -2604,6 +3101,7 @@ function invertSelection() {
             cb.closest('.chapter-item').classList.remove('selected');
         }
     });
+    state.supplementMode = false;
     updateChapterCount();
 }
 
@@ -2613,6 +3111,7 @@ function clearSelection() {
         cb.checked = false;
         cb.closest('.chapter-item').classList.remove('selected');
     });
+    state.supplementMode = false;
     updateChapterCount();
 }
 
@@ -2673,8 +3172,14 @@ async function handleDownload() {
     try {
         const sourceKey = getSelectedSourceKey();
         const chapterIds = Array.from(state.selectedChapters);
+        // 补全模式（更新小说后选中缺失章节直接下载）：追加到已有文件而非覆盖
+        const appendMode = !!state.supplementMode;
+        if (appendMode) {
+            addLog('补全模式：将追加到已有文件，不覆盖已下载内容', 'info');
+        }
+        state.supplementMode = false; // 一次性标志，使用后立即重置
         // download() 立即返回 {status:'started'}，实际进度通过 onProgress 回调推送
-        const result = await window.pywebview.api.download(state.novelId, chapterIds, saveDir, sourceKey);
+        const result = await window.pywebview.api.download(state.novelId, chapterIds, saveDir, sourceKey, appendMode);
 
         if (result && result.error) {
             showToast('下载失败: ' + result.error, 'error');
@@ -2709,8 +3214,15 @@ async function handleDownload() {
 async function handleCancel() {
     try {
         await window.pywebview.api.cancel_download();
-        showToast('已取消下载', 'warning');
-        addLog('用户取消了下载', 'warning');
+        if (state.batchDownloading) {
+            state.batchCancel = true;
+            state.batchDownloading = false;
+            showToast('已取消批量下载', 'warning');
+            addLog('用户取消了批量下载', 'warning');
+        } else {
+            showToast('已取消下载', 'warning');
+            addLog('用户取消了下载', 'warning');
+        }
         finishDownloadUI(false);
     } catch (e) {
         showToast('取消失败: ' + (e.message || e), 'error');
@@ -2754,8 +3266,18 @@ function onProgress(data) {
 
 /** 下载完成/取消后的 UI 收尾 */
 function finishDownloadUI(success) {
+    // 批量下载中：仅完成当前这本，保持按钮可见，让下一本继续
+    if (state.batchDownloading) {
+        state.paused = false;
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        if (pauseBtn) pauseBtn.classList.add('hidden');
+        if (resumeBtn) resumeBtn.classList.add('hidden');
+        return;
+    }
     state.downloading = false;
     state.paused = false;
+    state.supplementMode = false;
     const downloadBtn = document.getElementById('downloadBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const resumeBtn = document.getElementById('resumeBtn');
@@ -2775,6 +3297,60 @@ function onLog(data) {
     addLog(data.message || data, data.level || 'info');
 }
 
+/**
+ * 下载完成后由 Python 推送彻底失败的章节列表
+ * - 批量下载模式：仅记录日志，不改动章节列表（章节列表非当前小说）
+ * - 单本下载模式：自动选中失败章节复选框并高亮，便于用户手动重试
+ */
+function onFailedChapters(data) {
+    const chapters = (data && data.chapters) || [];
+    if (chapters.length === 0) return;
+
+    // 批量下载中只记录日志
+    if (state.batchDownloading) {
+        const titles = chapters.map(c => c.chapter_title || c.chapter_id).slice(0, 5).join('、');
+        const more = chapters.length > 5 ? ` 等 ${chapters.length} 章` : '';
+        addLog('彻底失败章节: ' + titles + more, 'error');
+        return;
+    }
+
+    // 单本下载：仅当章节列表展示的就是这本小说时才自动选中
+    if (!state.novelId || String(data.novel_id) !== String(state.novelId)) {
+        addLog('检测到 ' + chapters.length + ' 章下载失败（详见日志）', 'error');
+        return;
+    }
+
+    const failedIdSet = new Set(chapters.map(c => String(c.chapter_id)));
+    let firstFailedEl = null;
+    let selectedCount = 0;
+
+    document.querySelectorAll('.chapter-checkbox').forEach(cb => {
+        const cid = String(cb.dataset.chapterId);
+        if (failedIdSet.has(cid)) {
+            const item = cb.closest('.chapter-item');
+            cb.checked = true;
+            if (item) item.classList.add('selected', 'failed');
+            state.selectedChapters.add(cid);
+            selectedCount++;
+            if (!firstFailedEl) firstFailedEl = item;
+        }
+    });
+
+    updateChapterCount();
+    // 进入补全模式：重试失败章节时追加到已有文件，避免覆盖已下载内容
+    state.supplementMode = true;
+
+    const titles = chapters.map(c => c.chapter_title || c.chapter_id).slice(0, 3).join('、');
+    const more = chapters.length > 3 ? ` 等 ${chapters.length} 章` : '';
+    showToast('检测到 ' + chapters.length + ' 章下载失败，已自动选中（' + titles + more + '）', 'warning');
+    addLog('已自动选中 ' + selectedCount + ' 个失败章节，可重新点击下载重试', 'warning');
+
+    // 滚动到第一个失败章节
+    if (firstFailedEl && firstFailedEl.scrollIntoView) {
+        firstFailedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
 /* ====================================================================
    Settings
    ==================================================================== */
@@ -2784,9 +3360,6 @@ async function openSettings() {
         if (settings) {
             if (settings.concurrent_downloads) {
                 document.getElementById('settingConcurrent').value = settings.concurrent_downloads;
-            }
-            if (settings.download_speed) {
-                document.getElementById('settingSpeed').value = settings.download_speed;
             }
             document.getElementById('settingRemoveEmptyLines').checked = !!settings.remove_empty_lines;
         }
@@ -2809,7 +3382,6 @@ function closeSettingsOutside(e) {
 async function saveSettings() {
     const config = {
         concurrent_downloads: parseInt(document.getElementById('settingConcurrent').value),
-        download_speed: parseFloat(document.getElementById('settingSpeed').value),
         remove_empty_lines: document.getElementById('settingRemoveEmptyLines').checked,
     };
     try {
@@ -3139,28 +3711,108 @@ async function batchDownload() {
         return;
     }
     closeCart();
+    state.batchDownloading = true;
+    state.batchCancel = false;
+    // 禁用单本下载按钮，避免批量进行中误触发冲突
+    const downloadBtn = document.getElementById('downloadBtn');
+    if (downloadBtn) downloadBtn.disabled = true;
     showToast('开始批量下载 ' + selected.length + ' 本小说', 'info');
     addLog('批量下载开始: ' + selected.length + ' 本小说 -> ' + saveDir, 'info');
     if (!state.logExpanded) toggleLog();
+
+    let successCount = 0;
     for (let i = 0; i < selected.length; i++) {
+        if (state.batchCancel) {
+            addLog('批量下载已取消', 'warning');
+            break;
+        }
         const novel = selected[i];
         addLog('[' + (i + 1) + '/' + selected.length + '] 正在下载: ' + novel.title, 'info');
-        try {
-            const sourceKey = novel.source_key || novel.source;
-            const chapters = await window.pywebview.api.get_chapters(novel.novel_id, sourceKey);
-            if (chapters && chapters.length > 0) {
-                const chapterIds = chapters.map(ch => ch.chapter_id);
-                await window.pywebview.api.download(novel.novel_id, chapterIds, saveDir, sourceKey);
-                addLog('完成: ' + novel.title, 'success');
-            } else {
-                addLog('无章节: ' + novel.title, 'warning');
+
+        // 重置进度条，显示取消按钮（暂停/取消在批量中可用）
+        const progressSection = document.getElementById('progressSection');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        if (progressSection) progressSection.classList.add('active');
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+        if (pauseBtn) pauseBtn.classList.remove('hidden');
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('progressPercent').textContent = '0%';
+        document.getElementById('progressText').textContent = '[' + (i + 1) + '/' + selected.length + '] ' + novel.title;
+        document.getElementById('progressEta').textContent = '';
+
+        let sourceKey = novel.source_key || novel.source || 'biquge';
+        let novelId = novel.novel_id;
+
+        // 处理 sudugu 源：用书名搜索真实源
+        if (sourceKey === 'sudugu') {
+            try {
+                const searchResults = await window.pywebview.api.search(novel.title, 'biquge');
+                if (searchResults && !searchResults.error && searchResults.length > 0) {
+                    novelId = searchResults[0].novel_id;
+                    sourceKey = searchResults[0].source_key || searchResults[0].source || 'biquge';
+                    addLog('《' + novel.title + '》已匹配到 ' + sourceKey, 'info');
+                } else {
+                    addLog('未找到《' + novel.title + '》的可用源，跳过', 'warning');
+                    continue;
+                }
+            } catch (e) {
+                addLog('搜索《' + novel.title + '》失败: ' + (e.message || e), 'error');
+                continue;
             }
+        }
+
+        try {
+            const chapters = await window.pywebview.api.get_chapters(novelId, sourceKey);
+            if (!chapters || chapters.error || chapters.length === 0) {
+                addLog('无章节: ' + novel.title, 'warning');
+                continue;
+            }
+            const chapterIds = chapters.map(ch => ch.chapter_id);
+            const result = await window.pywebview.api.download(novelId, chapterIds, saveDir, sourceKey);
+            if (result && result.error) {
+                addLog('下载失败: ' + novel.title + ' - ' + result.error, 'error');
+                continue;
+            }
+            // 等待当前小说下载完成后再开始下一本
+            await waitForDownloadComplete();
+            addLog('完成: ' + novel.title, 'success');
+            successCount++;
         } catch (e) {
             addLog('下载失败: ' + novel.title + ' - ' + (e.message || e), 'error');
         }
     }
-    showToast('批量下载完成', 'success');
+    state.batchDownloading = false;
+    // 批量结束后做最终 UI 清理（隐藏按钮、恢复下载按钮）
+    finishDownloadUI(false);
+    if (state.batchCancel) {
+        showToast('批量下载已取消', 'warning');
+    } else {
+        showToast('批量下载完成，成功 ' + successCount + '/' + selected.length + ' 本', 'success');
+    }
+    addLog('批量下载结束: 成功 ' + successCount + '/' + selected.length + ' 本', 'success');
     state.historyLoaded = false;
+}
+
+/** 轮询等待当前下载线程完成 */
+function waitForDownloadComplete() {
+    return new Promise((resolve) => {
+        // 先等 2 秒让下载线程真正启动
+        setTimeout(() => pollDownload(resolve), 2000);
+    });
+}
+
+async function pollDownload(resolve) {
+    try {
+        const status = await window.pywebview.api.get_download_status();
+        if (!status.active) {
+            resolve();
+        } else {
+            setTimeout(() => pollDownload(resolve), 1000);
+        }
+    } catch (e) {
+        resolve();
+    }
 }
 
 /* ====================================================================
@@ -3414,7 +4066,7 @@ function renderPausedTasks(items) {
         const remaining = (item.total || 0) - (item.completed || 0);
         info.innerHTML = '<div class="list-item-title">' + escapeHtml(item.title || item.novel_id || '未知') + '</div>' +
             '<div class="list-item-meta">剩余 ' + remaining + ' 章' +
-            (item.source ? ' | ' + escapeHtml(item.source) : '') + '</div>';
+            (item.source_key ? ' | ' + escapeHtml(item.source_key) : '') + '</div>';
         el.appendChild(info);
         const statusEl = document.createElement('span');
         statusEl.className = 'list-status paused';
@@ -3488,13 +4140,52 @@ async function updateNovel() {
             return;
         }
         const newCount = result.new_count || (result.new_chapters ? result.new_chapters.length : 0);
-        if (newCount > 0) {
-            showToast('发现 ' + newCount + ' 个新章节', 'success');
-            addLog('发现 ' + newCount + ' 个新章节，已刷新章节列表', 'success');
+        const incompleteCount = result.incomplete_count || (result.incomplete_chapters ? result.incomplete_chapters.length : 0);
+
+        if (newCount === 0 && incompleteCount === 0) {
+            showToast('已是最新，内容完整', 'success');
+            addLog('已是最新章节，内容完整', 'info');
+            return;
+        }
+
+        // 有新章节或章节列表未加载时，重新加载章节列表
+        if (newCount > 0 || state.chapters.length === 0) {
             await loadChapters();
-        } else {
-            showToast('已是最新，无新章节', 'info');
-            addLog('已是最新章节', 'info');
+        }
+
+        // 仅选中需要下载的章节：新章节 + 缺失章节（避免重复下载已完成内容）
+        clearSelection();
+        const newIds = (result.new_chapters || []).map(c => String(c.chapter_id));
+        const incompleteIds = (result.incomplete_chapters || []).map(c => String(c.chapter_id));
+        const selectSet = new Set(newIds.concat(incompleteIds));
+        const incompleteSet = new Set(incompleteIds);
+
+        document.querySelectorAll('.chapter-checkbox').forEach(cb => {
+            const cid = String(cb.dataset.chapterId);
+            if (selectSet.has(cid)) {
+                const item = cb.closest('.chapter-item');
+                cb.checked = true;
+                if (item) {
+                    item.classList.add('selected');
+                    if (incompleteSet.has(cid)) item.classList.add('failed');
+                }
+                state.selectedChapters.add(cid);
+            }
+        });
+        updateChapterCount();
+        // 进入补全模式：用户直接点下载时将追加到已有文件而非覆盖
+        state.supplementMode = true;
+
+        // 提示信息
+        if (newCount > 0 && incompleteCount > 0) {
+            showToast('发现 ' + newCount + ' 个新章节，并检测到 ' + incompleteCount + ' 章内容缺失（已自动选中）', 'warning');
+            addLog('发现 ' + newCount + ' 个新章节；另有 ' + incompleteCount + ' 章内容缺失已自动选中，可点击下载补全', 'warning');
+        } else if (newCount > 0) {
+            showToast('发现 ' + newCount + ' 个新章节，已自动选中', 'success');
+            addLog('发现 ' + newCount + ' 个新章节，已自动选中（仅新章节）', 'success');
+        } else if (incompleteCount > 0) {
+            showToast('检测到 ' + incompleteCount + ' 章内容缺失，已自动选中，可点击下载补全', 'warning');
+            addLog('检测到 ' + incompleteCount + ' 章内容缺失已自动选中', 'warning');
         }
     } catch (e) {
         showToast('更新失败: ' + (e.message || e), 'error');
@@ -3571,6 +4262,7 @@ function syncChapterCheckboxes() {
             cb.closest('.chapter-item').classList.remove('selected');
         }
     });
+    state.supplementMode = false;
 }
 
 /* ====================================================================
@@ -3719,6 +4411,125 @@ if (window.pywebview && window.pywebview.api) {
     // 监听 pywebviewready 事件（API 注入完成时触发）
     window.addEventListener('pywebviewready', initApp);
 }
+
+/* ================================================================
+   ★★★ 交互增强：涟漪效果 & 章节交错动画 ★★★
+   ================================================================ */
+
+// ---- 涟漪效果：为按钮添加点击波纹 ----
+function createRipple(e) {
+    const button = e.currentTarget;
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+
+    // 适配鼠标点击和触摸
+    const x = (e.clientX || (e.touches && e.touches[0].clientX) || rect.left + rect.width / 2) - rect.left - size / 2;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY) || rect.top + rect.height / 2) - rect.top - size / 2;
+
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = x + 'px';
+    ripple.style.top = y + 'px';
+
+    button.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+}
+
+// 为所有按钮添加涟漪效果
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-download, .search-btn, .btn-modal-save, .btn-modal-cancel, .novel-action-btn.primary, .grid-card-btn.primary');
+    if (btn && btn.style.position !== 'static') {
+        createRipple({ currentTarget: btn, clientX: e.clientX, clientY: e.clientY });
+    }
+});
+
+// ---- 章节列表交错入场动画 ----
+function applyStaggeredAnimation() {
+    const items = document.querySelectorAll('.chapter-item');
+    items.forEach((item, index) => {
+        // 每项延迟 20ms，最多 800ms
+        const delay = Math.min(index * 20, 800);
+        item.style.animationDelay = delay + 'ms';
+    });
+}
+
+// 监听章节列表 DOM 变化，自动应用交错动画
+const chapterListObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+        if (mutation.addedNodes.length > 0) {
+            applyStaggeredAnimation();
+        }
+    });
+});
+
+// 初始观察章节列表容器
+const chapterListEl = document.getElementById('chapterList');
+if (chapterListEl) {
+    chapterListObserver.observe(chapterListEl, { childList: true });
+}
+
+// ---- 视图切换时的渐入动画 ----
+const originalSwitchView = window.switchView;
+if (typeof originalSwitchView === 'function') {
+    window.switchView = function(viewName) {
+        originalSwitchView(viewName);
+        // 为新视图内容添加渐入动画
+        setTimeout(() => {
+            const activeView = document.querySelector('.view.active');
+            if (activeView) {
+                const cards = activeView.querySelectorAll('.novel-grid-card, .list-item, .category-chip');
+                cards.forEach((el, i) => {
+                    el.style.animation = 'none';
+                    void el.offsetWidth; // 触发重排
+                    el.style.animation = `fadeInUp 0.4s ease backwards`;
+                    el.style.animationDelay = Math.min(i * 50, 600) + 'ms';
+                });
+            }
+        }, 50);
+    };
+}
+
+// ---- 鼠标视差效果（轻微跟随鼠标移动） ----
+let parallaxRAF = null;
+document.addEventListener('mousemove', function(e) {
+    if (parallaxRAF) cancelAnimationFrame(parallaxRAF);
+    parallaxRAF = requestAnimationFrame(() => {
+        const orbs = document.querySelectorAll('.aurora-orb');
+        const mouseX = (e.clientX / window.innerWidth - 0.5) * 30;
+        const mouseY = (e.clientY / window.innerHeight - 0.5) * 30;
+        orbs.forEach((orb, i) => {
+            const factor = (i + 1) * 0.3;
+            orb.style.setProperty('--parallax-x', mouseX * factor + 'px');
+            orb.style.setProperty('--parallax-y', mouseY * factor + 'px');
+        });
+    });
+});
+
+// ---- 卡片 3D 倾斜效果 ----
+document.addEventListener('mousemove', function(e) {
+    const card = e.target.closest('.novel-grid-card');
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = (y - centerY) / centerY * -5;
+    const rotateY = (x - centerX) / centerX * 5;
+
+    card.style.transform = `translateY(-6px) scale(1.02) perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+});
+
+document.addEventListener('mouseout', function(e) {
+    const card = e.target.closest('.novel-grid-card');
+    if (card && !e.relatedTarget?.closest('.novel-grid-card')) {
+        card.style.transform = '';
+    }
+});
+
 </script>
 </body>
 </html>
