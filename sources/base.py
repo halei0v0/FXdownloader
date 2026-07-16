@@ -83,6 +83,26 @@ class BaseSource(ABC):
             return []
         raise NotImplementedError
 
+    def get_rankings(self, category: str = 'all', page: int = 1) -> list[NovelInfo]:
+        """获取排行榜/分类推荐小说（默认不支持，子类可覆盖）
+
+        Args:
+            category: 分类名（'all'-总榜, 'hot'-人气, 'new'-新作, 'finish'-完结）
+            page: 页码（从 1 开始）
+
+        Returns:
+            list[NovelInfo]
+        """
+        return []
+
+    def get_categories(self) -> list[dict]:
+        """获取支持的分类列表（子类可覆盖）
+
+        Returns:
+            list[dict]: [{'key': str, 'name': str}, ...]
+        """
+        return []
+
     @staticmethod
     def parse_novel_url(url: str) -> Optional[str]:
         """解析 URL 提取小说 ID（默认返回原值）"""

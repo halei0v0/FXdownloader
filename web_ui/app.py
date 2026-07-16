@@ -9,6 +9,7 @@ import os
 import sys
 import json
 import time
+import uuid
 import threading
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,8 +26,12 @@ from sources.bing_search import search_via_bing  # noqa: E402
 from sources.multi_source import (
     search_all_sources,
     find_novel_in_all_sources,
+    get_all_rankings,
+    get_all_categories,
+    get_category_novels,
     SOURCE_DISPLAY_NAMES,
 )  # noqa: E402
+from database import NovelDatabase  # noqa: E402
 import config as app_config  # noqa: E402
 
 
@@ -36,8 +41,13 @@ class Api:
     def __init__(self, window=None):
         self._window = window
         self._cancel_event = threading.Event()
+        self._pause_event = threading.Event()  # 暂停事件（set=暂停中）
         self._download_thread = None
         self._source_cache = {}  # 缓存源实例 {source_key: source_instance}
+        self._db = NovelDatabase()
+        self._current_task_id = None  # 当前下载任务 ID
+        self._download_start_time = None  # 下载开始时间（ETA计算）
+        self._download_done_count = 0  # 已完成章节数
 
     # ============== 源管理 ==============
 
@@ -110,7 +120,7 @@ class Api:
             return None
 
         # 尝试每个源（URL 通常只匹配一个源的 URL_PATTERN）
-        source_keys = ['biquge', 'dingdian', 'bxwx', 'qianbi', 'haitang', 'fanqie']
+        source_keys = ['biquge', 'dingdian', 'bxwx', 'qianbi', 'haitang', 'fanqie_api', 'fanqie_official']
         for sk in source_keys:
             try:
                 source = self._get_source(sk)
@@ -122,6 +132,12 @@ class Api:
                     if info:
                         d = self._novel_info_to_dict(info)
                         d['source_name'] = SOURCE_DISPLAY_NAMES.get(sk, sk)
+                        # 缓存封面
+                        if d.get('cover_url'):
+                            try:
+                                self._db.set_cover(str(novel_id), sk, d['cover_url'], d.get('title'))
+                            except Exception:
+                                pass
                         return d
             except Exception:
                 continue
@@ -153,7 +169,15 @@ class Api:
             if not info:
                 return {'error': '获取小说信息失败，请检查URL或ID是否正确'}
 
-            return self._novel_info_to_dict(info)
+            result = self._novel_info_to_dict(info)
+            # 缓存封面到数据库，避免下次重复获取
+            if result.get('cover_url'):
+                try:
+                    sk = result.get('source_key') or source_key
+                    self._db.set_cover(str(novel_id), sk, result['cover_url'], result.get('title'))
+                except Exception:
+                    pass
+            return result
 
         except Exception as e:
             print(f'[WebUI] 解析小说失败: {e}')
@@ -185,17 +209,21 @@ class Api:
     # ============== 下载 ==============
 
     def download(self, novel_id, chapter_ids, save_dir, source_key='biquge'):
-        """在后台线程中下载章节（多源分工 + 失败重试）
+        """在后台线程中下载章节（多源分工 + 失败重试 + 暂停/续传 + ETA）
 
         下载流程：
-        1. 主源并发下载所有章节
-        2. 统计失败/缺失章节
-        3. 自动用其他源重新下载失败章节
+        1. 创建任务记录到数据库（支持暂停/续传）
+        2. 主源并发下载所有章节
+        3. 统计失败/缺失章节
+        4. 自动用其他源重新下载失败章节
         """
         if self._download_thread and self._download_thread.is_alive():
             return {'error': '已有下载任务正在进行中'}
 
         self._cancel_event.clear()
+        self._pause_event.clear()
+        self._download_done_count = 0
+        self._download_start_time = time.time()
 
         self._download_thread = threading.Thread(
             target=self._download_worker,
@@ -207,7 +235,7 @@ class Api:
         return {'status': 'started'}
 
     def _download_worker(self, novel_id, chapter_ids, save_dir, source_key):
-        """后台下载工作线程：多源并发 + 失败重试"""
+        """后台下载工作线程：多源并发 + 失败重试 + 暂停/续传 + ETA"""
         try:
             source = self._get_source(source_key)
             if not source:
@@ -227,6 +255,20 @@ class Api:
             total = len(chapter_ids)
             output_file = os.path.join(save_dir, f'{novel_title}.txt')
 
+            # 创建任务记录（支持暂停/续传）
+            task_id = str(uuid.uuid4())
+            self._current_task_id = task_id
+            self._db.create_task(
+                task_id=task_id,
+                novel_id=novel_id,
+                title=novel_title,
+                source_key=source_key,
+                save_dir=save_dir,
+                output_file=output_file,
+                chapter_ids=chapter_ids,
+                total=total,
+            )
+
             # 建立章节ID到标题的映射（用于多源重试时按标题匹配）
             chapter_id_to_title = {}
             try:
@@ -241,6 +283,7 @@ class Api:
             # 存储下载结果: {chapter_id: {'title': str, 'content': str}}
             results = {}
             failed_ids = []  # 失败的章节ID
+            completed_ids = []  # 已完成的章节ID
 
             # ====== 第一轮：主源并发下载 ======
             max_workers = min(app_config.get_concurrent_downloads(), 4)
@@ -257,23 +300,54 @@ class Api:
                         for f in future_to_chapter:
                             f.cancel()
                         break
+
+                    # 暂停检测：如果 pause_event 被 set，则等待
+                    while self._pause_event.is_set() and not self._cancel_event.is_set():
+                        time.sleep(0.5)
+                    if self._cancel_event.is_set():
+                        break
+
                     cid = future_to_chapter[future]
                     done_count += 1
+                    self._download_done_count = done_count
                     try:
                         data = future.result()
                         if data and data.get('content'):
                             results[cid] = data
+                            completed_ids.append(cid)
                         else:
                             failed_ids.append(cid)
                     except Exception as e:
                         failed_ids.append(cid)
                         with lock:
                             self._push_log(f'章节 {cid} 下载失败: {e}', 'error')
-                    self._push_progress(done_count, total, percent=round(done_count / total * 100, 1))
+
+                    # 推送进度 + ETA
+                    self._push_progress_with_eta(done_count, total)
+
+                    # 更新任务进度
+                    try:
+                        self._db.update_task_progress(
+                            task_id, completed_ids, failed_ids,
+                            status='paused' if self._pause_event.is_set() else 'running',
+                        )
+                    except Exception:
+                        pass
 
             if self._cancel_event.is_set():
                 self._push_log('下载已被用户取消', 'warning')
                 self._write_output(output_file, novel_info, chapter_ids, results)
+                try:
+                    self._db.set_task_status(task_id, 'cancelled')
+                except Exception:
+                    pass
+                # 记录历史
+                self._db.add_history(
+                    novel_id, novel_title, novel_info.author if novel_info else '',
+                    novel_info.source if novel_info else '', source_key,
+                    total, len(results), output_file, status='cancelled',
+                )
+                self._current_task_id = None
                 return
 
             # ====== 第二轮：自动重试失败章节（用其他源，按标题匹配） ======
@@ -302,6 +376,21 @@ class Api:
 
             success_count = len(results)
             failed_count = total - success_count
+
+            # 更新任务状态为完成
+            try:
+                self._db.set_task_status(task_id, 'completed')
+            except Exception:
+                pass
+
+            # 记录历史
+            status = 'completed' if failed_count == 0 else 'partial'
+            self._db.add_history(
+                novel_id, novel_title, novel_info.author if novel_info else '',
+                novel_info.source if novel_info else '', source_key,
+                total, success_count, output_file, status=status,
+            )
+
             if failed_count > 0:
                 self._push_log(
                     f'下载完成! 成功 {success_count}/{total} 章，失败 {failed_count} 章 -> {output_file}',
@@ -310,11 +399,20 @@ class Api:
             else:
                 self._push_log(f'下载完成! 成功 {success_count}/{total} 章 -> {output_file}', 'success')
 
+            self._current_task_id = None
+
         except Exception as e:
             self._push_error(f'下载过程中出现严重错误: {e}')
+            self._current_task_id = None
 
     def _download_one(self, source, novel_id, chapter_id, lock):
-        """下载单个章节"""
+        """下载单个章节（在执行前检查暂停状态）"""
+        # 暂停检测：如果 pause_event 被 set，则等待恢复
+        while self._pause_event.is_set() and not self._cancel_event.is_set():
+            time.sleep(0.5)
+        if self._cancel_event.is_set():
+            return None
+
         data = source.get_chapter_content(novel_id, str(chapter_id))
         if data and lock:
             with lock:
@@ -469,10 +567,256 @@ class Api:
                 f.write(content)
                 f.write("\n")
 
+    def _append_output(self, output_file, novel_info, results):
+        """追加章节到已有文件（用于续传）
+
+        只写入新下载的章节，不重写已有内容。
+        """
+        remove_empty = app_config.get_remove_empty_lines()
+
+        def _clean(text):
+            if not remove_empty:
+                return text
+            return self._clean_empty_lines(text)
+
+        # 如果文件不存在，创建并写入头部
+        mode = 'a' if os.path.exists(output_file) else 'w'
+        with open(output_file, mode, encoding='utf-8') as f:
+            if mode == 'w' and novel_info:
+                f.write(f"{'=' * 50}\n")
+                f.write(f"书名: {novel_info.title}\n")
+                if novel_info.author:
+                    f.write(f"作者: {novel_info.author}\n")
+                if novel_info.description:
+                    f.write(f"简介: {_clean(novel_info.description)}\n")
+                f.write(f"{'=' * 50}\n")
+
+            for cid, data in results.items():
+                if not data:
+                    continue
+                title = data.get('title', '')
+                content = _clean(data.get('content', ''))
+                if not content:
+                    continue
+                f.write(f"\n{'=' * 30}\n")
+                f.write(f"{title}\n")
+                f.write(f"{'=' * 30}\n")
+                f.write(content)
+                f.write("\n")
+
     def cancel_download(self):
         """取消当前下载"""
         self._cancel_event.set()
+        self._pause_event.clear()  # 同时清除暂停状态
         return {'status': 'cancelled'}
+
+    def pause_download(self):
+        """暂停当前下载"""
+        self._pause_event.set()
+        self._push_log('下载已暂停', 'warning')
+        # 更新任务状态
+        if self._current_task_id:
+            try:
+                self._db.set_task_status(self._current_task_id, 'paused')
+            except Exception:
+                pass
+        return {'status': 'paused'}
+
+    def resume_download(self):
+        """恢复当前下载"""
+        self._pause_event.clear()
+        self._push_log('下载已恢复', 'info')
+        if self._current_task_id:
+            try:
+                self._db.set_task_status(self._current_task_id, 'running')
+            except Exception:
+                pass
+        return {'status': 'resumed'}
+
+    def is_paused(self):
+        """检查当前是否暂停"""
+        return {'paused': self._pause_event.is_set()}
+
+    def get_paused_tasks(self):
+        """获取所有暂停的任务"""
+        try:
+            tasks = self._db.get_paused_tasks()
+            result = []
+            for t in tasks:
+                result.append({
+                    'task_id': t['task_id'],
+                    'novel_id': t['novel_id'],
+                    'title': t['title'],
+                    'source_key': t['source_key'],
+                    'save_dir': t['save_dir'],
+                    'output_file': t['output_file'],
+                    'total': t['total'],
+                    'completed': len(t.get('completed_ids', [])),
+                    'failed': len(t.get('failed_ids', [])),
+                    'chapter_ids': t.get('chapter_ids', []),
+                    'completed_ids': t.get('completed_ids', []),
+                    'failed_ids': t.get('failed_ids', []),
+                    'created_at': str(t.get('created_at', '')),
+                    'updated_at': str(t.get('updated_at', '')),
+                })
+            return result
+        except Exception as e:
+            return {'error': str(e)}
+
+    def resume_task(self, task_id):
+        """续传已暂停的任务（从断点继续下载）"""
+        try:
+            task = self._db.get_task(task_id)
+            if not task:
+                return {'error': '任务不存在'}
+            if task['status'] != 'paused':
+                return {'error': f"任务状态为 {task['status']}，无法续传"}
+
+            # 已完成的章节ID集合
+            completed_set = set(task.get('completed_ids', []))
+            # 待下载章节ID（去掉已完成的）
+            remaining = [cid for cid in task.get('chapter_ids', [])
+                         if cid not in completed_set]
+            if not remaining:
+                return {'error': '任务已全部完成，无需续传'}
+
+            # 启动新的下载线程
+            self._cancel_event.clear()
+            self._pause_event.clear()
+            self._download_done_count = len(completed_set)
+            self._download_start_time = time.time()
+            self._current_task_id = task_id
+
+            self._download_thread = threading.Thread(
+                target=self._resume_worker,
+                args=(task, remaining),
+                daemon=True,
+            )
+            self._download_thread.start()
+            return {'status': 'started', 'remaining': len(remaining)}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def _resume_worker(self, task, remaining_ids):
+        """续传任务工作线程"""
+        try:
+            source = self._get_source(task['source_key'])
+            if not source:
+                self._push_error(f"未知源: {task['source_key']}")
+                return
+
+            novel_id = task['novel_id']
+            novel_title = task['title']
+            output_file = task['output_file']
+            total = task['total']
+            all_chapter_ids = task['chapter_ids']
+            completed_ids = task.get('completed_ids', [])
+
+            # 更新状态为运行中
+            self._db.set_task_status(task['task_id'], 'running')
+
+            self._push_log(f'续传任务: {novel_title}, 剩余 {len(remaining_ids)} 章', 'info')
+
+            # 获取小说信息
+            novel_info = None
+            try:
+                novel_info = source.get_novel_info(novel_id)
+            except Exception:
+                pass
+
+            # 章节ID到标题映射
+            chapter_id_to_title = {}
+            try:
+                all_chapters = source.get_chapter_list(novel_id)
+                for ch in all_chapters:
+                    chapter_id_to_title[str(ch.chapter_id)] = ch.chapter_title
+            except Exception:
+                pass
+
+            # 下载剩余章节
+            results = {}
+            failed_ids = []
+            max_workers = min(app_config.get_concurrent_downloads(), 4)
+            lock = threading.Lock()
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_chapter = {
+                    executor.submit(self._download_one, source, novel_id, cid, lock): cid
+                    for cid in remaining_ids
+                }
+                done_count = 0
+                for future in as_completed(future_to_chapter):
+                    if self._cancel_event.is_set():
+                        for f in future_to_chapter:
+                            f.cancel()
+                        break
+                    while self._pause_event.is_set() and not self._cancel_event.is_set():
+                        time.sleep(0.5)
+                    if self._cancel_event.is_set():
+                        break
+
+                    cid = future_to_chapter[future]
+                    done_count += 1
+                    try:
+                        data = future.result()
+                        if data and data.get('content'):
+                            results[cid] = data
+                            completed_ids.append(cid)
+                        else:
+                            failed_ids.append(cid)
+                    except Exception as e:
+                        failed_ids.append(cid)
+
+                    # 推送进度（基于总数）
+                    total_done = len(completed_ids)
+                    self._push_progress_with_eta(total_done, total)
+
+                    # 更新任务进度
+                    try:
+                        self._db.update_task_progress(
+                            task['task_id'], completed_ids, failed_ids,
+                            status='running',
+                        )
+                    except Exception:
+                        pass
+
+            # 重试失败章节
+            if failed_ids and not self._cancel_event.is_set():
+                self._push_log(f'检测到 {len(failed_ids)} 个失败章节，尝试用其他源...', 'warning')
+                retry_ok = self._retry_failed_chapters(
+                    failed_ids, chapter_id_to_title, novel_info,
+                    task['source_key'], results, lock
+                )
+                if retry_ok > 0:
+                    self._push_log(f'重试成功 {retry_ok} 章', 'success')
+
+            # 只写入新下载的章节（追加模式，不重新下载已完成的章节）
+            if results:
+                self._append_output(output_file, novel_info, results)
+
+            success_count = len(completed_ids) + len(results)
+            self._push_log(f'续传完成! 共 {success_count}/{total} 章 -> {output_file}', 'success')
+            self._db.set_task_status(task['task_id'], 'completed')
+
+            # 记录历史
+            self._db.add_history(
+                novel_id, novel_title, novel_info.author if novel_info else '',
+                novel_info.source if novel_info else '', task['source_key'],
+                total, success_count, output_file, status='completed',
+            )
+            self._current_task_id = None
+
+        except Exception as e:
+            self._push_error(f'续传失败: {e}')
+            self._current_task_id = None
+
+    def delete_task(self, task_id):
+        """删除任务"""
+        try:
+            self._db.delete_task(task_id)
+            return {'status': 'ok'}
+        except Exception as e:
+            return {'error': str(e)}
 
     # ============== 设置 ==============
 
@@ -606,6 +950,47 @@ class Api:
         except Exception:
             pass
 
+    def _push_progress_with_eta(self, current, total):
+        """推送进度 + ETA（剩余时间预估）"""
+        if not self._window:
+            return
+        try:
+            percent = round(current / total * 100, 1) if total > 0 else 0
+            eta_seconds = 0
+            speed = 0
+            if self._download_start_time and current > 0:
+                elapsed = time.time() - self._download_start_time
+                speed = current / elapsed if elapsed > 0 else 0  # 章/秒
+                remaining = total - current
+                eta_seconds = remaining / speed if speed > 0 else 0
+
+            # 格式化 ETA
+            def _fmt_time(s):
+                if s <= 0:
+                    return '--:--'
+                s = int(s)
+                h, s = divmod(s, 3600)
+                m, s = divmod(s, 60)
+                if h > 0:
+                    return f'{h}:{m:02d}:{s:02d}'
+                return f'{m:02d}:{s:02d}'
+
+            # 速度转换为 章/分
+            speed_per_min = speed * 60 if speed > 0 else 0
+
+            data = json.dumps({
+                'current': current,
+                'total': total,
+                'percent': percent,
+                'eta': _fmt_time(eta_seconds),
+                'eta_seconds': round(eta_seconds, 1),
+                'speed': round(speed, 2),
+                'speed_text': f'{speed_per_min:.1f} 章/分' if speed_per_min > 0 else '--',
+            })
+            self._window.evaluate_js(f'onProgress({data})')
+        except Exception:
+            pass
+
     def _push_log(self, message, level='info'):
         """向前端推送日志"""
         if not self._window:
@@ -622,6 +1007,344 @@ class Api:
     def _push_error(self, message):
         """向前端推送错误日志"""
         self._push_log(message, 'error')
+
+    # ============== 历史记录 ==============
+
+    def get_history(self, limit=100):
+        """获取下载历史"""
+        try:
+            history = self._db.get_history(limit)
+            result = []
+            for h in history:
+                d = dict(h)
+                d['created_at'] = str(d.get('created_at', ''))
+                result.append(d)
+            return result
+        except Exception as e:
+            return {'error': str(e)}
+
+    def delete_history(self, history_id):
+        """删除单条历史记录"""
+        try:
+            self._db.delete_history(history_id)
+            return {'status': 'ok'}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def clear_history(self):
+        """清空所有历史记录"""
+        try:
+            self._db.clear_history()
+            return {'status': 'ok'}
+        except Exception as e:
+            return {'error': str(e)}
+
+    # ============== 收藏 ==============
+
+    def add_favorite(self, novel_json):
+        """添加收藏"""
+        try:
+            novel = json.loads(novel_json)
+            self._db.add_favorite(
+                novel_id=novel.get('novel_id', ''),
+                title=novel.get('title', ''),
+                author=novel.get('author', ''),
+                cover_url=novel.get('cover_url', ''),
+                description=novel.get('description', ''),
+                source=novel.get('source', ''),
+                source_key=novel.get('source_key', novel.get('source', '')),
+                extra_json=json.dumps(novel.get('extra', {}), ensure_ascii=False),
+            )
+            return {'status': 'ok'}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def remove_favorite(self, novel_id, source):
+        """取消收藏"""
+        try:
+            self._db.remove_favorite(novel_id, source)
+            return {'status': 'ok'}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def get_favorites(self):
+        """获取所有收藏"""
+        try:
+            favs = self._db.get_favorites()
+            result = []
+            for f in favs:
+                d = dict(f)
+                d['created_at'] = str(d.get('created_at', ''))
+                result.append(d)
+            return result
+        except Exception as e:
+            return {'error': str(e)}
+
+    def is_favorited(self, novel_id, source):
+        """检查是否已收藏"""
+        try:
+            return {'favorited': self._db.is_favorited(novel_id, source)}
+        except Exception as e:
+            return {'error': str(e)}
+
+    # ============== 阅读功能 ==============
+
+    def read_chapter(self, novel_id, chapter_id, source_key='biquge'):
+        """获取章节内容用于阅读"""
+        try:
+            source = self._get_source(source_key)
+            if not source:
+                return {'error': f'未知源: {source_key}'}
+            data = source.get_chapter_content(str(novel_id), str(chapter_id))
+            if data and data.get('content'):
+                # 保存阅读进度
+                title = data.get('title', '')
+                # 尝试获取小说标题
+                novel_title = ''
+                try:
+                    novel_info = source.get_novel_info(str(novel_id))
+                    if novel_info:
+                        novel_title = novel_info.title or ''
+                except Exception:
+                    pass
+                self._db.save_reading_progress(
+                    novel_id=str(novel_id), title=novel_title,
+                    last_chapter_id=str(chapter_id),
+                    last_chapter_title=title, chapter_index=0,
+                )
+                return {
+                    'title': title,
+                    'content': data['content'],
+                    'chapter_id': str(chapter_id),
+                }
+            return {'error': '获取章节内容失败'}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def get_reading_progress(self, novel_id):
+        """获取阅读进度"""
+        try:
+            progress = self._db.get_reading_progress(str(novel_id))
+            if progress:
+                d = dict(progress)
+                d['updated_at'] = str(d.get('updated_at', ''))
+                return d
+            return None
+        except Exception as e:
+            return {'error': str(e)}
+
+    def save_reading_progress(self, novel_id, title, chapter_id,
+                               chapter_title, chapter_index, scroll_position=0):
+        """保存阅读进度"""
+        try:
+            self._db.save_reading_progress(
+                novel_id=str(novel_id), title=title,
+                last_chapter_id=str(chapter_id),
+                last_chapter_title=chapter_title,
+                chapter_index=chapter_index,
+                scroll_position=scroll_position,
+            )
+            return {'status': 'ok'}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def get_reading_list(self):
+        """获取阅读书架（所有阅读过的小说）"""
+        try:
+            progress_list = self._db.get_all_reading_progress()
+            result = []
+            for p in progress_list:
+                d = dict(p)
+                d['updated_at'] = str(d.get('updated_at', ''))
+                result.append(d)
+            return result
+        except Exception as e:
+            return {'error': str(e)}
+
+    # ============== 排行榜 ==============
+
+    def get_rankings(self, category='all', page=1):
+        """获取排行榜数据（来源：速读谷，按天缓存，封面已包含）
+
+        排行榜数据每日从 sudugu.org 获取一次后缓存到本地，
+        封面 URL 已包含在缓存中，无需额外 prefetch。
+        """
+        try:
+            return get_all_rankings(category=category, page=page)
+        except Exception as e:
+            return {'error': str(e)}
+
+    def prefetch_covers(self, novels_json, source_key='biquge'):
+        """批量预获取小说封面并缓存到本地
+
+        对没有缓存封面的小说，并发获取其封面 URL 并存入数据库。
+        已有缓存的不重复获取。
+
+        Args:
+            novels_json: JSON 字符串，包含 [{novel_id, title, cover_url, source_key}]
+            source_key: 默认源（当小说未指定 source_key 时使用）
+
+        Returns:
+            dict: {novel_id: cover_url}（包含已有缓存 + 新获取的）
+        """
+        try:
+            novels = json.loads(novels_json) if isinstance(novels_json, str) else novels_json
+            if not novels:
+                return {}
+
+            # 找出需要获取封面的小说（本地缓存中没有的）
+            need_fetch = []
+            result = {}
+            for n in novels:
+                nid = str(n.get('novel_id', ''))
+                sk = n.get('source_key') or n.get('source') or source_key
+                if not nid:
+                    continue
+                # 先查缓存
+                cached = self._db.get_cover(nid, sk)
+                if cached:
+                    result[nid] = cached
+                elif n.get('cover_url'):
+                    # 列表里已带封面 URL，直接缓存
+                    self._db.set_cover(nid, sk, n['cover_url'], n.get('title'))
+                    result[nid] = n['cover_url']
+                else:
+                    need_fetch.append((nid, sk, n.get('title', '')))
+
+            if not need_fetch:
+                return result
+
+            # 并发获取封面（限制并发数，避免请求过多）
+            source_cache = {}
+
+            def _fetch_one(item):
+                nid, sk, title = item
+                try:
+                    if sk not in source_cache:
+                        source_cache[sk] = self._get_source(sk)
+                    source = source_cache[sk]
+                    if not source:
+                        return nid, sk, title, None
+                    info = source.get_novel_info(nid)
+                    if info and info.cover_url:
+                        # 缓存到数据库
+                        self._db.set_cover(nid, sk, info.cover_url, title or info.title)
+                        return nid, sk, title, info.cover_url
+                except Exception as e:
+                    print(f'[WebUI] 获取封面失败 {nid}: {e}')
+                return nid, sk, title, None
+
+            max_workers = min(6, len(need_fetch))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(_fetch_one, item): item for item in need_fetch}
+                for future in as_completed(futures):
+                    try:
+                        nid, sk, title, cover_url = future.result()
+                        if cover_url:
+                            result[nid] = cover_url
+                    except Exception:
+                        pass
+
+            return result
+        except Exception as e:
+            print(f'[WebUI] prefetch_covers 出错: {e}')
+            return {}
+
+    def get_categories(self):
+        """获取所有源的分类列表"""
+        try:
+            return get_all_categories()
+        except Exception as e:
+            return {'error': str(e)}
+
+    def get_category_novels(self, category_key, page=1):
+        """获取分类下的小说列表（来源：速读谷，按天缓存，封面已包含）
+
+        点击分类后调用，返回该分类最新小说。点击具体小说后用书名在各源搜索。
+        """
+        try:
+            return get_category_novels(category_key, page)
+        except Exception as e:
+            return {'error': str(e)}
+
+    # ============== 更新小说 ==============
+
+    def update_novel(self, novel_id, source_key='biquge'):
+        """更新小说：检查并下载新增章节
+
+        对比已下载任务的章节列表和当前章节列表，找出新增章节。
+        WebUI 下载流程不存 DB，因此从 download_tasks 表中查找已完成的任务，
+        获取其 chapter_ids 作为"已下载"集合。
+        """
+        try:
+            source = self._get_source(source_key)
+            if not source:
+                return {'error': f'未知源: {source_key}'}
+
+            # 获取当前章节列表
+            chapters = source.get_chapter_list(str(novel_id))
+            if not chapters:
+                return {'error': '获取章节列表失败'}
+
+            # 从已完成的下载任务中获取已下载的章节ID集合
+            existing_ids = set()
+            try:
+                with self._db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        SELECT chapter_ids_json, completed_ids_json
+                        FROM download_tasks
+                        WHERE novel_id = ? AND status = 'completed'
+                        ORDER BY updated_at DESC LIMIT 1
+                    ''', (str(novel_id),))
+                    row = cursor.fetchone()
+                    if row:
+                        old_chapters = json.loads(row['chapter_ids_json'] or '[]')
+                        existing_ids = set(old_chapters)
+            except Exception:
+                pass
+
+            # 找出新增章节
+            new_chapters = [ch for ch in chapters if str(ch.chapter_id) not in existing_ids]
+            if not new_chapters:
+                return {'status': 'ok', 'new_count': 0, 'message': '没有新章节'}
+
+            return {
+                'status': 'ok',
+                'new_count': len(new_chapters),
+                'new_chapters': [
+                    {
+                        'chapter_id': str(ch.chapter_id),
+                        'chapter_title': ch.chapter_title,
+                        'chapter_index': ch.chapter_index,
+                    }
+                    for ch in new_chapters
+                ],
+                'novel_id': str(novel_id),
+                'source_key': source_key,
+            }
+        except Exception as e:
+            return {'error': str(e)}
+
+    def download_new_chapters(self, novel_id, source_key, save_dir):
+        """下载新增章节并合并到现有文件"""
+        try:
+            check = self.update_novel(novel_id, source_key)
+            if check.get('error'):
+                return check
+            new_chapters = check.get('new_chapters', [])
+            if not new_chapters:
+                return {'status': 'ok', 'message': '没有新章节需要下载', 'new_count': 0}
+
+            # 下载新章节（异步启动，返回 new_count 供前端参考）
+            chapter_ids = [ch['chapter_id'] for ch in new_chapters]
+            result = self.download(novel_id, chapter_ids, save_dir, source_key)
+            # 合并 new_count 到返回值
+            if isinstance(result, dict):
+                result['new_count'] = len(chapter_ids)
+            return result
+        except Exception as e:
+            return {'error': str(e)}
 
 
 def find_free_port():
@@ -692,9 +1415,9 @@ def main():
         title='FXdownloader',
         url=f'http://127.0.0.1:{port}/index.html',
         js_api=api,
-        width=1000,
-        height=720,
-        min_size=(860, 620),
+        width=1100,
+        height=780,
+        min_size=(960, 680),
         text_select=False,
     )
 

@@ -10,9 +10,8 @@
 """
 from __future__ import annotations
 
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict
 
 from . import get_source, SOURCE_REGISTRY, SEARCHABLE_SOURCES, NovelInfo
 from .bing_search import search_via_bing
@@ -84,6 +83,7 @@ def search_all_sources(keyword: str, include_fanqie: bool = True) -> List[dict]:
                             'word_count': n.word_count or 0,
                             'chapter_count': n.chapter_count or 0,
                             'source': sk,
+                            'source_key': sk,
                             'source_name': SOURCE_DISPLAY_NAMES.get(sk, sk),
                             'extra': n.extra or {},
                         }
@@ -110,6 +110,7 @@ def search_all_sources(keyword: str, include_fanqie: bool = True) -> List[dict]:
                         'word_count': 0,
                         'chapter_count': 0,
                         'source': src,
+                        'source_key': src,
                         'source_name': SOURCE_DISPLAY_NAMES.get(src, src),
                         'extra': {'_search_url': r.get('url', '')},
                     }
@@ -162,44 +163,103 @@ def find_novel_in_all_sources(title: str, author: str = '', exclude_source: str 
     return matches
 
 
-def download_chapter_multisource(
-    novel_id: str,
-    chapter_id: str,
-    primary_source,
-    fallback_sources: list,
-    lock: Optional[threading.Lock] = None,
-) -> Optional[dict]:
-    """多源下载单个章节：主源失败时自动尝试其他源
+def get_all_rankings(category: str = 'all', page: int = 1) -> List[dict]:
+    """获取排行榜数据（来源：速读谷 sudugu.org，按天缓存）
 
-    Args:
-        novel_id: 主源的小说ID
-        chapter_id: 章节ID
-        primary_source: 主源实例
-        fallback_sources: 备用源列表 [(source_key, source_instance, novel_id), ...]
-        lock: 可选的线程锁（用于日志输出同步）
+    排行榜数据统一从速读谷获取，每日只请求一次后缓存到本地。
+    排行榜中的小说封面和书名已缓存，点击后用书名在各源搜索。
 
     Returns:
-        {'title': str, 'content': str} 或 None
+        [{novel_id, title, author, source, source_name, cover_url, category, status, ...}]
     """
-    # 主源尝试
     try:
-        data = primary_source.get_chapter_content(novel_id, str(chapter_id))
-        if data and data.get('content'):
-            return data
+        from sources.sudugu_rankings import get_sudugu_rankings
+        ranker = get_sudugu_rankings()
+        novels = ranker.get_rankings(category, use_cache=True)
+        if not novels:
+            return []
+
+        # 转换为统一格式
+        results = []
+        for n in novels:
+            results.append({
+                'novel_id': n.get('title', ''),  # 用书名作为标识（点击后搜索书名）
+                'title': n.get('title', ''),
+                'author': n.get('author', ''),
+                'description': '',
+                'cover_url': n.get('cover_url', ''),
+                'word_count': 0,
+                'chapter_count': 0,
+                'source': 'sudugu',
+                'source_name': n.get('source_name', '速读谷排行'),
+                'source_key': 'sudugu',
+                'category': n.get('category', ''),
+                'status': n.get('status', ''),
+                'rank': n.get('rank', 0),
+                'extra': {},
+            })
+        return results
     except Exception as e:
-        if lock:
-            with lock:
-                print(f'  [主源失败] 章节 {chapter_id}: {e}')
-        else:
-            print(f'  [主源失败] 章节 {chapter_id}: {e}')
+        print(f'[多源排行] 获取速读谷排行榜失败: {e}')
+        return []
 
-    # 备用源尝试
-    for src_key, src_instance, src_novel_id in fallback_sources:
-        try:
-            data = src_instance.get_chapter_content(src_novel_id, str(chapter_id))
-            if data and data.get('content'):
-                return data
-        except Exception:
-            continue
 
-    return None
+def get_all_categories() -> List[dict]:
+    """获取分类列表（来源：速读谷 sudugu.org 静态分类）
+
+    Returns:
+        [{'source': 'sudugu', 'source_name': '速读谷', 'categories': [{key, name}, ...]}]
+    """
+    try:
+        from sources.sudugu_rankings import SUDUGU_CATEGORIES
+        return [{
+            'source': 'sudugu',
+            'source_name': '速读谷',
+            'categories': SUDUGU_CATEGORIES,
+        }]
+    except Exception as e:
+        print(f'[多源分类] 获取分类列表失败: {e}')
+        return []
+
+
+def get_category_novels(category_key: str, page: int = 1) -> List[dict]:
+    """获取分类下的小说列表（来源：速读谷 sudugu.org，按天缓存）
+
+    点击分类后调用，返回该分类最新小说（带封面，已按天缓存）。
+    点击具体小说后用书名在各源搜索。
+
+    Args:
+        category_key: 分类 key（如 'xuanhuan'）
+        page: 页码（暂只支持第 1 页）
+
+    Returns:
+        [{novel_id, title, author, source, source_name, cover_url, category, status, ...}]
+    """
+    try:
+        from sources.sudugu_rankings import get_sudugu_categories
+        cats = get_sudugu_categories()
+        novels = cats.get_category_novels(category_key, use_cache=True)
+        if not novels:
+            return []
+
+        results = []
+        for n in novels:
+            results.append({
+                'novel_id': n.get('title', ''),  # 用书名作为标识（点击后搜索书名）
+                'title': n.get('title', ''),
+                'author': n.get('author', ''),
+                'description': '',
+                'cover_url': n.get('cover_url', ''),
+                'word_count': 0,
+                'chapter_count': 0,
+                'source': 'sudugu',
+                'source_name': n.get('source_name', '速读谷分类'),
+                'source_key': 'sudugu',
+                'category': n.get('category', ''),
+                'status': n.get('status', ''),
+                'extra': {},
+            })
+        return results
+    except Exception as e:
+        print(f'[多源分类] 获取分类 {category_key} 小说失败: {e}')
+        return []

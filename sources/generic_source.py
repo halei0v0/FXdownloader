@@ -476,6 +476,54 @@ class ConfigurableSource(BaseSource):
             print(f'[{self.display_name}] 搜索出错: {e}')
             return []
 
+    # ===================== 排行榜/分类 =====================
+
+    # 子类可覆盖：排行榜页面 URL（{page} 占位）
+    RANKING_URL: Optional[str] = None
+    # 子类可覆盖：排行榜条目选择器
+    RANKING_ITEM_SELECTOR: str = '.rank-list a, .rank a, .hot-list a, .book-list a, ul.list a'
+    # 子类可覆盖：分类列表
+    CATEGORIES: list = []
+
+    def get_rankings(self, category: str = 'all', page: int = 1) -> list[NovelInfo]:
+        """获取排行榜小说（如果配置了 RANKING_URL）"""
+        if not self.RANKING_URL:
+            return []
+        try:
+            url = self.RANKING_URL.format(page=page, category=category)
+            resp = self._fetch(url)
+            page_sel = self._parse_html(resp)
+
+            results = []
+            seen_ids = set()
+            links = page_sel.css(self.RANKING_ITEM_SELECTOR)
+            for link in links:
+                href = link.attrib.get('href', '')
+                nid = self._extract_novel_id_from_url(href)
+                if not nid or nid in seen_ids:
+                    continue
+                seen_ids.add(nid)
+                title = self._get_link_text(link)
+                if not title or len(title) < 2:
+                    continue
+                results.append(NovelInfo(
+                    novel_id=nid,
+                    title=title,
+                    author='',
+                    source=self.name,
+                    extra={'url': href},
+                ))
+                if len(results) >= 30:
+                    break
+            return results
+        except Exception as e:
+            print(f'[{self.display_name}] 获取排行榜出错: {e}')
+            return []
+
+    def get_categories(self) -> list[dict]:
+        """返回支持的分类列表"""
+        return [{'key': c[0], 'name': c[1]} for c in self.CATEGORIES] if self.CATEGORIES else []
+
 
 # ============================================================
 # 顶点小说 (23wxx.net)

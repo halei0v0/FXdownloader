@@ -25,6 +25,7 @@ cookies.txt
 # IDE
 .vscode/
 .idea/
+.trae/
 *.swp
 *.swo
 

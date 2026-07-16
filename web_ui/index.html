@@ -74,7 +74,7 @@ html, body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    min-height: 620px;
+    min-height: 680px;
 }
 
 /* ============ Header / Navbar ============ */
@@ -1019,6 +1019,609 @@ html, body {
     height: 16px;
     flex-shrink: 0;
 }
+
+/* ============ Feature #6: 下拉选项深色背景 ============ */
+option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* ============ 导航栏 Nav Bar ============ */
+.nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-glass);
+    flex-shrink: 0;
+    z-index: 90;
+}
+.nav-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.nav-tab {
+    padding: 6px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-family: inherit;
+}
+.nav-tab:hover {
+    color: var(--accent-primary);
+    background: rgba(0, 212, 255, 0.06);
+}
+.nav-tab.active {
+    color: var(--accent-primary);
+    background: rgba(0, 212, 255, 0.12);
+}
+.nav-search {
+    flex: 1;
+    max-width: 480px;
+}
+
+/* ============ 视图 Views ============ */
+.view {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+.view.active {
+    display: block;
+    animation: viewFadeIn 0.3s ease;
+}
+#detailView.active {
+    display: flex;
+}
+@keyframes viewFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ 视图内容 / 小说网格 ============ */
+.view-content {
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px 24px;
+}
+.section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.section-title::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background: var(--accent-gradient);
+    border-radius: 2px;
+}
+.section-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+.section-row .section-title { margin-bottom: 0; }
+.novel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+.novel-grid-card-wrapper {
+    position: relative;
+}
+.novel-grid-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+}
+.novel-grid-card:hover {
+    border-color: var(--border-glow);
+    background: var(--bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+.grid-card-cover {
+    width: 100%;
+    aspect-ratio: 3/4;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+}
+.grid-card-cover-placeholder {
+    width: 100%;
+    aspect-ratio: 3/4;
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+.grid-card-cover-placeholder svg { width: 32px; height: 32px; }
+.grid-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.grid-card-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.grid-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+}
+.grid-card-btn {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    text-align: center;
+    font-family: inherit;
+}
+.grid-card-btn:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+.grid-card-btn.primary {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.3);
+    color: var(--accent-primary);
+}
+.grid-card-rank {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 12px;
+    background: var(--accent-gradient);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+.category-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.category-chip {
+    padding: 6px 14px;
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.category-chip:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+
+/* ============ 购物篮 Cart ============ */
+.cart-btn { position: relative; }
+.cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--accent-secondary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.cart-badge.hidden { display: none; }
+
+/* ============ 小说操作按钮 Novel Actions ============ */
+.novel-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+.novel-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-family: inherit;
+}
+.novel-action-btn:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+.novel-action-btn svg { width: 14px; height: 14px; }
+.novel-action-btn.active {
+    color: var(--error);
+    border-color: rgba(255, 82, 82, 0.3);
+    background: rgba(255, 82, 82, 0.08);
+}
+.novel-action-btn.primary {
+    background: var(--accent-gradient);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+}
+.novel-action-btn.primary:hover {
+    box-shadow: var(--shadow-glow);
+    color: #fff;
+}
+
+/* ============ 章节范围 Chapter Range ============ */
+.chapter-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+}
+.chapter-range input {
+    width: 56px;
+    padding: 4px 6px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+    font-family: inherit;
+}
+.chapter-range input:focus { border-color: var(--accent-primary); }
+.chapter-range-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.chapter-range-btn:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+.chapter-range-btn.apply {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.3);
+    color: var(--accent-primary);
+}
+.chapter-range-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border-glass);
+    margin: 0 4px;
+}
+
+/* ============ 暂停/恢复按钮 ============ */
+.btn-pause, .btn-resume {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-family: inherit;
+}
+.btn-pause:hover {
+    border-color: var(--warning);
+    color: var(--warning);
+    background: rgba(255, 179, 0, 0.08);
+}
+.btn-resume:hover {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(0, 230, 118, 0.08);
+}
+.btn-pause.hidden, .btn-resume.hidden { display: none; }
+.btn-pause svg, .btn-resume svg { width: 14px; height: 14px; }
+
+/* ETA / 速度 */
+.progress-eta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
+/* 宽模态 */
+.modal.wide {
+    width: 640px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+.modal.wide .modal-body {
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ============ 列表项 (购物篮/历史/续传) ============ */
+.list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    background: var(--bg-glass);
+    transition: all var(--transition-fast);
+    margin-bottom: 8px;
+}
+.list-item:hover {
+    border-color: var(--border-glow);
+    background: var(--bg-card-hover);
+}
+.list-item-info { flex: 1; min-width: 0; }
+.list-item-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.list-item-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.list-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.list-action-btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-family: inherit;
+}
+.list-action-btn:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+.list-action-btn.danger:hover {
+    border-color: var(--error);
+    color: var(--error);
+}
+.list-status {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+.list-status.completed { background: rgba(0, 230, 118, 0.12); color: var(--success); }
+.list-status.paused { background: rgba(255, 179, 0, 0.12); color: var(--warning); }
+.list-status.failed { background: rgba(255, 82, 82, 0.12); color: var(--error); }
+.list-status.started { background: rgba(0, 212, 255, 0.12); color: var(--accent-primary); }
+
+/* ============ 阅读器 Reader Modal ============ */
+.reader-overlay {
+    position: fixed;
+    inset: 0;
+    background: #161620;
+    z-index: 1500;
+    display: none;
+    flex-direction: column;
+}
+.reader-overlay.active {
+    display: flex;
+    animation: fadeIn 0.25s ease;
+}
+.reader-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #1A1A2E;
+    border-bottom: 1px solid var(--border-glass);
+    flex-shrink: 0;
+    gap: 12px;
+}
+.reader-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.reader-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.reader-body { flex: 1; display: flex; overflow: hidden; }
+.reader-sidebar {
+    width: 280px;
+    border-right: 1px solid var(--border-glass);
+    overflow-y: auto;
+    background: #181828;
+    padding: 8px;
+    flex-shrink: 0;
+}
+.reader-chapter-item {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-left: 3px solid transparent;
+}
+.reader-chapter-item:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+.reader-chapter-item.active {
+    background: rgba(0, 212, 255, 0.08);
+    border-left-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+.reader-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.reader-content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 48px;
+    color: #D4D4DC;
+    line-height: 1.9;
+    font-size: 16px;
+}
+.reader-content-area h2 {
+    font-size: 20px;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    text-align: center;
+}
+.reader-content-area p {
+    margin-bottom: 16px;
+    text-indent: 2em;
+}
+.reader-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: #1A1A2E;
+    border-top: 1px solid var(--border-glass);
+    flex-shrink: 0;
+    gap: 10px;
+}
+.reader-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-family: inherit;
+}
+.reader-nav-btn:hover:not(:disabled) {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+.reader-nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.reader-font-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.reader-font-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-size: 14px;
+}
+.reader-font-btn:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+
+/* 视图空状态 */
+.view-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 300px;
+    color: var(--text-muted);
+    gap: 12px;
+    padding: 40px;
+    text-align: center;
+}
+.view-empty svg { width: 56px; height: 56px; opacity: 0.3; }
 </style>
 </head>
 <body>
@@ -1057,6 +1660,14 @@ html, body {
                 </svg>
                 <span>登录</span>
             </button>
+            <button id="cartBtn" class="btn-icon cart-btn" onclick="openCart()" title="购物篮">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 2h2l1.5 9h8L15 5H5"/>
+                    <circle cx="6.5" cy="13.5" r="1"/>
+                    <circle cx="12.5" cy="13.5" r="1"/>
+                </svg>
+                <span id="cartBadge" class="cart-badge hidden">0</span>
+            </button>
             <button class="btn-icon" onclick="openSettings()" title="设置">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="8" cy="8" r="2"/>
@@ -1066,85 +1677,214 @@ html, body {
         </div>
     </header>
 
-    <!-- Main Content -->
-    <div class="main">
-        <!-- Left Panel: Search & Novel Info -->
-        <div class="left-panel">
-            <div class="search-wrapper">
-                <div class="search-bar">
-                    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                        <circle cx="8" cy="8" r="5.5"/>
-                        <line x1="12.2" y1="12.2" x2="16" y2="16"/>
+    <!-- 导航栏 Nav Bar -->
+    <nav class="nav-bar">
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-view="discover" onclick="switchView('discover')">发现</button>
+            <button class="nav-tab" data-view="search" onclick="switchView('search')">搜索</button>
+            <button class="nav-tab" data-view="detail" onclick="switchView('detail')">详情</button>
+            <button class="nav-tab" data-view="favorites" onclick="switchView('favorites')">收藏</button>
+            <button class="nav-tab" data-view="history" onclick="switchView('history')">历史</button>
+            <button class="nav-tab" data-view="paused" onclick="switchView('paused')">续传任务</button>
+        </div>
+        <div class="nav-search search-wrapper">
+            <div class="search-bar">
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <circle cx="8" cy="8" r="5.5"/>
+                    <line x1="12.2" y1="12.2" x2="16" y2="16"/>
+                </svg>
+                <input type="text" id="searchInput" placeholder="搜索小说名称或输入URL..." autocomplete="off" />
+                <button id="searchBtn" class="search-btn" onclick="handleSearch()">
+                    <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                        <circle cx="6" cy="6" r="4.5"/>
+                        <line x1="9.5" y1="9.5" x2="13" y2="13"/>
                     </svg>
-                    <input type="text" id="searchInput" placeholder="搜索小说名称或输入URL..." autocomplete="off" />
-                    <button id="searchBtn" class="search-btn" onclick="handleSearch()">
-                        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                            <circle cx="6" cy="6" r="4.5"/>
-                            <line x1="9.5" y1="9.5" x2="13" y2="13"/>
-                        </svg>
-                        搜索
-                    </button>
-                </div>
-                <div id="searchResults" class="search-results"></div>
+                    搜索
+                </button>
             </div>
-
-            <!-- Loading State -->
+            <!-- 搜索加载状态 -->
             <div id="loadingState" class="loading-spinner" style="display:none;">
                 <div class="spinner"></div>
                 <span>搜索中...</span>
             </div>
+        </div>
+    </nav>
 
-            <!-- Novel Info Card -->
-            <div id="novelCard" class="novel-card">
-                <div class="novel-card-header">
-                    <div id="novelCover" class="novel-cover-placeholder">
-                        <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.2">
-                            <rect x="4" y="2" width="20" height="24" rx="2"/>
-                            <line x1="8" y1="8" x2="20" y2="8"/>
-                            <line x1="8" y1="12" x2="18" y2="12"/>
-                            <line x1="8" y1="16" x2="16" y2="16"/>
-                            <line x1="8" y1="20" x2="19" y2="20"/>
-                        </svg>
-                    </div>
-                    <div class="novel-meta">
-                        <h3 id="novelTitle" class="novel-title"></h3>
-                        <p id="novelAuthor" class="novel-author"></p>
-                        <div id="novelTags" class="novel-tags"></div>
-                    </div>
+    <!-- Main Content -->
+    <div class="main">
+        <!-- 发现视图 Discover View -->
+        <div id="discoverView" class="view active">
+            <div class="view-content">
+                <h3 class="section-title">人气榜单</h3>
+                <div id="rankingsGrid" class="novel-grid"></div>
+                <h3 class="section-title">分类推荐</h3>
+                <div id="categoriesSection" class="category-chips"></div>
+                <div id="discoverEmpty" class="view-empty" style="display:none;">
+                    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.2">
+                        <circle cx="28" cy="28" r="22"/>
+                        <path d="M20 36h16M18 28h20M24 20h8"/>
+                    </svg>
+                    <p>暂无排行数据</p>
                 </div>
-                <p id="novelDesc" class="novel-description"></p>
-            </div>
-
-            <!-- Empty State -->
-            <div id="emptyState" class="empty-state">
-                <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
-                    <circle cx="24" cy="24" r="18"/>
-                    <path d="M18 30h12M16 24h16M20 18h8"/>
-                </svg>
-                <p>搜索小说或输入URL开始</p>
             </div>
         </div>
 
-        <!-- Right Panel: Chapter List -->
-        <div class="right-panel">
-            <div class="chapter-header">
-                <h2>章节列表</h2>
-                <div class="chapter-controls">
-                    <button class="chapter-ctrl-btn" onclick="selectAllChapters()">全选</button>
-                    <button class="chapter-ctrl-btn" onclick="invertSelection()">反选</button>
-                    <button class="chapter-ctrl-btn" onclick="clearSelection()">清空</button>
+        <!-- 搜索视图 Search View -->
+        <div id="searchView" class="view">
+            <div class="view-content">
+                <h3 class="section-title">搜索结果</h3>
+                <div id="searchResultsGrid" class="novel-grid"></div>
+                <div id="searchEmpty" class="view-empty">
+                    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.2">
+                        <circle cx="24" cy="24" r="16"/>
+                        <line x1="35" y1="35" x2="48" y2="48"/>
+                    </svg>
+                    <p>输入关键词开始搜索小说</p>
                 </div>
             </div>
-            <div id="chapterCountInfo" class="chapter-count-info" style="display:none;"></div>
-            <div id="chapterList" class="chapter-list">
-                <div id="chapterEmptyState" class="empty-state">
+        </div>
+
+        <!-- 详情视图 Detail View -->
+        <div id="detailView" class="view">
+            <!-- 左栏：小说信息 -->
+            <div class="left-panel">
+                <!-- 小说信息卡片 -->
+                <div id="novelCard" class="novel-card">
+                    <div class="novel-card-header">
+                        <div id="novelCover" class="novel-cover-placeholder">
+                            <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.2">
+                                <rect x="4" y="2" width="20" height="24" rx="2"/>
+                                <line x1="8" y1="8" x2="20" y2="8"/>
+                                <line x1="8" y1="12" x2="18" y2="12"/>
+                                <line x1="8" y1="16" x2="16" y2="16"/>
+                                <line x1="8" y1="20" x2="19" y2="20"/>
+                            </svg>
+                        </div>
+                        <div class="novel-meta">
+                            <h3 id="novelTitle" class="novel-title"></h3>
+                            <p id="novelAuthor" class="novel-author"></p>
+                            <div id="novelTags" class="novel-tags"></div>
+                        </div>
+                    </div>
+                    <p id="novelDesc" class="novel-description"></p>
+                    <!-- 操作按钮 -->
+                    <div class="novel-actions">
+                        <button id="favoriteBtn" class="novel-action-btn" onclick="toggleFavorite()" title="收藏/取消收藏">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M8 14s-5-3.5-5-7a3 3 0 015-2.2A3 3 0 0113 7c0 3.5-5 7-5 7z"/>
+                            </svg>
+                            收藏
+                        </button>
+                        <button class="novel-action-btn primary" onclick="openReader()" title="开始阅读">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 3h5a2 2 0 012 2v8a1.5 1.5 0 00-1.5-1.5H2zM14 3H9a2 2 0 00-2 2v8a1.5 1.5 0 011.5-1.5H14z"/>
+                            </svg>
+                            阅读
+                        </button>
+                        <button class="novel-action-btn" onclick="updateNovel()" title="检查并下载新章节">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13.5 8a5.5 5.5 0 11-1.6-3.9"/>
+                                <path d="M13.5 2v3h-3"/>
+                            </svg>
+                            更新小说
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 空状态 -->
+                <div id="emptyState" class="empty-state">
                     <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
-                        <rect x="6" y="4" width="36" height="40" rx="3"/>
-                        <line x1="14" y1="14" x2="34" y2="14"/>
-                        <line x1="14" y1="22" x2="30" y2="22"/>
-                        <line x1="14" y1="30" x2="32" y2="30"/>
+                        <circle cx="24" cy="24" r="18"/>
+                        <path d="M18 30h12M16 24h16M20 18h8"/>
                     </svg>
-                    <p>选择小说后查看章节列表</p>
+                    <p>搜索小说或输入URL开始</p>
+                </div>
+            </div>
+
+            <!-- 右栏：章节列表 -->
+            <div class="right-panel">
+                <div class="chapter-header">
+                    <h2>章节列表</h2>
+                    <div class="chapter-controls">
+                        <button class="chapter-ctrl-btn" onclick="selectAllChapters()">全选</button>
+                        <button class="chapter-ctrl-btn" onclick="invertSelection()">反选</button>
+                        <button class="chapter-ctrl-btn" onclick="clearSelection()">清空</button>
+                        <div class="chapter-range-divider"></div>
+                        <div class="chapter-range">
+                            <input type="number" id="rangeStart" placeholder="起始章" min="1" />
+                            <span style="color:var(--text-muted);font-size:11px;">-</span>
+                            <input type="number" id="rangeEnd" placeholder="结束章" min="1" />
+                            <button class="chapter-range-btn apply" onclick="applyChapterRange()">应用范围</button>
+                        </div>
+                        <div class="chapter-range-divider"></div>
+                        <button class="chapter-range-btn" onclick="selectFirst100()">前100章</button>
+                        <button class="chapter-range-btn" onclick="selectLast100()">后100章</button>
+                        <button class="chapter-range-btn" onclick="selectLatest50()">最新50章</button>
+                    </div>
+                </div>
+                <div id="chapterCountInfo" class="chapter-count-info" style="display:none;"></div>
+                <div id="chapterList" class="chapter-list">
+                    <div id="chapterEmptyState" class="empty-state">
+                        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+                            <rect x="6" y="4" width="36" height="40" rx="3"/>
+                            <line x1="14" y1="14" x2="34" y2="14"/>
+                            <line x1="14" y1="22" x2="30" y2="22"/>
+                            <line x1="14" y1="30" x2="32" y2="30"/>
+                        </svg>
+                        <p>选择小说后查看章节列表</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收藏视图 Favorites View -->
+        <div id="favoritesView" class="view">
+            <div class="view-content">
+                <h3 class="section-title">我的收藏</h3>
+                <div id="favoritesGrid" class="novel-grid"></div>
+                <div id="favoritesEmpty" class="view-empty">
+                    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.2">
+                        <path d="M28 48s-16-10-16-22a8 8 0 0116-4 8 8 0 0116 4c0 12-16 22-16 22z"/>
+                    </svg>
+                    <p>还没有收藏任何小说</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史视图 History View -->
+        <div id="historyView" class="view">
+            <div class="view-content">
+                <div class="section-row">
+                    <h3 class="section-title">下载历史</h3>
+                    <button class="chapter-ctrl-btn" onclick="clearAllHistory()">清空全部</button>
+                </div>
+                <div id="historyList"></div>
+                <div id="historyEmpty" class="view-empty">
+                    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.2">
+                        <circle cx="28" cy="28" r="22"/>
+                        <path d="M28 16v12l8 5"/>
+                    </svg>
+                    <p>暂无下载历史</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 续传任务视图 Paused View -->
+        <div id="pausedView" class="view">
+            <div class="view-content">
+                <div class="section-row">
+                    <h3 class="section-title">续传任务</h3>
+                    <button class="chapter-ctrl-btn" onclick="loadPausedTasks()">刷新</button>
+                </div>
+                <div id="pausedList"></div>
+                <div id="pausedEmpty" class="view-empty">
+                    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.2">
+                        <path d="M18 14h20M18 28h20M18 42h20"/>
+                        <circle cx="12" cy="14" r="2"/>
+                        <circle cx="12" cy="28" r="2"/>
+                        <circle cx="12" cy="42" r="2"/>
+                    </svg>
+                    <p>暂无续传任务</p>
                 </div>
             </div>
         </div>
@@ -1158,6 +1898,7 @@ html, body {
             </div>
             <div class="progress-info">
                 <span id="progressText" class="progress-text">准备下载...</span>
+                <span id="progressEta" class="progress-eta"></span>
                 <span id="progressPercent" class="progress-percent">0%</span>
             </div>
         </div>
@@ -1168,6 +1909,19 @@ html, body {
                     <path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/>
                 </svg>
                 开始下载
+            </button>
+            <button id="pauseBtn" class="btn-pause hidden" onclick="handlePause()" title="暂停下载">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <line x1="5" y1="3" x2="5" y2="11"/>
+                    <line x1="9" y1="3" x2="9" y2="11"/>
+                </svg>
+                暂停
+            </button>
+            <button id="resumeBtn" class="btn-resume hidden" onclick="handleResume()" title="恢复下载">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 2v10l8-5z"/>
+                </svg>
+                恢复
             </button>
             <button id="cancelBtn" class="btn-cancel hidden" onclick="handleCancel()">
                 <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -1232,6 +1986,66 @@ html, body {
     </div>
 </div>
 
+<!-- 购物篮模态框 Cart Modal -->
+<div id="cartModal" class="modal-overlay" onclick="closeCartOutside(event)">
+    <div class="modal wide">
+        <h3 class="modal-title">购物篮 <span id="cartCount" style="color:var(--text-muted);font-size:13px;font-weight:400;">(0)</span></h3>
+        <div class="modal-body">
+            <div id="cartList"></div>
+            <div id="cartEmpty" class="view-empty" style="min-height:160px;">
+                <p>购物篮为空，从搜索或榜单中添加小说吧</p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal btn-modal-cancel" onclick="closeCart()">关闭</button>
+            <button id="batchDownloadBtn" class="btn-modal btn-modal-save" onclick="batchDownload()">批量下载</button>
+        </div>
+    </div>
+</div>
+
+<!-- 阅读器 Reader -->
+<div id="readerOverlay" class="reader-overlay">
+    <div class="reader-header">
+        <div class="reader-title" id="readerNovelTitle">阅读</div>
+        <div class="reader-controls">
+            <div class="reader-font-controls">
+                <span>字号</span>
+                <button class="reader-font-btn" onclick="changeFontSize(-1)" title="减小字号">-</button>
+                <span id="readerFontSize">16</span>
+                <button class="reader-font-btn" onclick="changeFontSize(1)" title="增大字号">+</button>
+            </div>
+            <button class="reader-nav-btn" onclick="closeReader()" title="退出阅读">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <line x1="3" y1="3" x2="11" y2="11"/>
+                    <line x1="11" y1="3" x2="3" y2="11"/>
+                </svg>
+                关闭
+            </button>
+        </div>
+    </div>
+    <div class="reader-body">
+        <div class="reader-sidebar" id="readerSidebar"></div>
+        <div class="reader-main">
+            <div id="readerContent" class="reader-content-area"></div>
+            <div class="reader-footer">
+                <button id="readerPrevBtn" class="reader-nav-btn" onclick="prevChapter()" disabled>
+                    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 2L3 6l5 4"/>
+                    </svg>
+                    上一章
+                </button>
+                <span id="readerChapterInfo" style="font-size:12px;color:var(--text-muted);">-</span>
+                <button id="readerNextBtn" class="reader-nav-btn" onclick="nextChapter()">
+                    下一章
+                    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 2l5 4-5 4"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Container -->
 <div id="toastContainer" class="toast-container"></div>
 
@@ -1247,6 +2061,19 @@ const state = {
     selectedChapters: new Set(),
     downloading: false,
     logExpanded: false,
+    currentView: 'discover',   // 当前视图
+    currentNovel: null,        // 当前小说对象（含 source 等信息）
+    cart: [],                  // 购物篮 [{novel_id, title, author, cover_url, source, source_key}]
+    paused: false,             // 下载是否暂停
+    isFavorited: false,        // 当前小说是否已收藏
+    reading: {                 // 阅读状态
+        currentChapterIndex: 0,
+        fontSize: 16,
+    },
+    rankingsLoaded: false,     // 榜单是否已加载
+    favoritesLoaded: false,    // 收藏是否已加载
+    historyLoaded: false,      // 历史是否已加载
+    pausedLoaded: false,       // 续传任务是否已加载
 };
 
 /* ====================================================================
@@ -1326,12 +2153,11 @@ function resetState() {
     state.novelTitle = '';
     state.chapters = [];
     state.selectedChapters.clear();
+    state.currentNovel = null;
+    state.isFavorited = false;
     document.getElementById('novelCard').classList.remove('active');
     document.getElementById('emptyState').style.display = '';
-    document.getElementById('searchResults').classList.remove('active');
-    document.getElementById('searchResults').innerHTML = '';
     document.getElementById('chapterList').innerHTML = '';
-    document.getElementById('chapterEmptyState') || renderChapterEmpty();
     renderChapterEmpty();
     document.getElementById('chapterCountInfo').style.display = 'none';
     document.getElementById('downloadBtn').disabled = true;
@@ -1350,14 +2176,6 @@ searchInput.addEventListener('keydown', function(e) {
     }
 });
 
-// Close search results on outside click
-document.addEventListener('click', function(e) {
-    const wrapper = document.querySelector('.search-wrapper');
-    if (!wrapper.contains(e.target)) {
-        document.getElementById('searchResults').classList.remove('active');
-    }
-});
-
 async function handleSearch() {
     const keyword = searchInput.value.trim();
     if (!keyword) {
@@ -1367,13 +2185,14 @@ async function handleSearch() {
 
     const btn = document.getElementById('searchBtn');
     const loading = document.getElementById('loadingState');
-    const resultsDiv = document.getElementById('searchResults');
+    const grid = document.getElementById('searchResultsGrid');
+    const searchEmpty = document.getElementById('searchEmpty');
 
     btn.disabled = true;
     btn.textContent = '搜索中...';
     loading.style.display = 'flex';
-    resultsDiv.classList.remove('active');
-    resultsDiv.innerHTML = '';
+    grid.innerHTML = '';
+    searchEmpty.style.display = 'none';
 
     try {
         const sourceKey = getSelectedSourceKey();
@@ -1390,13 +2209,17 @@ async function handleSearch() {
         }
 
         const novels = result || [];
+        switchView('search');
+
         if (novels.length === 0) {
             showToast('未找到相关小说', 'warning');
+            searchEmpty.style.display = '';
+            searchEmpty.querySelector('p').textContent = '未找到 "' + keyword + '" 相关小说';
             return;
         }
 
-        renderSearchResults(novels);
-        resultsDiv.classList.add('active');
+        renderNovelGrid(grid, novels);
+        addLog('搜索 "' + keyword + '" 返回 ' + novels.length + ' 条结果', 'info');
 
     } catch (e) {
         loading.style.display = 'none';
@@ -1407,30 +2230,90 @@ async function handleSearch() {
     }
 }
 
-function renderSearchResults(novels) {
-    const resultsDiv = document.getElementById('searchResults');
-    resultsDiv.innerHTML = '';
+/* 渲染小说卡片到网格容器 */
+function renderNovelGrid(container, novels, withRank) {
+    container.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     novels.forEach((novel, idx) => {
-        const item = document.createElement('div');
-        item.className = 'search-result-item';
-
-        // 多源 badge：使用 source_name 字段，回退到 source
-        const srcName = novel.source_name || novel.source || '未知';
-        const badgeClass = novel.source === 'fanqie' ? 'badge-fanqie' : 'badge-biquge';
-        const author = novel.author ? escapeHtml(novel.author) : '佚名';
-        const wordCount = novel.word_count ? formatWordCount(novel.word_count) : '';
-        const chapterCount = novel.chapter_count ? novel.chapter_count + '章' : '';
-
-        item.innerHTML = `
-            <div class="result-info">
-                <div class="result-title">${escapeHtml(novel.title)}</div>
-                <div class="result-meta">${author}${wordCount ? ' | ' + wordCount : ''}${chapterCount ? ' | ' + chapterCount : ''}</div>
-            </div>
-            <span class="result-source-badge ${badgeClass}">${escapeHtml(srcName)}</span>
-        `;
-        item.addEventListener('click', () => selectNovel(novel));
-        resultsDiv.appendChild(item);
+        fragment.appendChild(buildNovelCard(novel, withRank ? idx + 1 : 0));
     });
+    container.appendChild(fragment);
+}
+
+/* 构建单张小说卡片（用于发现/搜索/收藏视图） */
+function buildNovelCard(novel, rankNum) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'novel-grid-card-wrapper';
+
+    const card = document.createElement('div');
+    card.className = 'novel-grid-card';
+    // 添加 data-novel-id 便于后续更新封面
+    if (novel.novel_id) {
+        card.setAttribute('data-novel-id', novel.novel_id);
+    }
+
+    // 封面
+    if (novel.cover_url) {
+        const img = document.createElement('img');
+        img.className = 'grid-card-cover';
+        img.src = novel.cover_url;
+        img.onerror = function() {
+            const ph = document.createElement('div');
+            ph.className = 'grid-card-cover-placeholder';
+            ph.innerHTML = '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="5" y="2" width="22" height="28" rx="2"/><line x1="9" y1="9" x2="23" y2="9"/><line x1="9" y1="14" x2="21" y2="14"/><line x1="9" y1="19" x2="19" y2="19"/></svg>';
+            img.replaceWith(ph);
+        };
+        card.appendChild(img);
+    } else {
+        const ph = document.createElement('div');
+        ph.className = 'grid-card-cover-placeholder';
+        ph.innerHTML = '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="5" y="2" width="22" height="28" rx="2"/><line x1="9" y1="9" x2="23" y2="9"/><line x1="9" y1="14" x2="21" y2="14"/><line x1="9" y1="19" x2="19" y2="19"/></svg>';
+        card.appendChild(ph);
+    }
+
+    // 标题
+    const title = document.createElement('div');
+    title.className = 'grid-card-title';
+    title.textContent = novel.title || '未知书名';
+    card.appendChild(title);
+
+    // 元信息
+    const meta = document.createElement('div');
+    meta.className = 'grid-card-meta';
+    const metaParts = [];
+    if (novel.author) metaParts.push(novel.author);
+    if (novel.source_name || novel.source) metaParts.push(novel.source_name || novel.source);
+    meta.textContent = metaParts.join(' | ') || '佚名';
+    card.appendChild(meta);
+
+    // 操作按钮
+    const actions = document.createElement('div');
+    actions.className = 'grid-card-actions';
+    const detailBtn = document.createElement('button');
+    detailBtn.className = 'grid-card-btn primary';
+    detailBtn.textContent = '查看详情';
+    detailBtn.onclick = function(e) { e.stopPropagation(); selectNovel(novel); };
+    const cartBtn = document.createElement('button');
+    cartBtn.className = 'grid-card-btn';
+    cartBtn.textContent = '加入批量下载';
+    cartBtn.onclick = function(e) { e.stopPropagation(); addToCart(novel); };
+    actions.appendChild(detailBtn);
+    actions.appendChild(cartBtn);
+    card.appendChild(actions);
+
+    card.addEventListener('click', function() { selectNovel(novel); });
+
+    wrapper.appendChild(card);
+
+    // 排名徽标
+    if (rankNum) {
+        const rank = document.createElement('div');
+        rank.className = 'grid-card-rank';
+        rank.textContent = rankNum;
+        wrapper.appendChild(rank);
+    }
+
+    return wrapper;
 }
 
 function formatWordCount(count) {
@@ -1444,9 +2327,10 @@ function formatWordCount(count) {
    Select Novel (Parse)
    ==================================================================== */
 async function selectNovel(novel) {
-    // Close search results
-    document.getElementById('searchResults').classList.remove('active');
+    // 切换到详情视图
+    switchView('detail');
     document.getElementById('emptyState').style.display = 'none';
+    state.currentNovel = novel;
 
     // 根据搜索结果来源自动切换源
     const src = novel.source;
@@ -1472,6 +2356,46 @@ async function selectNovel(novel) {
     document.getElementById('novelTags').innerHTML = '';
 
     try {
+        // 排行榜来源（sudugu）：用书名在所有源搜索
+        if (novel.source === 'sudugu' || novel.source_key === 'sudugu') {
+            const searchKeyword = novel.title;
+            addLog('从排行榜选择: ' + searchKeyword + '，正在搜索各源...', 'info');
+            const searchResults = await window.pywebview.api.search(searchKeyword, 'biquge');
+
+            if (searchResults && searchResults.error) {
+                showToast(searchResults.error, 'error');
+                novelCard.classList.remove('active');
+                document.getElementById('emptyState').style.display = '';
+                return;
+            }
+
+            const novels = searchResults || [];
+            if (novels.length === 0) {
+                showToast('未找到该书: ' + searchKeyword, 'warning');
+                novelCard.classList.remove('active');
+                document.getElementById('emptyState').style.display = '';
+                return;
+            }
+
+            // 如果只有一个结果，直接选中
+            if (novels.length === 1) {
+                const target = novels[0];
+                // 递归调用 selectNovel，用真实源的数据
+                return selectNovel(target);
+            }
+
+            // 多个结果：切换到搜索视图让用户选择
+            showToast('找到 ' + novels.length + ' 个结果，请选择', 'info');
+            switchView('search');
+            const grid = document.getElementById('searchResultsGrid');
+            const searchEmpty = document.getElementById('searchEmpty');
+            searchEmpty.style.display = 'none';
+            renderNovelGrid(grid, novels);
+            // 预获取搜索结果封面
+            prefetchAndApplyCovers(novels, grid);
+            return;
+        }
+
         const sourceKey = state.sourceKey;
         const result = await window.pywebview.api.parse_novel(novel.novel_id, sourceKey);
 
@@ -1487,6 +2411,9 @@ async function selectNovel(novel) {
         state.novelTitle = result.title || novel.title;
         displayNovelInfo(result);
         addLog('已选择小说: ' + state.novelTitle, 'success');
+
+        // 检查收藏状态
+        checkFavoriteStatus();
 
         // Fetch chapters
         await loadChapters();
@@ -1565,8 +2492,10 @@ async function loadChapters() {
         }
 
         renderChapterList();
+        // 默认全选所有章节
+        selectAllChapters();
         document.getElementById('downloadBtn').disabled = false;
-        addLog('共加载 ' + state.chapters.length + ' 个章节', 'info');
+        addLog('共加载 ' + state.chapters.length + ' 个章节（默认全选）', 'info');
 
     } catch (e) {
         showToast('加载章节出错: ' + (e.message || e), 'error');
@@ -1715,17 +2644,23 @@ async function handleDownload() {
     }
 
     state.downloading = true;
+    state.paused = false;
     const downloadBtn = document.getElementById('downloadBtn');
     const cancelBtn = document.getElementById('cancelBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
     const progressSection = document.getElementById('progressSection');
 
     downloadBtn.disabled = true;
     downloadBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> 下载中...';
+    pauseBtn.classList.remove('hidden');
+    resumeBtn.classList.add('hidden');
     cancelBtn.classList.remove('hidden');
     progressSection.classList.add('active');
 
     document.getElementById('progressBar').style.width = '0%';
     document.getElementById('progressText').textContent = '准备下载...';
+    document.getElementById('progressEta').textContent = '';
     document.getElementById('progressPercent').textContent = '0%';
 
     addLog(`开始下载: ${state.novelTitle}, ${state.selectedChapters.size}章 -> ${saveDir}`, 'info');
@@ -1738,24 +2673,37 @@ async function handleDownload() {
     try {
         const sourceKey = getSelectedSourceKey();
         const chapterIds = Array.from(state.selectedChapters);
+        // download() 立即返回 {status:'started'}，实际进度通过 onProgress 回调推送
         const result = await window.pywebview.api.download(state.novelId, chapterIds, saveDir, sourceKey);
 
         if (result && result.error) {
             showToast('下载失败: ' + result.error, 'error');
             addLog('下载失败: ' + result.error, 'error');
+            // 恢复 UI 状态
+            state.downloading = false;
+            state.paused = false;
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/></svg> 开始下载';
+            pauseBtn.classList.add('hidden');
+            resumeBtn.classList.add('hidden');
+            cancelBtn.classList.add('hidden');
         } else {
-            showToast('下载完成!', 'success');
-            addLog('下载已完成!', 'success');
+            // 下载已启动，UI 状态由 onProgress 回调在完成时重置
+            showToast('下载已开始', 'info');
         }
     } catch (e) {
         showToast('下载出错: ' + (e.message || e), 'error');
         addLog('下载异常: ' + (e.message || e), 'error');
-    } finally {
+        // 恢复 UI 状态
         state.downloading = false;
+        state.paused = false;
         downloadBtn.disabled = false;
         downloadBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/></svg> 开始下载';
+        pauseBtn.classList.add('hidden');
+        resumeBtn.classList.add('hidden');
         cancelBtn.classList.add('hidden');
     }
+    // 注意：不在此处重置下载状态，由 onProgress(current===total) 时负责收尾
 }
 
 async function handleCancel() {
@@ -1763,10 +2711,7 @@ async function handleCancel() {
         await window.pywebview.api.cancel_download();
         showToast('已取消下载', 'warning');
         addLog('用户取消了下载', 'warning');
-        state.downloading = false;
-        document.getElementById('downloadBtn').disabled = false;
-        document.getElementById('downloadBtn').innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/></svg> 开始下载';
-        document.getElementById('cancelBtn').classList.add('hidden');
+        finishDownloadUI(false);
     } catch (e) {
         showToast('取消失败: ' + (e.message || e), 'error');
     }
@@ -1783,13 +2728,47 @@ function onProgress(data) {
     document.getElementById('progressBar').style.width = percent + '%';
     document.getElementById('progressPercent').textContent = Math.round(percent) + '%';
 
+    const current = data.current || 0;
+    const total = data.total || '?';
+    let mainText = `下载中: 第${current}/${total}章`;
     if (data.chapter_title) {
-        document.getElementById('progressText').textContent =
-            `下载中: ${data.chapter_title} (${data.current || 0}/${data.total || '?'})`;
-    } else if (data.current && data.total) {
-        document.getElementById('progressText').textContent =
-            `下载中: 第${data.current}章 (${data.current}/${data.total})`;
+        mainText = `下载中: ${data.chapter_title} (${current}/${total})`;
     }
+    document.getElementById('progressText').textContent = mainText;
+
+    // 显示预计剩余时间与速度
+    const etaParts = [];
+    if (data.eta) {
+        etaParts.push('预计剩余: ' + data.eta);
+    }
+    if (data.speed_text) {
+        etaParts.push('速度: ' + data.speed_text);
+    }
+    document.getElementById('progressEta').textContent = etaParts.join(' | ');
+
+    // 检测下载完成（current >= total）
+    if (typeof total === 'number' && current >= total && current > 0) {
+        finishDownloadUI(true);
+    }
+}
+
+/** 下载完成/取消后的 UI 收尾 */
+function finishDownloadUI(success) {
+    state.downloading = false;
+    state.paused = false;
+    const downloadBtn = document.getElementById('downloadBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (downloadBtn) {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12"/></svg> 开始下载';
+    }
+    if (pauseBtn) pauseBtn.classList.add('hidden');
+    if (resumeBtn) resumeBtn.classList.add('hidden');
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+    // 标记历史需刷新
+    state.historyLoaded = false;
 }
 
 function onLog(data) {
@@ -1880,11 +2859,866 @@ function toggleLog() {
 }
 
 /* ====================================================================
+   视图切换 View Switching (Feature #9)
+   ==================================================================== */
+function switchView(viewName) {
+    state.currentView = viewName;
+    // 切换视图显示（带平滑过渡）
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const target = document.getElementById(viewName + 'View');
+    if (target) target.classList.add('active');
+    // 更新导航高亮
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.view === viewName);
+    });
+    // 懒加载各视图数据
+    if (viewName === 'discover' && !state.rankingsLoaded) {
+        loadRankings();
+        loadCategories();
+    } else if (viewName === 'favorites' && !state.favoritesLoaded) {
+        loadFavorites();
+    } else if (viewName === 'history' && !state.historyLoaded) {
+        loadHistory();
+    } else if (viewName === 'paused' && !state.pausedLoaded) {
+        loadPausedTasks();
+    }
+}
+
+/* ====================================================================
+   发现 / 榜单 / 分类 (Feature #9)
+   ==================================================================== */
+async function loadRankings() {
+    const grid = document.getElementById('rankingsGrid');
+    const empty = document.getElementById('discoverEmpty');
+    grid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载榜单...</span></div>';
+    empty.style.display = 'none';
+    try {
+        const result = await window.pywebview.api.get_rankings('all', 1);
+        state.rankingsLoaded = true;
+        const items = result || [];
+        if (items.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = '';
+            return;
+        }
+        renderNovelGrid(grid, items, true);
+        addLog('榜单加载完成: ' + items.length + ' 本', 'info');
+        // 排行榜数据已包含封面（从 sudugu.org 缓存），无需额外获取
+    } catch (e) {
+        grid.innerHTML = '';
+        empty.style.display = '';
+        empty.querySelector('p').textContent = '榜单加载失败: ' + (e.message || e);
+    }
+}
+
+/** 后台预获取封面并更新已渲染的卡片图片 */
+async function prefetchAndApplyCovers(items, grid) {
+    // 找出没有封面的书
+    const needCovers = items.filter(n => !n.cover_url);
+    if (needCovers.length === 0) return;
+    try {
+        addLog('正在获取封面: ' + needCovers.length + ' 本...', 'info');
+        const coversJson = JSON.stringify(needCovers.map(n => ({
+            novel_id: n.novel_id,
+            title: n.title,
+            cover_url: n.cover_url || '',
+            source_key: n.source_key || n.source || 'biquge',
+        })));
+        const covers = await window.pywebview.api.prefetch_covers(coversJson, 'biquge');
+        if (!covers) return;
+        // 更新已渲染的卡片图片
+        Object.keys(covers).forEach(novelId => {
+            const url = covers[novelId];
+            if (!url) return;
+            // 找到对应卡片中的占位符，替换为图片
+            const card = grid.querySelector('.novel-grid-card[data-novel-id="' + novelId + '"]');
+            if (!card) return;
+            const ph = card.querySelector('.grid-card-cover-placeholder');
+            if (ph) {
+                const img = document.createElement('img');
+                img.className = 'grid-card-cover';
+                img.src = url;
+                img.onerror = function() {
+                    // 加载失败保持占位符
+                };
+                ph.replaceWith(img);
+            }
+        });
+        addLog('封面获取完成', 'success');
+    } catch (e) {
+        console.warn('封面预获取失败:', e);
+    }
+}
+
+async function loadCategories() {
+    const section = document.getElementById('categoriesSection');
+    try {
+        const result = await window.pywebview.api.get_categories();
+        if (!result || result.length === 0) {
+            section.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">暂无分类</span>';
+            return;
+        }
+        section.innerHTML = '';
+        result.forEach(src => {
+            if (src.categories) {
+                src.categories.forEach(cat => {
+                    const chip = document.createElement('span');
+                    chip.className = 'category-chip';
+                    chip.textContent = cat.name;
+                    chip.title = (src.source_name || src.source || '') + ' - ' + cat.name;
+                    chip.addEventListener('click', function() {
+                        // 传 cat.key 给 get_rankings（如 'xuanhuan'），失败回退到搜索 cat.name
+                        searchByCategory(src.source, cat.key, cat.name);
+                    });
+                    section.appendChild(chip);
+                });
+            }
+        });
+    } catch (e) {
+        section.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">分类加载失败</span>';
+    }
+}
+
+async function searchByCategory(source, categoryKey, categoryName) {
+    showToast('查看分类: ' + categoryName, 'info');
+    switchView('search');
+    const grid = document.getElementById('searchResultsGrid');
+    const searchEmpty = document.getElementById('searchEmpty');
+    grid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载分类...</span></div>';
+    searchEmpty.style.display = 'none';
+    try {
+        // 从速读谷获取该分类的小说（带封面，按天缓存）
+        let novels = null;
+        try {
+            const result = await window.pywebview.api.get_category_novels(categoryKey, 1);
+            if (result && !result.error && Array.isArray(result) && result.length > 0) {
+                novels = result;
+            }
+        } catch (e) { /* 回退到搜索 */ }
+
+        // 回退：用搜索分类名
+        if (!novels) {
+            const result = await window.pywebview.api.search(categoryName, source);
+            if (result && result.error) {
+                showToast(result.error, 'error');
+                grid.innerHTML = '';
+                searchEmpty.style.display = '';
+                return;
+            }
+            novels = result || [];
+        }
+
+        if (novels.length === 0) {
+            grid.innerHTML = '';
+            searchEmpty.style.display = '';
+            searchEmpty.querySelector('p').textContent = '该分类暂无小说';
+            return;
+        }
+        renderNovelGrid(grid, novels);
+        // 速读谷数据已带封面，无需预获取
+    } catch (e) {
+        grid.innerHTML = '';
+        searchEmpty.style.display = '';
+        searchEmpty.querySelector('p').textContent = '加载失败: ' + (e.message || e);
+    }
+}
+
+/* ====================================================================
+   购物篮 Cart (Feature #8)
+   ==================================================================== */
+function addToCart(novel) {
+    if (!novel || !novel.novel_id) return;
+    const source = novel.source || state.sourceKey;
+    if (state.cart.some(c => c.novel_id == novel.novel_id && c.source == source)) {
+        showToast('已在购物篮中', 'info');
+        return;
+    }
+    state.cart.push({
+        novel_id: novel.novel_id,
+        title: novel.title,
+        author: novel.author,
+        cover_url: novel.cover_url,
+        source: source,
+        source_key: novel.source_key || source,
+    });
+    updateCartBadge();
+    showToast('已加入批量下载: ' + novel.title, 'success');
+}
+
+function removeFromCart(novelId, source) {
+    state.cart = state.cart.filter(c => !(c.novel_id == novelId && c.source == source));
+    updateCartBadge();
+    renderCart();
+}
+
+function updateCartBadge() {
+    const badge = document.getElementById('cartBadge');
+    const count = state.cart.length;
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+function openCart() {
+    renderCart();
+    document.getElementById('cartModal').classList.add('active');
+}
+
+function closeCart() {
+    document.getElementById('cartModal').classList.remove('active');
+}
+
+function closeCartOutside(e) {
+    if (e.target === document.getElementById('cartModal')) {
+        closeCart();
+    }
+}
+
+function renderCart() {
+    const list = document.getElementById('cartList');
+    const empty = document.getElementById('cartEmpty');
+    const countEl = document.getElementById('cartCount');
+    const batchBtn = document.getElementById('batchDownloadBtn');
+    list.innerHTML = '';
+    countEl.textContent = '(' + state.cart.length + ')';
+    if (state.cart.length === 0) {
+        empty.style.display = '';
+        batchBtn.disabled = true;
+        return;
+    }
+    empty.style.display = 'none';
+    batchBtn.disabled = false;
+    state.cart.forEach((novel, idx) => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'chapter-checkbox';
+        checkbox.dataset.cartIndex = idx;
+        checkbox.checked = true;
+        item.appendChild(checkbox);
+        const info = document.createElement('div');
+        info.className = 'list-item-info';
+        info.innerHTML = '<div class="list-item-title">' + escapeHtml(novel.title || '未知') + '</div>' +
+            '<div class="list-item-meta">' + escapeHtml(novel.author || '佚名') + ' | ' + escapeHtml(novel.source || '') + '</div>';
+        item.appendChild(info);
+        const actions = document.createElement('div');
+        actions.className = 'list-item-actions';
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'list-action-btn danger';
+        removeBtn.textContent = '移除';
+        removeBtn.onclick = function() { removeFromCart(novel.novel_id, novel.source); };
+        actions.appendChild(removeBtn);
+        item.appendChild(actions);
+        list.appendChild(item);
+    });
+}
+
+async function batchDownload() {
+    const checkboxes = document.querySelectorAll('#cartList .chapter-checkbox');
+    const selected = [];
+    checkboxes.forEach(cb => {
+        if (cb.checked) selected.push(state.cart[parseInt(cb.dataset.cartIndex)]);
+    });
+    if (selected.length === 0) {
+        showToast('请至少选择一本小说', 'warning');
+        return;
+    }
+    let saveDir;
+    try {
+        saveDir = await window.pywebview.api.select_save_dir();
+        if (!saveDir) {
+            showToast('已取消下载', 'warning');
+            return;
+        }
+    } catch (e) {
+        showToast('选择目录失败: ' + (e.message || e), 'error');
+        return;
+    }
+    closeCart();
+    showToast('开始批量下载 ' + selected.length + ' 本小说', 'info');
+    addLog('批量下载开始: ' + selected.length + ' 本小说 -> ' + saveDir, 'info');
+    if (!state.logExpanded) toggleLog();
+    for (let i = 0; i < selected.length; i++) {
+        const novel = selected[i];
+        addLog('[' + (i + 1) + '/' + selected.length + '] 正在下载: ' + novel.title, 'info');
+        try {
+            const sourceKey = novel.source_key || novel.source;
+            const chapters = await window.pywebview.api.get_chapters(novel.novel_id, sourceKey);
+            if (chapters && chapters.length > 0) {
+                const chapterIds = chapters.map(ch => ch.chapter_id);
+                await window.pywebview.api.download(novel.novel_id, chapterIds, saveDir, sourceKey);
+                addLog('完成: ' + novel.title, 'success');
+            } else {
+                addLog('无章节: ' + novel.title, 'warning');
+            }
+        } catch (e) {
+            addLog('下载失败: ' + novel.title + ' - ' + (e.message || e), 'error');
+        }
+    }
+    showToast('批量下载完成', 'success');
+    state.historyLoaded = false;
+}
+
+/* ====================================================================
+   历史记录 History (Feature #3)
+   ==================================================================== */
+async function loadHistory() {
+    const list = document.getElementById('historyList');
+    const empty = document.getElementById('historyEmpty');
+    list.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载历史...</span></div>';
+    empty.style.display = 'none';
+    try {
+        const result = await window.pywebview.api.get_history(100);
+        state.historyLoaded = true;
+        const items = result || [];
+        if (items.length === 0) {
+            list.innerHTML = '';
+            empty.style.display = '';
+            return;
+        }
+        renderHistory(items);
+    } catch (e) {
+        list.innerHTML = '';
+        empty.style.display = '';
+        empty.querySelector('p').textContent = '加载失败: ' + (e.message || e);
+    }
+}
+
+function renderHistory(items) {
+    const list = document.getElementById('historyList');
+    const empty = document.getElementById('historyEmpty');
+    list.innerHTML = '';
+    empty.style.display = 'none';
+    items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'list-item';
+        el.style.cursor = 'pointer';
+        const info = document.createElement('div');
+        info.className = 'list-item-info';
+        const date = item.created_at ? formatHistoryDate(item.created_at) : '';
+        info.innerHTML = '<div class="list-item-title">' + escapeHtml(item.title || '未知') + '</div>' +
+            '<div class="list-item-meta">' + escapeHtml(item.source || '') +
+            ' | ' + (item.chapter_success || 0) + '/' + (item.chapter_total || 0) + ' 章' +
+            (date ? ' | ' + date : '') +
+            (item.save_path ? ' | ' + escapeHtml(item.save_path) : '') + '</div>';
+        el.appendChild(info);
+        const statusEl = document.createElement('span');
+        const status = (item.status || '').toLowerCase();
+        const statusClass = status === 'completed' ? 'completed' : status === 'paused' ? 'paused' :
+            status === 'failed' ? 'failed' : 'started';
+        statusEl.className = 'list-status ' + statusClass;
+        statusEl.textContent = item.status || '进行中';
+        el.appendChild(statusEl);
+        const actions = document.createElement('div');
+        actions.className = 'list-item-actions';
+        const openBtn = document.createElement('button');
+        openBtn.className = 'list-action-btn';
+        openBtn.textContent = '打开';
+        openBtn.onclick = function(e) { e.stopPropagation(); reopenFromHistory(item); };
+        const delBtn = document.createElement('button');
+        delBtn.className = 'list-action-btn danger';
+        delBtn.textContent = '删除';
+        delBtn.onclick = function(e) { e.stopPropagation(); deleteHistoryItem(item.id); };
+        actions.appendChild(openBtn);
+        actions.appendChild(delBtn);
+        el.appendChild(actions);
+        el.addEventListener('click', function() { reopenFromHistory(item); });
+        list.appendChild(el);
+    });
+}
+
+function formatHistoryDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d)) return dateStr;
+        return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.toTimeString().slice(0, 5);
+    } catch (e) { return dateStr; }
+}
+
+async function deleteHistoryItem(id) {
+    try {
+        await window.pywebview.api.delete_history(id);
+        showToast('已删除', 'info');
+        loadHistory();
+    } catch (e) {
+        showToast('删除失败: ' + (e.message || e), 'error');
+    }
+}
+
+async function clearAllHistory() {
+    try {
+        await window.pywebview.api.clear_history();
+        showToast('已清空历史', 'success');
+        loadHistory();
+    } catch (e) {
+        showToast('清空失败: ' + (e.message || e), 'error');
+    }
+}
+
+function reopenFromHistory(item) {
+    const novel = {
+        novel_id: item.novel_id,
+        title: item.title,
+        author: item.author,
+        source: item.source,
+        source_key: item.source_key || item.source,
+    };
+    selectNovel(novel);
+}
+
+/* ====================================================================
+   收藏 Favorites (Feature #5)
+   ==================================================================== */
+async function loadFavorites() {
+    const grid = document.getElementById('favoritesGrid');
+    const empty = document.getElementById('favoritesEmpty');
+    grid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载收藏...</span></div>';
+    empty.style.display = 'none';
+    try {
+        const result = await window.pywebview.api.get_favorites();
+        state.favoritesLoaded = true;
+        const items = result || [];
+        if (items.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = '';
+            return;
+        }
+        renderNovelGrid(grid, items);
+    } catch (e) {
+        grid.innerHTML = '';
+        empty.style.display = '';
+        empty.querySelector('p').textContent = '加载失败: ' + (e.message || e);
+    }
+}
+
+async function checkFavoriteStatus() {
+    if (!state.novelId) return;
+    const source = state.currentNovel ? (state.currentNovel.source || state.sourceKey) : state.sourceKey;
+    try {
+        const result = await window.pywebview.api.is_favorited(state.novelId, source);
+        state.isFavorited = !!(result && result.favorited);
+        updateFavoriteBtn();
+    } catch (e) { /* 忽略 */ }
+}
+
+async function toggleFavorite() {
+    if (!state.novelId) {
+        showToast('请先选择小说', 'warning');
+        return;
+    }
+    const source = state.currentNovel ? (state.currentNovel.source || state.sourceKey) : state.sourceKey;
+    try {
+        if (state.isFavorited) {
+            await window.pywebview.api.remove_favorite(state.novelId, source);
+            state.isFavorited = false;
+            showToast('已取消收藏', 'info');
+            addLog('取消收藏: ' + state.novelTitle, 'info');
+        } else {
+            const novelData = Object.assign({}, state.currentNovel || {}, {
+                novel_id: state.novelId,
+                title: state.novelTitle,
+                source: source,
+                source_key: state.sourceKey,
+            });
+            await window.pywebview.api.add_favorite(JSON.stringify(novelData));
+            state.isFavorited = true;
+            showToast('已加入收藏', 'success');
+            addLog('加入收藏: ' + state.novelTitle, 'success');
+        }
+        updateFavoriteBtn();
+        state.favoritesLoaded = false;
+    } catch (e) {
+        showToast('收藏操作失败: ' + (e.message || e), 'error');
+    }
+}
+
+function updateFavoriteBtn() {
+    const btn = document.getElementById('favoriteBtn');
+    if (!btn) return;
+    const heartSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14s-5-3.5-5-7a3 3 0 015-2.2A3 3 0 0113 7c0 3.5-5 7-5 7z"/></svg>';
+    if (state.isFavorited) {
+        btn.classList.add('active');
+        btn.innerHTML = heartSvg + ' 已收藏';
+    } else {
+        btn.classList.remove('active');
+        btn.innerHTML = heartSvg + ' 收藏';
+    }
+}
+
+/* ====================================================================
+   暂停/恢复/续传 (Feature #2)
+   ==================================================================== */
+async function handlePause() {
+    try {
+        await window.pywebview.api.pause_download();
+        state.paused = true;
+        document.getElementById('pauseBtn').classList.add('hidden');
+        document.getElementById('resumeBtn').classList.remove('hidden');
+        showToast('已暂停下载', 'warning');
+        addLog('下载已暂停', 'warning');
+    } catch (e) {
+        showToast('暂停失败: ' + (e.message || e), 'error');
+    }
+}
+
+async function handleResume() {
+    try {
+        await window.pywebview.api.resume_download();
+        state.paused = false;
+        document.getElementById('resumeBtn').classList.add('hidden');
+        document.getElementById('pauseBtn').classList.remove('hidden');
+        showToast('已恢复下载', 'success');
+        addLog('下载已恢复', 'success');
+    } catch (e) {
+        showToast('恢复失败: ' + (e.message || e), 'error');
+    }
+}
+
+async function loadPausedTasks() {
+    const list = document.getElementById('pausedList');
+    const empty = document.getElementById('pausedEmpty');
+    list.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载续传任务...</span></div>';
+    empty.style.display = 'none';
+    try {
+        const result = await window.pywebview.api.get_paused_tasks();
+        state.pausedLoaded = true;
+        const items = result || [];
+        if (items.length === 0) {
+            list.innerHTML = '';
+            empty.style.display = '';
+            return;
+        }
+        renderPausedTasks(items);
+    } catch (e) {
+        list.innerHTML = '';
+        empty.style.display = '';
+        empty.querySelector('p').textContent = '加载失败: ' + (e.message || e);
+    }
+}
+
+function renderPausedTasks(items) {
+    const list = document.getElementById('pausedList');
+    const empty = document.getElementById('pausedEmpty');
+    list.innerHTML = '';
+    empty.style.display = 'none';
+    items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'list-item';
+        const info = document.createElement('div');
+        info.className = 'list-item-info';
+        const remaining = (item.total || 0) - (item.completed || 0);
+        info.innerHTML = '<div class="list-item-title">' + escapeHtml(item.title || item.novel_id || '未知') + '</div>' +
+            '<div class="list-item-meta">剩余 ' + remaining + ' 章' +
+            (item.source ? ' | ' + escapeHtml(item.source) : '') + '</div>';
+        el.appendChild(info);
+        const statusEl = document.createElement('span');
+        statusEl.className = 'list-status paused';
+        statusEl.textContent = '已暂停';
+        el.appendChild(statusEl);
+        const actions = document.createElement('div');
+        actions.className = 'list-item-actions';
+        const taskId = item.task_id || item.id;
+        const resumeBtn = document.createElement('button');
+        resumeBtn.className = 'list-action-btn';
+        resumeBtn.textContent = '续传';
+        resumeBtn.onclick = function() { resumePausedTask(taskId); };
+        const delBtn = document.createElement('button');
+        delBtn.className = 'list-action-btn danger';
+        delBtn.textContent = '删除';
+        delBtn.onclick = function() { deletePausedTask(taskId); };
+        actions.appendChild(resumeBtn);
+        actions.appendChild(delBtn);
+        el.appendChild(actions);
+        list.appendChild(el);
+    });
+}
+
+async function resumePausedTask(taskId) {
+    if (!taskId) {
+        showToast('任务ID缺失', 'error');
+        return;
+    }
+    try {
+        const result = await window.pywebview.api.resume_task(taskId);
+        if (result && result.error) {
+            showToast('续传失败: ' + result.error, 'error');
+            return;
+        }
+        showToast('已开始续传，剩余 ' + (result.remaining || '?') + ' 章', 'success');
+        addLog('续传任务 ' + taskId + ' 已开始', 'info');
+        state.pausedLoaded = false;
+        loadPausedTasks();
+    } catch (e) {
+        showToast('续传失败: ' + (e.message || e), 'error');
+    }
+}
+
+async function deletePausedTask(taskId) {
+    if (!taskId) return;
+    try {
+        await window.pywebview.api.delete_task(taskId);
+        showToast('已删除任务', 'info');
+        state.pausedLoaded = false;
+        loadPausedTasks();
+    } catch (e) {
+        showToast('删除失败: ' + (e.message || e), 'error');
+    }
+}
+
+/* ====================================================================
+   更新小说 Update Novel (Feature #2)
+   ==================================================================== */
+async function updateNovel() {
+    if (!state.novelId) {
+        showToast('请先选择小说', 'warning');
+        return;
+    }
+    showToast('正在检查更新...', 'info');
+    try {
+        const sourceKey = getSelectedSourceKey();
+        const result = await window.pywebview.api.update_novel(state.novelId, sourceKey);
+        if (result && result.error) {
+            showToast('更新检查失败: ' + result.error, 'error');
+            addLog('更新检查失败: ' + result.error, 'error');
+            return;
+        }
+        const newCount = result.new_count || (result.new_chapters ? result.new_chapters.length : 0);
+        if (newCount > 0) {
+            showToast('发现 ' + newCount + ' 个新章节', 'success');
+            addLog('发现 ' + newCount + ' 个新章节，已刷新章节列表', 'success');
+            await loadChapters();
+        } else {
+            showToast('已是最新，无新章节', 'info');
+            addLog('已是最新章节', 'info');
+        }
+    } catch (e) {
+        showToast('更新失败: ' + (e.message || e), 'error');
+        addLog('更新异常: ' + (e.message || e), 'error');
+    }
+}
+
+/* ====================================================================
+   章节范围选择 Chapter Range (Feature #7)
+   ==================================================================== */
+function applyChapterRange() {
+    if (state.chapters.length === 0) {
+        showToast('请先加载章节', 'warning');
+        return;
+    }
+    const startInput = document.getElementById('rangeStart');
+    const endInput = document.getElementById('rangeEnd');
+    let start = parseInt(startInput.value);
+    let end = parseInt(endInput.value);
+    if (isNaN(start)) start = 1;
+    if (isNaN(end)) end = state.chapters.length;
+    start = Math.max(1, Math.min(state.chapters.length, start));
+    end = Math.max(1, Math.min(state.chapters.length, end));
+    if (start > end) { const t = start; start = end; end = t; }
+    state.selectedChapters.clear();
+    for (let i = start - 1; i <= end - 1 && i < state.chapters.length; i++) {
+        state.selectedChapters.add(state.chapters[i].chapter_id);
+    }
+    syncChapterCheckboxes();
+    updateChapterCount();
+    showToast('已选择第 ' + start + '-' + end + ' 章', 'info');
+}
+
+function selectFirst100() {
+    if (state.chapters.length === 0) { showToast('请先加载章节', 'warning'); return; }
+    const count = Math.min(100, state.chapters.length);
+    state.selectedChapters.clear();
+    for (let i = 0; i < count; i++) state.selectedChapters.add(state.chapters[i].chapter_id);
+    syncChapterCheckboxes();
+    updateChapterCount();
+    showToast('已选择前 ' + count + ' 章', 'info');
+}
+
+function selectLast100() {
+    if (state.chapters.length === 0) { showToast('请先加载章节', 'warning'); return; }
+    const count = Math.min(100, state.chapters.length);
+    const startIdx = state.chapters.length - count;
+    state.selectedChapters.clear();
+    for (let i = startIdx; i < state.chapters.length; i++) state.selectedChapters.add(state.chapters[i].chapter_id);
+    syncChapterCheckboxes();
+    updateChapterCount();
+    showToast('已选择后 ' + count + ' 章', 'info');
+}
+
+function selectLatest50() {
+    if (state.chapters.length === 0) { showToast('请先加载章节', 'warning'); return; }
+    const count = Math.min(50, state.chapters.length);
+    const startIdx = state.chapters.length - count;
+    state.selectedChapters.clear();
+    for (let i = startIdx; i < state.chapters.length; i++) state.selectedChapters.add(state.chapters[i].chapter_id);
+    syncChapterCheckboxes();
+    updateChapterCount();
+    showToast('已选择最新 ' + count + ' 章', 'info');
+}
+
+function syncChapterCheckboxes() {
+    document.querySelectorAll('.chapter-checkbox').forEach(cb => {
+        const id = cb.dataset.chapterId;
+        if (state.selectedChapters.has(id)) {
+            cb.checked = true;
+            cb.closest('.chapter-item').classList.add('selected');
+        } else {
+            cb.checked = false;
+            cb.closest('.chapter-item').classList.remove('selected');
+        }
+    });
+}
+
+/* ====================================================================
+   阅读器 Reader (Feature #4)
+   ==================================================================== */
+async function openReader() {
+    if (!state.novelId || state.chapters.length === 0) {
+        showToast('请先加载小说章节', 'warning');
+        return;
+    }
+    document.getElementById('readerNovelTitle').textContent = state.novelTitle;
+    document.getElementById('readerOverlay').classList.add('active');
+    renderReaderSidebar();
+    applyReaderFontSize();
+    // 从上次阅读位置恢复
+    let startIndex = 0;
+    let startChapterId = state.chapters[0].chapter_id;
+    try {
+        const progress = await window.pywebview.api.get_reading_progress(state.novelId);
+        if (progress && progress.last_chapter_id) {
+            const idx = state.chapters.findIndex(ch => ch.chapter_id == progress.last_chapter_id);
+            if (idx >= 0) {
+                startIndex = idx;
+                startChapterId = state.chapters[idx].chapter_id;
+            }
+        }
+    } catch (e) { /* 忽略 */ }
+    await readChapterById(startChapterId);
+}
+
+function closeReader() {
+    document.getElementById('readerOverlay').classList.remove('active');
+}
+
+function renderReaderSidebar() {
+    const sidebar = document.getElementById('readerSidebar');
+    sidebar.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    state.chapters.forEach((ch, idx) => {
+        const item = document.createElement('div');
+        item.className = 'reader-chapter-item';
+        item.textContent = ch.chapter_title;
+        item.title = ch.chapter_title;
+        item.dataset.index = idx;
+        item.addEventListener('click', function() {
+            readChapterById(ch.chapter_id);
+        });
+        fragment.appendChild(item);
+    });
+    sidebar.appendChild(fragment);
+}
+
+async function readChapterById(chapterId) {
+    if (!state.novelId) return;
+    const sourceKey = getSelectedSourceKey();
+    const contentArea = document.getElementById('readerContent');
+    contentArea.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载中...</span></div>';
+    try {
+        const result = await window.pywebview.api.read_chapter(state.novelId, chapterId, sourceKey);
+        if (result && result.error) {
+            contentArea.innerHTML = '<p style="color:var(--error);text-align:center;">' + escapeHtml(result.error) + '</p>';
+            return;
+        }
+        const idx = state.chapters.findIndex(ch => ch.chapter_id == chapterId);
+        state.reading.currentChapterIndex = idx >= 0 ? idx : 0;
+        const title = result.title || (state.chapters[idx] ? state.chapters[idx].chapter_title : '');
+        const content = result.content || '';
+        contentArea.innerHTML = '<h2>' + escapeHtml(title) + '</h2>' + renderChapterContent(content);
+        contentArea.scrollTop = 0;
+        updateReaderSidebarActive();
+        updateReaderNavButtons();
+        document.getElementById('readerChapterInfo').textContent = '第 ' + (state.reading.currentChapterIndex + 1) + '/' + state.chapters.length + ' 章';
+        saveReadingProgress(chapterId, title, state.reading.currentChapterIndex);
+    } catch (e) {
+        contentArea.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败: ' + escapeHtml(e.message || e) + '</p>';
+    }
+}
+
+function renderChapterContent(content) {
+    if (!content) return '<p>（无内容）</p>';
+    return content.split(/\n+/).filter(p => p.trim()).map(p => '<p>' + escapeHtml(p) + '</p>').join('');
+}
+
+function updateReaderSidebarActive() {
+    const items = document.querySelectorAll('.reader-chapter-item');
+    items.forEach((item, idx) => {
+        if (idx === state.reading.currentChapterIndex) {
+            item.classList.add('active');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+function updateReaderNavButtons() {
+    document.getElementById('readerPrevBtn').disabled = state.reading.currentChapterIndex <= 0;
+    document.getElementById('readerNextBtn').disabled = state.reading.currentChapterIndex >= state.chapters.length - 1;
+}
+
+function nextChapter() {
+    const idx = state.reading.currentChapterIndex + 1;
+    if (idx < state.chapters.length) readChapterById(state.chapters[idx].chapter_id);
+}
+
+function prevChapter() {
+    const idx = state.reading.currentChapterIndex - 1;
+    if (idx >= 0) readChapterById(state.chapters[idx].chapter_id);
+}
+
+function changeFontSize(delta) {
+    state.reading.fontSize = Math.max(12, Math.min(28, state.reading.fontSize + delta));
+    applyReaderFontSize();
+}
+
+function applyReaderFontSize() {
+    document.getElementById('readerContent').style.fontSize = state.reading.fontSize + 'px';
+    document.getElementById('readerFontSize').textContent = state.reading.fontSize;
+}
+
+async function saveReadingProgress(chapterId, chapterTitle, chapterIndex) {
+    if (!state.novelId) return;
+    try {
+        await window.pywebview.api.save_reading_progress(
+            state.novelId, state.novelTitle, chapterId, chapterTitle, chapterIndex, 0
+        );
+    } catch (e) { /* 忽略 */ }
+}
+
+/* ====================================================================
    Init
    ==================================================================== */
-window.addEventListener('DOMContentLoaded', function() {
+// 等待 pywebview API 注入就绪后再加载数据
+// pywebview 会注入 window.pywebview.api 并触发 'pywebviewready' 事件
+function initApp() {
     addLog('FXdownloader 已启动', 'info');
-});
+    // 启动时加载发现页榜单
+    loadRankings();
+    loadCategories();
+}
+
+if (window.pywebview && window.pywebview.api) {
+    // API 已就绪（防止事件已错过）
+    initApp();
+} else {
+    // 监听 pywebviewready 事件（API 注入完成时触发）
+    window.addEventListener('pywebviewready', initApp);
+}
 </script>
 </body>
 </html>

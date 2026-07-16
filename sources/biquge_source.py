@@ -399,3 +399,187 @@ class BiqugeSource(BaseSource):
             # 搜索失败不抛异常，返回空列表
             print(f'[{self.display_name}] 搜索出错: {e}')
             return []
+
+    # ===================== 排行榜/推荐 =====================
+
+    # 排行榜页面分类区块标题（<h3>）与 category key 的映射
+    # 顺序即页面出现顺序
+    _RANKING_CATEGORIES = [
+        ('xuanhuan', '玄幻·奇幻'),
+        ('xiuzhen', '修真·仙侠'),
+        ('dushi', '都市·青春'),
+        ('chuanyue', '历史·穿越'),
+        ('wangyou', '网游·竞技'),
+        ('kehuan', '科幻·灵异'),
+        ('quanben', '全本小说'),
+        ('all', '全部小说'),
+    ]
+
+    # 排名类型：总/周/月/日
+    _RANKING_TYPES = ['total', 'week', 'month', 'day']
+    _RANKING_TYPE_LABELS = {
+        'total': '总榜',
+        'week': '周榜',
+        'month': '月榜',
+        'day': '日榜',
+    }
+
+    def get_categories(self) -> list[dict]:
+        """返回支持的排行榜分类列表"""
+        return [
+            {'key': 'xuanhuan', 'name': '玄幻·奇幻'},
+            {'key': 'xiuzhen', 'name': '修真·仙侠'},
+            {'key': 'dushi', 'name': '都市·青春'},
+            {'key': 'chuanyue', 'name': '历史·穿越'},
+            {'key': 'wangyou', 'name': '网游·竞技'},
+            {'key': 'kehuan', 'name': '科幻·灵异'},
+            {'key': 'quanben', 'name': '全本小说'},
+            {'key': 'all', 'name': '全部小说'},
+        ]
+
+    def get_rankings(self, category: str = 'all', page: int = 1) -> list[NovelInfo]:
+        """从蚂蚁文学排行榜页面抓取真实排行数据
+
+        数据来源：https://www.mayiwsk.com/paihangbang/
+        页面结构：
+        - 8 个分类区块，每个以 <h3>分类名推荐排行榜</h3> 开头
+        - 每个区块有 4 个排名类型：总排名/周排名/月排名/日排名
+        - 每个排名下是 <li>序号<a href="书籍URL">书名</a></li>
+
+        Args:
+            category: 分类 key（见 get_categories），默认 'all'（全部小说）
+                      支持复合 key：'xuanhuan:week' 表示玄幻分类的周榜
+            page: 页码（排行榜只有一页，>1 返回空）
+
+        Returns:
+            list[NovelInfo]：按排名顺序排列
+        """
+        if page > 1:
+            return []
+        try:
+            resp = self._fetch('/paihangbang/')
+            html_text = resp.text or resp.body.decode('utf-8', errors='replace')
+
+            # 解析复合 category：'xuanhuan:week' -> (category, ranking_type)
+            cat_key = category or 'all'
+            rank_type = 'total'  # 默认总榜
+            if ':' in cat_key:
+                cat_key, rank_type = cat_key.split(':', 1)
+
+            # 定位分类区块
+            section_html = self._extract_ranking_section(html_text, cat_key)
+            if not section_html:
+                return []
+
+            # 在区块内定位排名类型
+            ranked_html = self._extract_ranking_type(section_html, rank_type)
+            if not ranked_html:
+                return []
+
+            # 提取 <li>序号<a href="书籍URL">书名</a></li>
+            results = []
+            seen = set()
+            # 匹配 <li>数字<a href="...数字_数字/index.html">书名</a></li>
+            pattern = re.compile(
+                r'<li>\s*(\d+)\s*<a\s+[^>]*href="https?://[^/]*(/\d+_\d+/index\.html)"[^>]*>(.*?)</a>\s*</li>',
+                re.DOTALL
+            )
+            for m in pattern.finditer(ranked_html):
+                rank_num = int(m.group(1))
+                novel_id = m.group(2).strip('/').replace('/index.html', '')
+                if novel_id in seen:
+                    continue
+                seen.add(novel_id)
+                # 清理标题中的 HTML 标签
+                title = re.sub(r'<[^>]+>', '', m.group(3)).strip()
+                if not title:
+                    continue
+                results.append(NovelInfo(
+                    novel_id=novel_id,
+                    title=title,
+                    author='',
+                    source=self.name,
+                    extra={
+                        'url': m.group(2),
+                        'rank': rank_num,
+                        'rank_type': rank_type,
+                        'category': cat_key,
+                    },
+                ))
+
+            return results
+        except Exception as e:
+            print(f'[{self.display_name}] 获取排行榜出错: {e}')
+            return []
+
+    def _extract_ranking_section(self, html_text: str, cat_key: str) -> str:
+        """从完整 HTML 中提取指定分类区块的 HTML 片段
+
+        分类区块以 <h3>分类名推荐排行榜</h3> 开头，到下一个 <h3> 或文件末尾结束。
+        """
+        # 找到分类对应的中文名
+        target_name = None
+        for ck, cn in self._RANKING_CATEGORIES:
+            if ck == cat_key:
+                target_name = cn
+                break
+        if not target_name:
+            return ''
+
+        # 找 <h3>包含分类名</h3> 的位置
+        # 标题格式："玄幻·奇幻小说推荐排行榜"
+        h3_pattern = re.compile(r'<h3[^>]*>(.*?)</h3>', re.DOTALL)
+        matches = list(h3_pattern.finditer(html_text))
+        section_start = -1
+        for i, m in enumerate(matches):
+            title_text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if target_name in title_text:
+                section_start = m.end()
+                break
+        if section_start < 0:
+            return ''
+
+        # 区块结束：下一个 <h3> 或文件末尾
+        section_end = len(html_text)
+        for m in matches:
+            if m.start() > section_start:
+                section_end = m.start()
+                break
+
+        return html_text[section_start:section_end]
+
+    def _extract_ranking_type(self, section_html: str, rank_type: str) -> str:
+        """从分类区块 HTML 中提取指定排名类型（总/周/月/日）的 HTML 片段
+
+        排行榜页面结构：
+        - "总排名" 后跟着 <li>序号<a>书名</a></li> 列表
+        - 然后 "周排名"、"月排名"、"日排名" 各跟一组列表
+
+        rank_type: 'total'/'week'/'month'/'day'
+        """
+        # 排名类型关键字
+        type_markers = {
+            'total': '总排名',
+            'week': '周排名',
+            'month': '月排名',
+            'day': '日排名',
+        }
+        target_marker = type_markers.get(rank_type, '总排名')
+        if target_marker not in section_html:
+            return ''
+
+        # 找目标排名类型的位置
+        start = section_html.find(target_marker)
+        if start < 0:
+            return ''
+
+        # 找下一个排名类型的位置作为结束
+        end = len(section_html)
+        for marker in type_markers.values():
+            if marker == target_marker:
+                continue
+            pos = section_html.find(marker, start + len(target_marker))
+            if 0 <= pos < end:
+                end = pos
+
+        return section_html[start:end]

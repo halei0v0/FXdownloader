@@ -151,6 +151,7 @@ a = Analysis(
         'sources.bing_search',
         'sources.generic_source',
         'sources.multi_source',
+        'sources.sudugu_rankings',
     ],
     hookspath=[],
     hooksconfig={},
