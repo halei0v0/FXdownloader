@@ -1564,7 +1564,7 @@ def main():
     # 创建 API 实例
     api = Api()
 
-    # 创建 pywebview 窗口
+    # 创建 pywebview 窗口（兼容不支持 icon 参数的旧版本 pywebview）
     icon_path = _get_icon_path()
     window_kwargs = {
         'title': 'FXdownloader',
@@ -1577,7 +1577,12 @@ def main():
     }
     if icon_path:
         window_kwargs['icon'] = icon_path
-    window = webview.create_window(**window_kwargs)
+    try:
+        window = webview.create_window(**window_kwargs)
+    except TypeError:
+        # 旧版 pywebview 不支持 icon 参数，移除后重试
+        window_kwargs.pop('icon', None)
+        window = webview.create_window(**window_kwargs)
 
     # 保存窗口引用到 API（延迟设置，因为创建时 api 还没有 window 引用）
     def on_loaded():
