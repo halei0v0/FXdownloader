@@ -1129,14 +1129,23 @@ class Api:
         """添加收藏"""
         try:
             novel = json.loads(novel_json)
+            novel_id = novel.get('novel_id', '')
+            source = novel.get('source', '')
+            source_key = novel.get('source_key', novel.get('source', ''))
+            cover_url = novel.get('cover_url', '')
+            # 若未带封面，从本地缓存补全
+            if not cover_url and novel_id:
+                cached = self._db.get_cover(str(novel_id), source_key)
+                if cached:
+                    cover_url = cached
             self._db.add_favorite(
-                novel_id=novel.get('novel_id', ''),
+                novel_id=novel_id,
                 title=novel.get('title', ''),
                 author=novel.get('author', ''),
-                cover_url=novel.get('cover_url', ''),
+                cover_url=cover_url,
                 description=novel.get('description', ''),
-                source=novel.get('source', ''),
-                source_key=novel.get('source_key', novel.get('source', '')),
+                source=source,
+                source_key=source_key,
                 extra_json=json.dumps(novel.get('extra', {}), ensure_ascii=False),
             )
             return {'status': 'ok'}
@@ -1172,6 +1181,37 @@ class Api:
             return {'error': str(e)}
 
     # ============== 阅读功能 ==============
+
+    def get_reader_settings(self):
+        """获取阅读器设置（字号、主题等）"""
+        try:
+            config = app_config.load_config()
+            return {
+                'font_size': config.get('reader_font_size', 18),
+                'theme': config.get('reader_theme', 'eye-care'),
+            }
+        except Exception as e:
+            return {'error': str(e)}
+
+    def save_reader_settings(self, settings_json):
+        """保存阅读器设置
+
+        Args:
+            settings_json: JSON 字符串 {font_size, theme}
+        """
+        try:
+            s = json.loads(settings_json) if isinstance(settings_json, str) else settings_json
+            current = app_config.load_config()
+            if 'font_size' in s:
+                # 字号范围 12-36
+                current['reader_font_size'] = max(12, min(36, int(s['font_size'])))
+            if 'theme' in s:
+                if s['theme'] in ('eye-care', 'dark'):
+                    current['reader_theme'] = s['theme']
+            app_config.save_config(current)
+            return {'status': 'ok'}
+        except Exception as e:
+            return {'error': str(e)}
 
     def read_chapter(self, novel_id, chapter_id, source_key='biquge'):
         """获取章节内容用于阅读"""
@@ -1333,6 +1373,42 @@ class Api:
         except Exception as e:
             print(f'[WebUI] prefetch_covers 出错: {e}')
             return {}
+
+    def get_cover_cache_info(self):
+        """获取封面缓存信息（条目数 + 估算大小 KB）
+
+        封面缓存表仅存储 URL 字符串，没有图片文件本体；
+        缓存大小按各行的 novel_id+source+cover_url+title 字符串总字节数估算。
+        """
+        try:
+            count = self._db.get_cover_cache_count()
+            # 估算大小：按行累计字符串字节数
+            size_bytes = 0
+            with self._db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT novel_id, source, cover_url, title FROM novel_covers
+                ''')
+                for row in cursor.fetchall():
+                    nid = str(row['novel_id'] or '')
+                    src = str(row['source'] or '')
+                    url = str(row['cover_url'] or '')
+                    title = str(row['title'] or '')
+                    # UTF-8 字节数
+                    size_bytes += len(nid.encode('utf-8')) + len(src.encode('utf-8'))
+                    size_bytes += len(url.encode('utf-8')) + len(title.encode('utf-8'))
+            size_kb = round(size_bytes / 1024, 2)
+            return {'count': count, 'size_kb': size_kb}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def clear_cover_cache(self):
+        """清空封面缓存表，返回被删除的条目数"""
+        try:
+            count = self._db.clear_cover_cache()
+            return {'status': 'ok', 'cleared': count}
+        except Exception as e:
+            return {'error': str(e)}
 
     def get_categories(self):
         """获取所有源的分类列表"""

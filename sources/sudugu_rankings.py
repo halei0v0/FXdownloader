@@ -29,18 +29,31 @@ from database import NovelDatabase
 
 
 class SuduguRankings:
-    """速读谷排行榜抓取器（带按天缓存）"""
+    """速读谷排行榜抓取器（带按天缓存）
+
+    支持多页抓取：sudugu.org 排行榜按 /paihang/{N}.html 分页，每页 10 本。
+    默认抓取前 3 页（共 30 本）。
+    """
 
     RANKING_URL = 'https://www.sudugu.org/paihang/'
+    MAX_PAGES = 3  # 抓取页数（每页 10 本）
 
     def __init__(self):
         self._db = NovelDatabase()
 
-    def _fetch_html(self) -> str:
-        """从 sudugu.org 抓取排行榜 HTML"""
+    def _fetch_html(self, page: int = 1) -> str:
+        """从 sudugu.org 抓取指定页的排行榜 HTML
+
+        Args:
+            page: 页码（1=第一页，2=/paihang/2.html，依此类推）
+        """
         from scrapling.fetchers import Fetcher
+        if page <= 1:
+            url = self.RANKING_URL
+        else:
+            url = f'{self.RANKING_URL}{page}.html'
         resp = Fetcher.get(
-            self.RANKING_URL,
+            url,
             headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://www.bing.com/',
@@ -51,8 +64,12 @@ class SuduguRankings:
         )
         return resp.text or resp.body.decode('utf-8', errors='replace')
 
-    def _parse_rankings(self, html: str) -> list[dict]:
+    def _parse_rankings(self, html: str, rank_offset: int = 0) -> list[dict]:
         """解析排行榜 HTML，返回小说列表
+
+        Args:
+            html: 单页 HTML
+            rank_offset: 排名偏移量（第 N 页的 rank 需加上 (N-1)*10）
 
         Returns:
             [{rank, title, author, cover_url, category, status, source_url}]
@@ -74,13 +91,16 @@ class SuduguRankings:
             source_url = m.group(1)
             img_alt = m.group(2)
             cover_url = m.group(3)
-            rank = int(m.group(4))
+            rank_in_page = int(m.group(4))
             status = m.group(5).strip()
             category = m.group(6).strip()
             author = m.group(7).strip()
 
+            # 全局 rank = 页内 rank + 偏移量（避免多页 rank 冲突）
+            global_rank = rank_in_page + rank_offset
+
             results.append({
-                'rank': rank,
+                'rank': global_rank,
                 'title': img_alt,
                 'author': author,
                 'cover_url': cover_url,
@@ -91,11 +111,11 @@ class SuduguRankings:
 
         # 如果精确匹配失败，尝试宽松匹配
         if not results:
-            results = self._parse_rankings_loose(html)
+            results = self._parse_rankings_loose(html, rank_offset)
 
         return results
 
-    def _parse_rankings_loose(self, html: str) -> list[dict]:
+    def _parse_rankings_loose(self, html: str, rank_offset: int = 0) -> list[dict]:
         """宽松匹配模式（备用）"""
         results = []
         # 匹配 <img alt="书名" src="封面URL" />
@@ -122,8 +142,9 @@ class SuduguRankings:
             author_m = author_pattern.search(item)
 
             if img_m and rank_m:
+                rank_in_page = int(rank_m.group(1))
                 results.append({
-                    'rank': int(rank_m.group(1)),
+                    'rank': rank_in_page + rank_offset,
                     'title': img_m.group(1),
                     'author': author_m.group(1) if author_m else '',
                     'cover_url': img_m.group(2),
@@ -136,7 +157,7 @@ class SuduguRankings:
         return results
 
     def get_rankings(self, category: str = 'all', use_cache: bool = True) -> list[dict]:
-        """获取排行榜数据（带按天缓存）
+        """获取排行榜数据（带按天缓存，多页合并）
 
         Args:
             category: 分类（暂未使用，sudugu 排行榜不区分分类）
@@ -158,23 +179,36 @@ class SuduguRankings:
                     item['novel_id'] = item.get('title', '')
                 return cached
 
-        # 2. 缓存不存在，从网络获取
+        # 2. 缓存不存在，从网络获取（多页合并）
         try:
-            html = self._fetch_html()
-            novels = self._parse_rankings(html)
-            if not novels:
+            all_novels = []
+            for page in range(1, self.MAX_PAGES + 1):
+                try:
+                    html = self._fetch_html(page)
+                    # 第 N 页的 rank 偏移 = (N-1) * 10
+                    rank_offset = (page - 1) * 10
+                    novels = self._parse_rankings(html, rank_offset)
+                    if not novels:
+                        # 该页无数据，停止翻页
+                        break
+                    all_novels.extend(novels)
+                except Exception as e:
+                    print(f'[SuduguRankings] 第 {page} 页抓取失败: {e}')
+                    break
+
+            if not all_novels:
                 return []
 
             # 3. 保存到缓存
-            self._db.save_rankings_cache(novels)
+            self._db.save_rankings_cache(all_novels)
 
             # 4. 返回（补充前端字段）
-            for item in novels:
+            for item in all_novels:
                 item['source_name'] = '速读谷排行'
                 item['source_key'] = 'sudugu'
                 item['novel_id'] = item.get('title', '')
 
-            return novels
+            return all_novels
         except Exception as e:
             print(f'[SuduguRankings] 获取排行榜失败: {e}')
             return []

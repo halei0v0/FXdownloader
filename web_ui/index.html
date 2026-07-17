@@ -1493,6 +1493,72 @@ option {
     display: flex;
     animation: fadeIn 0.25s ease;
 }
+/* 护眼主题：米黄纸张色，覆盖阅读区背景与文字 */
+.reader-overlay.eye-care {
+    background: #F5ECD7;
+}
+.reader-overlay.eye-care .reader-header {
+    background: #EBE0C4;
+    border-bottom-color: #D4C5A0;
+}
+.reader-overlay.eye-care .reader-title,
+.reader-overlay.eye-care .reader-controls,
+.reader-overlay.eye-care .reader-font-controls,
+.reader-overlay.eye-care .reader-font-controls #readerFontSize,
+.reader-overlay.eye-care #readerChapterInfo {
+    color: #5A4A35;
+}
+.reader-overlay.eye-care .reader-sidebar {
+    background: #EDE2C6;
+    border-right-color: #D4C5A0;
+}
+.reader-overlay.eye-care .reader-chapter-item {
+    color: #6B5A42;
+}
+.reader-overlay.eye-care .reader-chapter-item:hover {
+    background: rgba(122, 100, 60, 0.10);
+    color: #3A2F1F;
+}
+.reader-overlay.eye-care .reader-chapter-item.active {
+    background: rgba(180, 120, 40, 0.16);
+    border-left-color: #B47828;
+    color: #8A5A1A;
+}
+.reader-overlay.eye-care .reader-content-area {
+    color: #2E2620;
+    background: #F5ECD7;
+}
+.reader-overlay.eye-care .reader-content-area h2 {
+    color: #2E2620;
+}
+.reader-overlay.eye-care .reader-chapter-block {
+    border-bottom-color: #D4C5A0;
+}
+.reader-overlay.eye-care .reader-loading-more {
+    color: #6A5A40;
+}
+.reader-overlay.eye-care .reader-footer {
+    background: #EBE0C4;
+    border-top-color: #D4C5A0;
+}
+.reader-overlay.eye-care .reader-nav-btn {
+    background: rgba(255,255,255,0.4);
+    color: #5A4A35;
+    border-color: #D4C5A0;
+}
+.reader-overlay.eye-care .reader-font-btn {
+    background: rgba(255,255,255,0.4);
+    color: #5A4A35;
+    border-color: #D4C5A0;
+}
+.reader-overlay.eye-care .reader-theme-btn {
+    background: rgba(255,255,255,0.4);
+    color: #5A4A35;
+    border-color: #D4C5A0;
+}
+.reader-overlay.eye-care .loading-spinner span {
+    color: #5A4A35;
+}
 .reader-header {
     display: flex;
     align-items: center;
@@ -1562,6 +1628,29 @@ option {
     margin-bottom: 16px;
     text-indent: 2em;
 }
+/* 连续滚动：章节块分隔 */
+.reader-chapter-block {
+    padding-bottom: 48px;
+    margin-bottom: 48px;
+    border-bottom: 1px dashed var(--border-glass);
+}
+.reader-chapter-block:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+.reader-loading-more {
+    text-align: center;
+    padding: 24px 12px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.reader-loading-more .loading-spinner {
+    display: inline-flex;
+}
+.reader-end-tip {
+    color: var(--text-muted);
+    font-style: italic;
+}
 .reader-footer {
     display: flex;
     align-items: center;
@@ -1614,6 +1703,29 @@ option {
 .reader-font-btn:hover {
     border-color: var(--border-glow);
     color: var(--accent-primary);
+}
+.reader-theme-btn {
+    padding: 5px 12px;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.reader-theme-btn:hover {
+    border-color: var(--border-glow);
+    color: var(--accent-primary);
+}
+.reader-theme-btn.active {
+    background: rgba(180, 120, 40, 0.18);
+    color: #B47828;
+    border-color: #B47828;
 }
 
 /* 视图空状态 */
@@ -2468,6 +2580,14 @@ option {
                     <span class="toggle-label">开启后导出文件中不会出现空行</span>
                 </div>
             </div>
+            <div class="form-group">
+                <label class="form-label">封面信息缓存</label>
+                <div class="toggle-row" style="justify-content:space-between;">
+                    <span class="toggle-label" id="coverCacheInfo">加载中...</span>
+                    <button class="btn-modal btn-modal-cancel" style="padding:4px 12px;font-size:12px;" onclick="clearCoverCache()">清除缓存</button>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">小说封面 URL 等信息缓存，清除后下次显示封面时会重新获取</div>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn-modal btn-modal-cancel" onclick="closeSettings()">取消</button>
@@ -2498,10 +2618,17 @@ option {
     <div class="reader-header">
         <div class="reader-title" id="readerNovelTitle">阅读</div>
         <div class="reader-controls">
+            <button class="reader-theme-btn" id="readerThemeBtn" onclick="toggleReaderTheme()" title="切换护眼/深色背景">
+                <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <circle cx="7" cy="7" r="3"/>
+                    <path d="M7 1v2M7 11v2M1 7h2M11 7h2M3 3l1.5 1.5M9.5 9.5L11 11M11 3L9.5 4.5M4.5 9.5L3 11"/>
+                </svg>
+                <span id="readerThemeLabel">护眼</span>
+            </button>
             <div class="reader-font-controls">
                 <span>字号</span>
                 <button class="reader-font-btn" onclick="changeFontSize(-1)" title="减小字号">-</button>
-                <span id="readerFontSize">16</span>
+                <span id="readerFontSize">18</span>
                 <button class="reader-font-btn" onclick="changeFontSize(1)" title="增大字号">+</button>
             </div>
             <button class="reader-nav-btn" onclick="closeReader()" title="退出阅读">
@@ -2558,7 +2685,11 @@ const state = {
     isFavorited: false,        // 当前小说是否已收藏
     reading: {                 // 阅读状态
         currentChapterIndex: 0,
-        fontSize: 16,
+        fontSize: 18,
+        theme: 'eye-care',     // 'eye-care' 护眼（默认开）| 'dark' 深色
+        loadedChapters: new Set(), // 已加载到内容区的章节索引（连续滚动）
+        isLoadingMore: false,  // 是否正在加载下一章（防重入）
+        endReachedShown: false, // 是否已显示"已读完"提示
     },
     rankingsLoaded: false,     // 榜单是否已加载
     favoritesLoaded: false,    // 收藏是否已加载
@@ -2712,6 +2843,8 @@ async function handleSearch() {
         }
 
         renderNovelGrid(grid, novels);
+        // 自动补全缺失封面（从本地缓存或源获取）
+        prefetchAndApplyCovers(novels, grid);
         addLog('搜索 "' + keyword + '" 返回 ' + novels.length + ' 条结果', 'info');
 
     } catch (e) {
@@ -2724,17 +2857,18 @@ async function handleSearch() {
 }
 
 /* 渲染小说卡片到网格容器 */
-function renderNovelGrid(container, novels, withRank) {
+function renderNovelGrid(container, novels, withRank, options) {
     container.innerHTML = '';
     const fragment = document.createDocumentFragment();
     novels.forEach((novel, idx) => {
-        fragment.appendChild(buildNovelCard(novel, withRank ? idx + 1 : 0));
+        fragment.appendChild(buildNovelCard(novel, withRank ? idx + 1 : 0, options));
     });
     container.appendChild(fragment);
 }
 
 /* 构建单张小说卡片（用于发现/搜索/收藏视图） */
-function buildNovelCard(novel, rankNum) {
+function buildNovelCard(novel, rankNum, options) {
+    options = options || {};
     const wrapper = document.createElement('div');
     wrapper.className = 'novel-grid-card-wrapper';
 
@@ -2786,11 +2920,22 @@ function buildNovelCard(novel, rankNum) {
     detailBtn.className = 'grid-card-btn primary';
     detailBtn.textContent = '查看详情';
     detailBtn.onclick = function(e) { e.stopPropagation(); selectNovel(novel); };
+    actions.appendChild(detailBtn);
+    // 收藏卡片显示"阅读"按钮
+    if (options.showReadBtn) {
+        const readBtn = document.createElement('button');
+        readBtn.className = 'grid-card-btn';
+        readBtn.textContent = '阅读';
+        readBtn.onclick = function(e) {
+            e.stopPropagation();
+            readNovelDirectly(novel);
+        };
+        actions.appendChild(readBtn);
+    }
     const cartBtn = document.createElement('button');
     cartBtn.className = 'grid-card-btn';
     cartBtn.textContent = '加入批量下载';
     cartBtn.onclick = function(e) { e.stopPropagation(); addToCart(novel); };
-    actions.appendChild(detailBtn);
     actions.appendChild(cartBtn);
     card.appendChild(actions);
 
@@ -2807,6 +2952,21 @@ function buildNovelCard(novel, rankNum) {
     }
 
     return wrapper;
+}
+
+/* 从收藏直接进入阅读：解析小说 → 加载章节 → 打开阅读器 */
+async function readNovelDirectly(novel) {
+    if (!novel || (!novel.novel_id && !novel.title)) {
+        showToast('小说信息无效', 'warning');
+        return;
+    }
+    showToast('正在加载小说...', 'info');
+    // 先走 selectNovel 流程（自动切源、解析、加载章节）
+    await selectNovel(novel);
+    // 章节加载成功后打开阅读器
+    if (state.novelId && state.chapters && state.chapters.length > 0) {
+        openReader();
+    }
 }
 
 function formatWordCount(count) {
@@ -3366,7 +3526,46 @@ async function openSettings() {
     } catch (e) {
         // Use defaults
     }
+    // 加载封面缓存信息
+    loadCoverCacheInfo();
     document.getElementById('settingsModal').classList.add('active');
+}
+
+async function loadCoverCacheInfo() {
+    const el = document.getElementById('coverCacheInfo');
+    if (!el) return;
+    el.textContent = '加载中...';
+    try {
+        const info = await window.pywebview.api.get_cover_cache_info();
+        if (info && info.error) {
+            el.textContent = '获取失败: ' + info.error;
+            return;
+        }
+        if (!info) {
+            el.textContent = '0 条 · 0 KB';
+            return;
+        }
+        const size = info.size_kb < 1024 ? info.size_kb + ' KB' : (info.size_kb / 1024).toFixed(2) + ' MB';
+        el.textContent = (info.count || 0) + ' 条 · ' + size;
+    } catch (e) {
+        el.textContent = '获取失败';
+    }
+}
+
+async function clearCoverCache() {
+    if (!confirm('确定清除所有封面缓存信息吗？')) return;
+    try {
+        const result = await window.pywebview.api.clear_cover_cache();
+        if (result && result.error) {
+            showToast('清除失败: ' + result.error, 'error');
+            return;
+        }
+        const cleared = result ? result.cleared : 0;
+        showToast('已清除 ' + cleared + ' 条缓存', 'success');
+        loadCoverCacheInfo();
+    } catch (e) {
+        showToast('清除出错: ' + (e.message || e), 'error');
+    }
 }
 
 function closeSettings() {
@@ -3940,7 +4139,9 @@ async function loadFavorites() {
             empty.style.display = '';
             return;
         }
-        renderNovelGrid(grid, items);
+        renderNovelGrid(grid, items, false, { showReadBtn: true });
+        // 补全缺失封面（旧收藏可能未保存 cover_url）
+        prefetchAndApplyCovers(items, grid);
     } catch (e) {
         grid.innerHTML = '';
         empty.style.display = '';
@@ -4273,10 +4474,19 @@ async function openReader() {
         showToast('请先加载小说章节', 'warning');
         return;
     }
+    // 加载保存的阅读器设置（字号+主题）
+    await loadReaderSettings();
     document.getElementById('readerNovelTitle').textContent = state.novelTitle;
     document.getElementById('readerOverlay').classList.add('active');
     renderReaderSidebar();
     applyReaderFontSize();
+    applyReaderTheme();
+    // 初始化连续滚动状态
+    state.reading.loadedChapters = new Set();
+    state.reading.isLoadingMore = false;
+    state.reading.endReachedShown = false;
+    resetReaderContent();
+    setupReaderScrollListener();
     // 从上次阅读位置恢复
     let startIndex = 0;
     let startChapterId = state.chapters[0].chapter_id;
@@ -4315,30 +4525,109 @@ function renderReaderSidebar() {
     sidebar.appendChild(fragment);
 }
 
-async function readChapterById(chapterId) {
-    if (!state.novelId) return;
+/* 连续滚动阅读：加载单个章节并追加到内容区末尾
+   - 已加载则不重复加载
+   - 加载完成后自动尝试再加载下一章（内容过短未填满视口时） */
+async function appendChapterBlock(idx) {
+    if (idx < 0 || idx >= state.chapters.length) return;
+    if (!state.reading.loadedChapters) state.reading.loadedChapters = new Set();
+    if (state.reading.loadedChapters.has(idx)) return;
+    const ch = state.chapters[idx];
+    if (!ch) return;
+    const chapterId = ch.chapter_id;
     const sourceKey = getSelectedSourceKey();
     const contentArea = document.getElementById('readerContent');
-    contentArea.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载中...</span></div>';
+
+    state.reading.isLoadingMore = true;
+    // 占位加载提示
+    const placeholder = document.createElement('div');
+    placeholder.className = 'reader-loading-more';
+    placeholder.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>加载下一章...</span></div>';
+    contentArea.appendChild(placeholder);
     try {
         const result = await window.pywebview.api.read_chapter(state.novelId, chapterId, sourceKey);
+        placeholder.remove();
         if (result && result.error) {
-            contentArea.innerHTML = '<p style="color:var(--error);text-align:center;">' + escapeHtml(result.error) + '</p>';
+            const errDiv = document.createElement('div');
+            errDiv.className = 'reader-chapter-block reader-chapter-error';
+            errDiv.dataset.index = idx;
+            errDiv.innerHTML = '<h2>' + escapeHtml(ch.chapter_title) + '</h2>' +
+                '<p style="color:var(--error);text-align:center;">加载失败: ' + escapeHtml(result.error) + '</p>';
+            contentArea.appendChild(errDiv);
+            state.reading.loadedChapters.add(idx);
             return;
         }
-        const idx = state.chapters.findIndex(ch => ch.chapter_id == chapterId);
-        state.reading.currentChapterIndex = idx >= 0 ? idx : 0;
-        const title = result.title || (state.chapters[idx] ? state.chapters[idx].chapter_title : '');
+        const title = result.title || ch.chapter_title;
         const content = result.content || '';
-        contentArea.innerHTML = '<h2>' + escapeHtml(title) + '</h2>' + renderChapterContent(content);
+        const block = document.createElement('div');
+        block.className = 'reader-chapter-block';
+        block.dataset.index = idx;
+        block.dataset.chapterId = chapterId;
+        block.innerHTML = '<h2>' + escapeHtml(title) + '</h2>' + renderChapterContent(content);
+        contentArea.appendChild(block);
+        state.reading.loadedChapters.add(idx);
+    } catch (e) {
+        placeholder.remove();
+        const errDiv = document.createElement('div');
+        errDiv.className = 'reader-chapter-block reader-chapter-error';
+        errDiv.dataset.index = idx;
+        errDiv.innerHTML = '<h2>' + escapeHtml(ch.chapter_title) + '</h2>' +
+            '<p style="color:var(--error);text-align:center;">加载失败: ' + escapeHtml(e.message || e) + '</p>';
+        contentArea.appendChild(errDiv);
+        state.reading.loadedChapters.add(idx);
+    } finally {
+        state.reading.isLoadingMore = false;
+        // 内容可能很短未填满视口，尝试加载下一章
+        maybeLoadNextChapterOnScroll();
+    }
+}
+
+/* 清空阅读内容区，重置已加载章节集合 */
+function resetReaderContent() {
+    const contentArea = document.getElementById('readerContent');
+    if (contentArea) {
+        contentArea.innerHTML = '';
         contentArea.scrollTop = 0;
+    }
+    if (state.reading.loadedChapters) state.reading.loadedChapters.clear();
+    state.reading.endReachedShown = false;
+}
+
+/* 滚动到指定章节块（如果已加载） */
+function scrollToChapterBlock(idx) {
+    const contentArea = document.getElementById('readerContent');
+    const block = contentArea.querySelector('.reader-chapter-block[data-index="' + idx + '"]');
+    if (block) {
+        block.scrollIntoView({ block: 'start', behavior: 'auto' });
+    } else {
+        contentArea.scrollTop = 0;
+    }
+}
+
+/* 加载章节：已加载则滚动定位，未加载则重置内容区仅显示该章 */
+async function readChapterById(chapterId) {
+    if (!state.novelId) return;
+    const idx = state.chapters.findIndex(ch => ch.chapter_id == chapterId);
+    if (idx < 0) return;
+    // 已加载：直接滚动定位
+    if (state.reading.loadedChapters && state.reading.loadedChapters.has(idx)) {
+        scrollToChapterBlock(idx);
+        state.reading.currentChapterIndex = idx;
         updateReaderSidebarActive();
         updateReaderNavButtons();
-        document.getElementById('readerChapterInfo').textContent = '第 ' + (state.reading.currentChapterIndex + 1) + '/' + state.chapters.length + ' 章';
-        saveReadingProgress(chapterId, title, state.reading.currentChapterIndex);
-    } catch (e) {
-        contentArea.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败: ' + escapeHtml(e.message || e) + '</p>';
+        document.getElementById('readerChapterInfo').textContent = '第 ' + (idx + 1) + '/' + state.chapters.length + ' 章';
+        saveReadingProgress(chapterId, state.chapters[idx].chapter_title, idx);
+        return;
     }
+    // 未加载：重置内容区，仅加载该章节作为新起点
+    resetReaderContent();
+    await appendChapterBlock(idx);
+    scrollToChapterBlock(idx);
+    state.reading.currentChapterIndex = idx;
+    updateReaderSidebarActive();
+    updateReaderNavButtons();
+    document.getElementById('readerChapterInfo').textContent = '第 ' + (idx + 1) + '/' + state.chapters.length + ' 章';
+    saveReadingProgress(chapterId, state.chapters[idx].chapter_title, idx);
 }
 
 function renderChapterContent(content) {
@@ -4365,22 +4654,174 @@ function updateReaderNavButtons() {
 
 function nextChapter() {
     const idx = state.reading.currentChapterIndex + 1;
-    if (idx < state.chapters.length) readChapterById(state.chapters[idx].chapter_id);
+    if (idx >= state.chapters.length) return;
+    // 已加载则平滑滚动到下一章；否则重置加载
+    if (state.reading.loadedChapters && state.reading.loadedChapters.has(idx)) {
+        scrollToChapterBlock(idx);
+        state.reading.currentChapterIndex = idx;
+        updateReaderSidebarActive();
+        updateReaderNavButtons();
+        document.getElementById('readerChapterInfo').textContent = '第 ' + (idx + 1) + '/' + state.chapters.length + ' 章';
+        const ch = state.chapters[idx];
+        saveReadingProgress(ch.chapter_id, ch.chapter_title, idx);
+    } else {
+        readChapterById(state.chapters[idx].chapter_id);
+    }
 }
 
 function prevChapter() {
     const idx = state.reading.currentChapterIndex - 1;
-    if (idx >= 0) readChapterById(state.chapters[idx].chapter_id);
+    if (idx < 0) return;
+    if (state.reading.loadedChapters && state.reading.loadedChapters.has(idx)) {
+        scrollToChapterBlock(idx);
+        state.reading.currentChapterIndex = idx;
+        updateReaderSidebarActive();
+        updateReaderNavButtons();
+        document.getElementById('readerChapterInfo').textContent = '第 ' + (idx + 1) + '/' + state.chapters.length + ' 章';
+        const ch = state.chapters[idx];
+        saveReadingProgress(ch.chapter_id, ch.chapter_title, idx);
+    } else {
+        readChapterById(state.chapters[idx].chapter_id);
+    }
+}
+
+/* ============== 连续滚动：滚动监听 + 自动加载下一章 ============== */
+let _readerScrollListenerAttached = false;
+let _readerScrollRaf = null;
+
+function setupReaderScrollListener() {
+    if (_readerScrollListenerAttached) return;
+    const contentArea = document.getElementById('readerContent');
+    if (!contentArea) return;
+    contentArea.addEventListener('scroll', onReaderScroll, { passive: true });
+    _readerScrollListenerAttached = true;
+}
+
+function onReaderScroll() {
+    if (_readerScrollRaf) return;
+    _readerScrollRaf = requestAnimationFrame(() => {
+        _readerScrollRaf = null;
+        updateCurrentChapterFromScroll();
+        maybeLoadNextChapterOnScroll();
+    });
+}
+
+/* 根据滚动位置更新当前章节索引（用于侧栏高亮/进度保存） */
+function updateCurrentChapterFromScroll() {
+    const contentArea = document.getElementById('readerContent');
+    if (!contentArea) return;
+    const blocks = contentArea.querySelectorAll('.reader-chapter-block');
+    if (blocks.length === 0) return;
+    const scrollTop = contentArea.scrollTop;
+    let currentIdx = -1;
+    blocks.forEach(block => {
+        const blockTop = block.offsetTop;
+        // block 顶部进入视口顶部区域即视为当前章节
+        if (blockTop - scrollTop <= 80) {
+            const idx = parseInt(block.dataset.index, 10);
+            if (!isNaN(idx) && (currentIdx === -1 || idx > currentIdx)) {
+                currentIdx = idx;
+            }
+        }
+    });
+    if (currentIdx === -1) {
+        currentIdx = parseInt(blocks[0].dataset.index, 10);
+        if (isNaN(currentIdx)) return;
+    }
+    if (currentIdx !== state.reading.currentChapterIndex) {
+        state.reading.currentChapterIndex = currentIdx;
+        updateReaderSidebarActive();
+        updateReaderNavButtons();
+        document.getElementById('readerChapterInfo').textContent = '第 ' + (currentIdx + 1) + '/' + state.chapters.length + ' 章';
+        const ch = state.chapters[currentIdx];
+        if (ch) saveReadingProgress(ch.chapter_id, ch.chapter_title, currentIdx);
+    }
+}
+
+/* 接近底部时自动加载下一章 */
+function maybeLoadNextChapterOnScroll() {
+    if (state.reading.isLoadingMore) return;
+    if (!state.reading.loadedChapters || state.reading.loadedChapters.size === 0) return;
+    const contentArea = document.getElementById('readerContent');
+    if (!contentArea) return;
+    const { scrollTop, scrollHeight, clientHeight } = contentArea;
+    // 距底部不足 800px 时预加载下一章
+    if (scrollHeight - scrollTop - clientHeight > 800) return;
+    // 找到最后一个已加载的章节索引
+    let lastIdx = -1;
+    state.reading.loadedChapters.forEach(i => { if (i > lastIdx) lastIdx = i; });
+    const nextIdx = lastIdx + 1;
+    if (nextIdx < state.chapters.length) {
+        appendChapterBlock(nextIdx);
+    } else if (lastIdx === state.chapters.length - 1 && !state.reading.endReachedShown) {
+        state.reading.endReachedShown = true;
+        const endDiv = document.createElement('div');
+        endDiv.className = 'reader-loading-more reader-end-tip';
+        endDiv.textContent = '已读完所有章节';
+        contentArea.appendChild(endDiv);
+    }
 }
 
 function changeFontSize(delta) {
-    state.reading.fontSize = Math.max(12, Math.min(28, state.reading.fontSize + delta));
+    // 字号范围 12-36（支持更大字号）
+    state.reading.fontSize = Math.max(12, Math.min(36, state.reading.fontSize + delta));
     applyReaderFontSize();
+    saveReaderSettings();
 }
 
 function applyReaderFontSize() {
     document.getElementById('readerContent').style.fontSize = state.reading.fontSize + 'px';
     document.getElementById('readerFontSize').textContent = state.reading.fontSize;
+}
+
+/* 切换护眼/深色背景 */
+function toggleReaderTheme() {
+    state.reading.theme = state.reading.theme === 'eye-care' ? 'dark' : 'eye-care';
+    applyReaderTheme();
+    saveReaderSettings();
+}
+
+function applyReaderTheme() {
+    const overlay = document.getElementById('readerOverlay');
+    const label = document.getElementById('readerThemeLabel');
+    const btn = document.getElementById('readerThemeBtn');
+    if (!overlay) return;
+    if (state.reading.theme === 'eye-care') {
+        overlay.classList.add('eye-care');
+        if (label) label.textContent = '护眼';
+        if (btn) btn.classList.add('active');
+    } else {
+        overlay.classList.remove('eye-care');
+        if (label) label.textContent = '深色';
+        if (btn) btn.classList.remove('active');
+    }
+}
+
+/* 保存阅读器设置（字号+主题）到后端 config */
+async function saveReaderSettings() {
+    try {
+        await window.pywebview.api.save_reader_settings(
+            JSON.stringify({
+                font_size: state.reading.fontSize,
+                theme: state.reading.theme,
+            })
+        );
+    } catch (e) { /* 忽略 */ }
+}
+
+/* 从后端加载阅读器设置 */
+async function loadReaderSettings() {
+    try {
+        const s = await window.pywebview.api.get_reader_settings();
+        if (s) {
+            if (typeof s.font_size === 'number') {
+                state.reading.fontSize = Math.max(12, Math.min(36, s.font_size));
+            }
+            if (s.theme === 'eye-care' || s.theme === 'dark') {
+                state.reading.theme = s.theme;
+            }
+        }
+    } catch (e) { /* 忽略，使用默认 */ }
 }
 
 async function saveReadingProgress(chapterId, chapterTitle, chapterIndex) {

@@ -530,6 +530,24 @@ class NovelDatabase:
             ''', [source] + [str(nid) for nid in novel_ids])
             return {row['novel_id']: row['cover_url'] for row in cursor.fetchall() if row['cover_url']}
 
+    def get_cover_cache_count(self):
+        """获取封面缓存条目数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) AS cnt FROM novel_covers')
+            row = cursor.fetchone()
+            return row['cnt'] if row else 0
+
+    def clear_cover_cache(self):
+        """清空封面缓存表，返回被删除的条目数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) AS cnt FROM novel_covers')
+            count = cursor.fetchone()['cnt']
+            cursor.execute('DELETE FROM novel_covers')
+            conn.commit()
+            return count
+
     # ============== 排行榜缓存 ==============
 
     def get_rankings_cache(self, category='all'):
