@@ -21,6 +21,7 @@ from .base import SourceError
 # 源显示名映射
 SOURCE_DISPLAY_NAMES = {
     'biquge': '蚂蚁文学',
+    'sto66': '思兔阅读',
     'dingdian': '顶点小说',
     'bxwx': '笔下文学',
     'qianbi': '铅笔小说',
@@ -33,17 +34,23 @@ def search_all_sources(keyword: str, include_fanqie: bool = True) -> List[dict]:
     """多源并发搜索，聚合所有源的可用结果
 
     搜索策略：
-    1. 各源自身搜索接口（主要方式）—— 蚂蚁文学、铅笔小说、海棠文学等
+    1. 各源自身搜索接口（主要方式）—— 蚂蚁文学、思兔阅读、铅笔小说、海棠文学等
     2. Bing 搜索（补充）—— 在中国网络环境下常被重定向到 cn.bing.com，结果不可靠
 
-    不需要手动切换源，直接返回所有源中能找到的结果。
+    排序规则（最准确的名字排在首位）：
+    1. 标题完全匹配关键词（忽略书名号/空格/大小写）→ 0 分（最高优先级）
+    2. 标题以关键词开头 → 1 分
+    3. 标题包含关键词 → 2 分
+    4. 关键词包含标题 → 3 分
+    5. 其他 → 4 分
+    同分时主源（蚂蚁文学）优先，有封面优先
 
     Args:
         keyword: 搜索关键词或URL
         include_fanqie: 是否包含番茄源
 
     Returns:
-        [{novel_id, title, author, source, source_name, ...}, ...]
+        [{novel_id, title, author, source, source_name, status, ...}, ...]
     """
     results = {}  # key=(source, novel_id) 去重
 
@@ -74,6 +81,9 @@ def search_all_sources(keyword: str, include_fanqie: bool = True) -> List[dict]:
                 for n in novels:
                     key = (sk, str(n.novel_id))
                     if key not in results:
+                        # 从 extra 中提取状态字段，便于前端统一显示
+                        extra = n.extra or {}
+                        status = extra.get('status', '') or extra.get('novel_status', '')
                         results[key] = {
                             'novel_id': str(n.novel_id),
                             'title': n.title or '',
@@ -82,10 +92,11 @@ def search_all_sources(keyword: str, include_fanqie: bool = True) -> List[dict]:
                             'cover_url': n.cover_url or '',
                             'word_count': n.word_count or 0,
                             'chapter_count': n.chapter_count or 0,
+                            'status': status,
                             'source': sk,
                             'source_key': sk,
                             'source_name': SOURCE_DISPLAY_NAMES.get(sk, sk),
-                            'extra': n.extra or {},
+                            'extra': extra,
                         }
             except Exception:
                 pass
@@ -109,6 +120,7 @@ def search_all_sources(keyword: str, include_fanqie: bool = True) -> List[dict]:
                         'cover_url': '',
                         'word_count': 0,
                         'chapter_count': 0,
+                        'status': '',
                         'source': src,
                         'source_key': src,
                         'source_name': SOURCE_DISPLAY_NAMES.get(src, src),
@@ -117,7 +129,70 @@ def search_all_sources(keyword: str, include_fanqie: bool = True) -> List[dict]:
         except Exception as e:
             print(f'[多源搜索] Bing 补充搜索失败: {e}')
 
-    return list(results.values())
+    # 3. 相关性排序：最准确的名字排在首位
+    sorted_results = _sort_by_relevance(list(results.values()), keyword)
+    return sorted_results
+
+
+def _sort_by_relevance(results: List[dict], keyword: str) -> List[dict]:
+    """按标题相关性排序搜索结果
+
+    评分规则（分数越低优先级越高）：
+    - 0: 完全匹配（忽略书名号/空格/大小写）
+    - 1: 标题以关键词开头
+    - 2: 标题包含关键词
+    - 3: 关键词包含标题
+    - 4: 其他
+
+    同分时：有封面优先 > 主源（蚂蚁文学）优先 > 标题长度短优先
+    """
+    if not keyword or not results:
+        return results
+
+    kw = keyword.strip()
+    # 去除书名号《》和首尾空格
+    kw_clean = kw.lstrip('《').rstrip('》').strip().lower()
+
+    # 主源优先级（数字越小越优先）
+    source_priority = {
+        'biquge': 0,
+        'sto66': 1,
+        'dingdian': 2,
+        'qianbi': 3,
+        'bxwx': 4,
+        'haitang': 5,
+        'fanqie': 6,
+    }
+
+    def _score(item):
+        title = (item.get('title') or '').strip()
+        title_clean = title.lstrip('《').rstrip('》').strip().lower()
+
+        # 标题相关性评分
+        if not title_clean:
+            relevance = 4
+        elif title_clean == kw_clean:
+            relevance = 0  # 完全匹配
+        elif title_clean.startswith(kw_clean):
+            relevance = 1  # 前缀匹配
+        elif kw_clean in title_clean:
+            relevance = 2  # 标题包含关键词
+        elif title_clean in kw_clean:
+            relevance = 3  # 关键词包含标题
+        else:
+            relevance = 4
+
+        # 次级排序：有封面优先
+        has_cover = 0 if item.get('cover_url') else 1
+        # 次级排序：主源优先
+        src = item.get('source_key') or item.get('source') or ''
+        src_pri = source_priority.get(src, 9)
+        # 次级排序：标题长度短优先（更精确的匹配）
+        title_len = len(title_clean)
+
+        return (relevance, has_cover, src_pri, title_len)
+
+    return sorted(results, key=_score)
 
 
 def find_novel_in_all_sources(title: str, author: str = '', exclude_source: str = '') -> Dict[str, str]:

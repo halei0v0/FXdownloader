@@ -290,20 +290,15 @@ class ConfigurableSource(BaseSource):
 
         很多小说网站章节列表开头会有几章"最新章节"的倒序排列，
         后面才是正序的完整列表。本方法：
-        1. 按 chapter_id 去重（保留首次出现的）
-        2. 检测开头是否有倒序段（章节序号递减）
-        3. 移除倒序段，保留正序主体
+        1. 检测开头是否有倒序段（章节序号递减）
+        2. 跳过倒序段，对正序主体去重（按 chapter_id 首次出现）
+
+        注意：必须先跳过倒序段再去重。如果先去重（保留首次出现），
+        倒序段的章节会被保留，正序主体中的同名章节被丢弃，
+        随后剔除倒序段会导致这些章节彻底丢失。
         """
         if not raw_chapters:
             return []
-
-        seen_ids = set()
-        deduped = []
-        for cid, title, idx in raw_chapters:
-            if cid in seen_ids:
-                continue
-            seen_ids.add(cid)
-            deduped.append((cid, title, idx))
 
         # 尝试将 chapter_id 转为数字用于排序判断
         def to_num(cid):
@@ -312,17 +307,16 @@ class ConfigurableSource(BaseSource):
             except (ValueError, TypeError):
                 return None
 
-        numeric_ids = [(to_num(c[0]), c) for c in deduped]
-        first_num = numeric_ids[0][0]
-        # 如果第一个章节ID是数字，检测开头的倒序段
-        if first_num is not None:
-            # 找到正序段的起点：从开头找连续递减的段
-            # 典型模式：[最新3章倒序] [完整正序列表]
-            # 倒序段特征：开头几章 ID 递减，然后突然出现小ID开始正序递增
+        numeric_ids = [(to_num(c[0]), c) for c in raw_chapters]
+
+        # 检测开头的倒序段
+        # 典型模式：[最新N章倒序] [完整正序列表]
+        # 倒序段特征：开头几章 ID 递减，然后突然出现小 ID 开始正序递增
+        main_start = 0
+        if numeric_ids and numeric_ids[0][0] is not None:
             nums = [n for n, _ in numeric_ids if n is not None]
             if len(nums) >= 4:
                 # 找到正序主体起点：第一个 nums[i] < nums[i+1] < nums[i+2] 的位置
-                main_start = 0
                 for i in range(len(numeric_ids) - 2):
                     n0 = numeric_ids[i][0]
                     n1 = numeric_ids[i + 1][0]
@@ -333,12 +327,22 @@ class ConfigurableSource(BaseSource):
                             break
                 # 如果找到了正序起点，且起点之前有内容（倒序段）
                 if main_start > 0:
-                    # 倒序段的ID可能大于正序段，需要剔除
+                    # 只有当倒序段的 ID 都 >= 正序段起点 ID 时，才确认是倒序段
                     main_min = numeric_ids[main_start][0]
                     reversed_part = numeric_ids[:main_start]
-                    # 只有当倒序段的ID都 >= 正序段起点ID时，才确认是倒序段
-                    if all(n is None or n >= main_min for n, _ in reversed_part):
-                        deduped = [c for _, c in numeric_ids[main_start:]]
+                    if not all(n is None or n >= main_min for n, _ in reversed_part):
+                        # 不是真正的倒序段，不跳过
+                        main_start = 0
+
+        # 先跳过倒序段，再对剩余正序主体去重
+        effective = [c for _, c in numeric_ids[main_start:]] if main_start > 0 else raw_chapters
+        seen_ids = set()
+        deduped = []
+        for cid, title, idx in effective:
+            if cid in seen_ids:
+                continue
+            seen_ids.add(cid)
+            deduped.append((cid, title, idx))
 
         return [
             ChapterInfo(

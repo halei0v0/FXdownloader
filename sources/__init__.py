@@ -12,6 +12,7 @@
 from .base import BaseSource, SourceError, NovelInfo, ChapterInfo
 from .fanqie_source import FanqieSource
 from .biquge_source import BiqugeSource
+from .sto66_source import Sto66Source
 from .generic_source import (
     ConfigurableSource,
     DingdianSource,
@@ -24,6 +25,7 @@ from .generic_source import (
 SOURCE_REGISTRY = {
     'fanqie': FanqieSource,
     'biquge': BiqugeSource,
+    'sto66': Sto66Source,
     'dingdian': DingdianSource,
     'bxwx': BxwxSource,
     'qianbi': QianbiSource,
@@ -31,7 +33,7 @@ SOURCE_REGISTRY = {
 }
 
 # 可搜索的源（用于多源自动搜索，无需登录的源）
-SEARCHABLE_SOURCES = ['biquge', 'dingdian', 'bxwx', 'qianbi', 'haitang']
+SEARCHABLE_SOURCES = ['biquge', 'sto66', 'dingdian', 'bxwx', 'qianbi', 'haitang']
 
 
 def get_source(name, **kwargs):
@@ -48,7 +50,7 @@ def list_sources():
 
 __all__ = [
     'BaseSource', 'SourceError', 'NovelInfo', 'ChapterInfo',
-    'FanqieSource', 'BiqugeSource',
+    'FanqieSource', 'BiqugeSource', 'Sto66Source',
     'ConfigurableSource', 'DingdianSource', 'BxwxSource', 'QianbiSource', 'HaitangSource',
     'SOURCE_REGISTRY', 'SEARCHABLE_SOURCES', 'get_source', 'list_sources',
 ]

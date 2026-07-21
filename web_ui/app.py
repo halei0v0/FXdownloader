@@ -61,7 +61,7 @@ class Api:
         elif source_key == 'fanqie_official':
             cookies = app_config.load_cookies()
             source = get_source('fanqie', use_api=False, cookies=cookies)
-        elif source_key in ('biquge', 'dingdian', 'bxwx', 'qianbi', 'haitang'):
+        elif source_key in ('biquge', 'sto66', 'dingdian', 'bxwx', 'qianbi', 'haitang'):
             source = get_source(source_key)
         else:
             return None
@@ -73,6 +73,7 @@ class Api:
         """返回可用的源名称列表（前端格式）"""
         return [
             {'key': 'biquge', 'name': '蚂蚁文学'},
+            {'key': 'sto66', 'name': '思兔阅读'},
             {'key': 'dingdian', 'name': '顶点小说'},
             {'key': 'bxwx', 'name': '笔下文学'},
             {'key': 'qianbi', 'name': '铅笔小说'},
@@ -120,7 +121,7 @@ class Api:
             return None
 
         # 尝试每个源（URL 通常只匹配一个源的 URL_PATTERN）
-        source_keys = ['biquge', 'dingdian', 'bxwx', 'qianbi', 'haitang', 'fanqie_api', 'fanqie_official']
+        source_keys = ['biquge', 'sto66', 'dingdian', 'bxwx', 'qianbi', 'haitang', 'fanqie_api', 'fanqie_official']
         for sk in source_keys:
             try:
                 source = self._get_source(sk)
@@ -977,6 +978,9 @@ class Api:
 
     def _novel_info_to_dict(self, info):
         """将 NovelInfo 对象转换为字典"""
+        # 从 extra 中提取状态字段，便于前端统一显示
+        extra = info.extra or {}
+        status = extra.get('status', '') or extra.get('novel_status', '')
         return {
             'novel_id': str(info.novel_id),
             'title': info.title or '',
@@ -985,9 +989,10 @@ class Api:
             'cover_url': info.cover_url or '',
             'word_count': info.word_count or 0,
             'chapter_count': info.chapter_count or 0,
+            'status': status,
             'source': info.source or '',
             'source_name': SOURCE_DISPLAY_NAMES.get(info.source or '', info.source or ''),
-            'extra': info.extra or {},
+            'extra': extra,
         }
 
     def _push_progress(self, current, total, percent=0, chapter_title=''):

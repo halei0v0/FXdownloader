@@ -438,6 +438,16 @@ html, body {
     color: var(--success);
     background: rgba(0, 230, 118, 0.08);
 }
+.novel-tag.status.tag-finish {
+    border-color: rgba(76, 175, 80, 0.4);
+    color: #4CAF50;
+    background: rgba(76, 175, 80, 0.12);
+}
+.novel-tag.status.tag-ongoing {
+    border-color: rgba(255, 152, 0, 0.4);
+    color: #FF9800;
+    background: rgba(255, 152, 0, 0.12);
+}
 .novel-tag.count {
     border-color: rgba(0, 212, 255, 0.2);
     color: var(--accent-primary);
@@ -1232,6 +1242,27 @@ option {
     align-items: center;
     justify-content: center;
     z-index: 2;
+}
+/* 小说状态标签（完本/连载） */
+.grid-card-status {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    z-index: 2;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.grid-card-status.status-finish {
+    background: rgba(76, 175, 80, 0.85);
+    color: #fff;
+}
+.grid-card-status.status-ongoing {
+    background: rgba(255, 152, 0, 0.85);
+    color: #fff;
 }
 .category-chips {
     display: flex;
@@ -2075,6 +2106,12 @@ option {
 .novel-tag.status {
     box-shadow: 0 0 8px rgba(0, 230, 118, 0.15);
 }
+.novel-tag.status.tag-finish {
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.25);
+}
+.novel-tag.status.tag-ongoing {
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.25);
+}
 .novel-tag.count {
     box-shadow: 0 0 8px rgba(0, 212, 255, 0.15);
 }
@@ -2258,6 +2295,7 @@ option {
         <div class="header-right">
             <select id="sourceSelect" class="source-select" title="选择小说源（搜索时自动多源选取）">
                 <option value="biquge">蚂蚁文学</option>
+                <option value="sto66">思兔阅读</option>
                 <option value="dingdian">顶点小说</option>
                 <option value="bxwx">笔下文学</option>
                 <option value="qianbi">铅笔小说</option>
@@ -2866,6 +2904,30 @@ function renderNovelGrid(container, novels, withRank, options) {
     container.appendChild(fragment);
 }
 
+/* 格式化小说状态：统一映射为"完本"或"连载"，未知返回空字符串 */
+function formatNovelStatus(rawStatus) {
+    if (!rawStatus) return '';
+    const s = String(rawStatus).trim();
+    if (!s) return '';
+    const lower = s.toLowerCase();
+    // "未"前缀表示否定，需先检查：未完结/未完本 -> 连载
+    const negatedOngoing = ['未完结', '未完本'];
+    if (negatedOngoing.some(k => s.includes(k) || lower.includes(k.toLowerCase()))) {
+        return '连载';
+    }
+    // 完本/完结/已完结/全本 -> 完本
+    const finishKeywords = ['完本', '完结', '已完结', '全本', '完成', '已完本'];
+    // 连载/连载中/更新中 -> 连载
+    const ongoingKeywords = ['连载', '连载中', '更新中'];
+    if (finishKeywords.some(k => s.includes(k) || lower.includes(k.toLowerCase()))) {
+        return '完本';
+    }
+    if (ongoingKeywords.some(k => s.includes(k) || lower.includes(k.toLowerCase()))) {
+        return '连载';
+    }
+    return '';
+}
+
 /* 构建单张小说卡片（用于发现/搜索/收藏视图） */
 function buildNovelCard(novel, rankNum, options) {
     options = options || {};
@@ -2912,6 +2974,17 @@ function buildNovelCard(novel, rankNum, options) {
     if (novel.source_name || novel.source) metaParts.push(novel.source_name || novel.source);
     meta.textContent = metaParts.join(' | ') || '佚名';
     card.appendChild(meta);
+
+    // 状态标签（完本/连载）
+    // options.hideStatus=true 时不显示（用于排行榜/分类，因 sudugu 缓存状态可能与实际源不一致）
+    const showStatus = !(options && options.hideStatus);
+    const statusText = showStatus ? formatNovelStatus(novel.status || (novel.extra && novel.extra.status) || '') : '';
+    if (statusText) {
+        const statusTag = document.createElement('div');
+        statusTag.className = 'grid-card-status ' + (statusText === '完本' ? 'status-finish' : 'status-ongoing');
+        statusTag.textContent = statusText;
+        card.appendChild(statusTag);
+    }
 
     // 操作按钮
     const actions = document.createElement('div');
@@ -3086,8 +3159,10 @@ function displayNovelInfo(info) {
     // Tags
     const tagsEl = document.getElementById('novelTags');
     tagsEl.innerHTML = '';
-    if (info.extra && info.extra.status) {
-        tagsEl.innerHTML += `<span class="novel-tag status">${escapeHtml(info.extra.status)}</span>`;
+    const rawStatus = info.status || (info.extra && info.extra.status) || '';
+    const statusText = formatNovelStatus(rawStatus);
+    if (statusText) {
+        tagsEl.innerHTML += `<span class="novel-tag status ${statusText === '完本' ? 'tag-finish' : 'tag-ongoing'}">${escapeHtml(statusText)}</span>`;
     }
     if (info.chapter_count) {
         tagsEl.innerHTML += `<span class="novel-tag count">${info.chapter_count} 章节</span>`;
@@ -3672,7 +3747,7 @@ async function loadRankings() {
             empty.style.display = '';
             return;
         }
-        renderNovelGrid(grid, items, true);
+        renderNovelGrid(grid, items, true, { hideStatus: true });
         addLog('榜单加载完成: ' + items.length + ' 本', 'info');
         // 排行榜数据已包含封面（从 sudugu.org 缓存），无需额外获取
     } catch (e) {
@@ -3785,7 +3860,7 @@ async function searchByCategory(source, categoryKey, categoryName) {
             searchEmpty.querySelector('p').textContent = '该分类暂无小说';
             return;
         }
-        renderNovelGrid(grid, novels);
+        renderNovelGrid(grid, novels, false, { hideStatus: true });
         // 速读谷数据已带封面，无需预获取
     } catch (e) {
         grid.innerHTML = '';
