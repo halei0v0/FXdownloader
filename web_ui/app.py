@@ -48,6 +48,7 @@ class Api:
         self._current_task_id = None  # 当前下载任务 ID
         self._download_start_time = None  # 下载开始时间（ETA计算）
         self._download_done_count = 0  # 已完成章节数
+        self._tts_cancel_event = threading.Event()  # TTS 生成取消事件
 
     # ============== 源管理 ==============
 
@@ -1414,6 +1415,140 @@ class Api:
             return {'status': 'ok', 'cleared': count}
         except Exception as e:
             return {'error': str(e)}
+
+    # ============== 语音朗读 (TTS) ==============
+
+    def tts_list_voices(self):
+        """获取可用的中文音色列表（来自 edge-tts 微软在线 TTS）
+
+        Returns:
+            [{'id': 'zh-CN-XiaoxiaoNeural', 'name': '晓晓', 'gender': 'Female'}, ...]
+        """
+        try:
+            import asyncio
+            import edge_tts
+
+            async def _get():
+                voices = await edge_tts.list_voices()
+                zh = [v for v in voices if v.get('Locale', '').startswith('zh')]
+                # 音色中文名映射
+                name_map = {
+                    'XiaoxiaoNeural': '晓晓', 'XiaoyiNeural': '晓伊',
+                    'YunjianNeural': '云健', 'YunxiNeural': '云希',
+                    'YunxiaNeural': '云夏', 'YunyangNeural': '云扬',
+                    'XiaobeiNeural': '小北', 'XiaochenNeural': '晓辰',
+                    'XiaohanNeural': '晓涵', 'XiaomengNeural': '晓梦',
+                    'XiaomoNeural': '晓墨', 'XiaoqiuNeural': '晓秋',
+                    'XiaoruiNeural': '晓瑞', 'XiaoshuangNeural': '晓双',
+                    'XiaoxuanNeural': '晓萱', 'XiaoyanNeural': '晓颜',
+                    'XiaozhenNeural': '晓甄', 'HiuGaaiNeural': '曉佳',
+                    'HiuMaanNeural': '曉曼', 'WanLungNeural': '雲龍',
+                    'HsiaoChenNeural': '曉臻', 'YunJheNeural': '雲哲',
+                }
+                result = []
+                for v in zh:
+                    short_name = v.get('ShortName', '')
+                    # 从 ShortName 提取音色标识（最后一段）
+                    parts = short_name.split('-')
+                    voice_key = parts[-1] if parts else short_name
+                    cn_name = name_map.get(voice_key, voice_key)
+                    locale = v.get('Locale', '')
+                    if 'zh-CN' in locale:
+                        region = '普通话'
+                    elif 'zh-HK' in locale:
+                        region = '粤语'
+                    elif 'zh-TW' in locale:
+                        region = '台湾'
+                    else:
+                        region = locale
+                    gender = '女声' if v.get('Gender') == 'Female' else '男声'
+                    result.append({
+                        'id': short_name,
+                        'name': f'{cn_name}（{region}{gender}）',
+                        'short_name': cn_name,
+                        'gender': v.get('Gender', ''),
+                        'locale': locale,
+                    })
+                return result
+
+            voices = asyncio.run(_get())
+            return voices
+        except ImportError:
+            return {'error': 'edge-tts 未安装，请运行: pip install edge-tts'}
+        except Exception as e:
+            print(f'[TTS] 获取音色列表失败: {e}')
+            return {'error': str(e)}
+
+    def tts_generate(self, text, voice='zh-CN-XiaoxiaoNeural', rate='+0%', pitch='+0Hz'):
+        """生成单段文本的语音（同步阻塞，前端按句切分后逐句调用）
+
+        Args:
+            text: 要朗读的文本（建议不超过 200 字，避免生成时间过长）
+            voice: 音色 ID（如 zh-CN-XiaoxiaoNeural）
+            rate: 语速（如 +0%, -10%, +20%）
+            pitch: 音调（如 +0Hz）
+
+        Returns:
+            {'status': 'ok', 'audio': 'base64...', 'format': 'mp3'}
+            或 {'status': 'cancelled'}
+            或 {'error': '...'}
+        """
+        try:
+            import asyncio
+            import edge_tts
+            import base64
+            import io
+
+            if self._tts_cancel_event.is_set():
+                return {'status': 'cancelled'}
+
+            text = (text or '').strip()
+            if not text:
+                return {'error': '文本为空'}
+            # 清理可能导致 edge-tts 返回空音频的引号/书名号字符
+            # （edge-tts 对中文引号 “”‘’、日文引号「」『』、书名号《》等无法正确合成）
+            text = text.translate(str.maketrans('', '', '“”‘’「」『』《》""'''))
+
+            async def _generate():
+                # 用 BytesIO 接收，避免临时文件
+                buffer = io.BytesIO()
+                communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+                async for chunk in communicate.stream():
+                    if chunk['type'] == 'audio':
+                        buffer.write(chunk['data'])
+                    # 检查取消（在每个 chunk 边界）
+                    # 注意：async 内不能直接访问 threading.Event，但读取是安全的
+                return buffer.getvalue()
+
+            audio_bytes = asyncio.run(_generate())
+            if not audio_bytes:
+                return {'error': '生成音频为空'}
+
+            if self._tts_cancel_event.is_set():
+                return {'status': 'cancelled'}
+
+            audio_b64 = base64.b64encode(audio_bytes).decode('ascii')
+            return {
+                'status': 'ok',
+                'audio': audio_b64,
+                'format': 'mp3',
+                'size': len(audio_bytes),
+            }
+        except ImportError:
+            return {'error': 'edge-tts 未安装，请运行: pip install edge-tts'}
+        except Exception as e:
+            print(f'[TTS] 生成失败: {e}')
+            return {'error': str(e)}
+
+    def tts_stop(self):
+        """停止当前 TTS 生成"""
+        self._tts_cancel_event.set()
+        return {'status': 'ok'}
+
+    def tts_reset_cancel(self):
+        """重置取消标志（开始新朗读前调用）"""
+        self._tts_cancel_event.clear()
+        return {'status': 'ok'}
 
     def get_categories(self):
         """获取所有源的分类列表"""
